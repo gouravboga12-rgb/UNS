@@ -1,0 +1,102 @@
+i am working on a Dynamic  E-commerce website + App ,whose name is UNS HOME CLEANING PRODUCTS PVT LTD ,their work is related to Home & Commercial Cleaning Products Manufacturer like Cleaning Products Manufacturing
+Household Cleaning Products Manufacturer
+Industrial & Commercial Cleaning Products
+FMCG Manufacturing
+Chemical Products Manufacturing,
+
+so the website should have home page ,Categories page , products page , Blog page(about page ) ,Track page , contact page , Add to cart page , product detail page (in product detail page keep review system )(for each product it should have seprate page to view the product completely) ,sign in and sign up page , and a floating whatsaapp button which is the main thing for the customers to reach us ,
+
+
+their products are : 
+
+Product List
+
+
+
+Toilet Cleaner Liquid
+Bathroom Cleaner Liquid
+Floor Cleaner Liquid
+Dish Wash Liquid
+Hand Wash Liquid
+Glass Cleaner Liquid
+Detergent Liquid
+White Phenyl
+Scented Phenyl
+Air Freshener
+Car Wash Shampoo
+Detergent Soap
+
+
+Product Categories:
+
+🏠 Home Cleaning Products
+Floor Cleaner liquid 
+Toilet Cleaner liquid 
+Glass Cleaner liquid 
+Bathroom Cleaner Liquid
+Air Freshener
+White Phenyl
+Scented Phenyl
+🍽️ Kitchen Cleaning Products
+Dish Wash Liquid
+🧼 Personal Hygiene Products
+Hand Wash Liquid
+👕 Laundry Care Products
+Detergent Liquid
+Detergent Soap
+🚗 Vehicle Care Products
+Car Wash Shampoo
+🏢 Commercial Cleaning Products
+Floor Cleaner
+Toilet Cleaner
+Glass Cleaner
+White Phenyl
+Scented Phenyl
+Air Freshener
+
+Total Products: 12
+
+Why Choose UNS?
+
+✓ High Quality Standards
+✓ Affordable Pricing
+✓ Hygienic & Effective Formulations
+✓ Suitable for Home & Commercial Use
+✓ Reliable Distribution Support
+✓ Customer-Focused Service
+
+Our Vision
+
+To become one of India's most trusted cleaning products brands by delivering innovative, affordable, and eco-conscious hygiene solutions.
+
+Our Mission
+
+To promote hygiene, health, and cleanliness through high-quality products that improve everyday living.
+
+Contact Information
+
+UNS HOME CLEANING PRODUCTS PVT LTD
+Siddipet, Telangana, India
+
+Phone / WhatsApp: +91 7396158011
+Email: unshomecleaningproductspvtltd@gmail.com
+
+
+UNS HOME CLEANING PRODUCTS PVT LTD
+"Clean Today... Healthy Tomorrow..."
+
+
+
+the website should be ( suggest a good color palette ) , and matching  text color , use tailwind css for better animation and use Aos animation,
+
+for App use React Native and for website use React js , backend use nodejs and database is supabase with cloudinary for media 
+
+
+
+
+
+I AM USING CODING AGENT SO TO CONVEY THIS THINGS BETTER GENERATE JSON PROMPT FOR THE CODING TO UNDERSTAND MY WEBSITE MAIN AIM AND SCOPE OF THE WEBSITE. 
+
+MAKE SURE TO GENERATE BEST PROMPT
+
+

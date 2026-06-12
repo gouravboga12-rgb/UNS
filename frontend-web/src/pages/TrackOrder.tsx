@@ -1,0 +1,325 @@
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import type { RootState } from '../store';
+import { ProductCard } from '../components/ProductCard';
+import { Search, Loader2, ClipboardList, MapPin, Truck, CheckCircle2 } from 'lucide-react';
+
+export const TrackOrder: React.FC = () => {
+  const [searchParams] = useSearchParams();
+  
+  // Track Mode selector ('order' matches Koparo Clean UI, 'tracking' represents AWB tracking)
+  const [trackMode, setTrackMode] = useState<'order' | 'tracking'>('order');
+
+  // Form input states
+  const [orderId, setOrderId] = useState(searchParams.get('orderId') || '');
+  const [phone, setPhone] = useState(searchParams.get('phone') || '');
+  const [searching, setSearching] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [orderData, setOrderData] = useState<any | null>(null);
+
+  // Selector for bestseller/recommended shelf products
+  const products = useSelector((state: RootState) => state.products.items);
+  const bestSellers = products.filter(p => p.featured).slice(0, 5);
+  const displayProducts = bestSellers.length ? bestSellers : products.slice(0, 5);
+
+  useEffect(() => {
+    const defaultOrder = searchParams.get('orderId');
+    const defaultPhone = searchParams.get('phone');
+    if (defaultOrder && defaultPhone) {
+      handleTrack(defaultOrder, defaultPhone);
+    }
+  }, [searchParams]);
+
+  const handleTrack = async (id: string, ph: string) => {
+    if (!id.trim() || !ph.trim()) return;
+    
+    setSearching(true);
+    setError(null);
+    setOrderData(null);
+
+    try {
+      const response = await fetch(`http://localhost:5000/api/orders/track?orderId=${encodeURIComponent(id)}&phone=${encodeURIComponent(ph)}`);
+      if (response.ok) {
+        const data = await response.json();
+        setOrderData(data);
+      } else {
+        // Fallback for offline demo
+        if (id === '1001' && ph.replace(/[^0-9]/g, '').endsWith('7396158011')) {
+          setOrderData({
+            orderNumber: 1001,
+            customerName: "Ganesh Reddy",
+            customerPhone: "7396158011",
+            shippingAddress: "Plot 42, H.No: 4-12/A, Siddipet, Telangana, 502103",
+            totalAmount: 347.00,
+            status: "Processing",
+            createdAt: "2026-06-12T10:00:00Z",
+            trackingTimeline: [
+              { status: "Order Placed", time: "2026-06-12T10:00:00Z", description: "Order successfully received by UNS systems." },
+              { status: "Processing", time: "2026-06-12T14:30:00Z", description: "Order items have been packed and are ready for pickup." }
+            ],
+            items: [
+              { name: "Toilet Cleaner Liquid", quantity: 2, price: 99.00 },
+              { name: "Floor Cleaner Liquid", quantity: 1, price: 149.00 }
+            ]
+          });
+        } else {
+          setError("No order found matching these details. Verify your Order ID and registered phone number.");
+        }
+      }
+    } catch {
+      // Local fallback on server connection error
+      if (id === '1001' && ph.replace(/[^0-9]/g, '').endsWith('7396158011')) {
+        setOrderData({
+          orderNumber: 1001,
+          customerName: "Ganesh Reddy",
+          customerPhone: "7396158011",
+          shippingAddress: "Plot 42, H.No: 4-12/A, Siddipet, Telangana, 502103",
+          totalAmount: 347.00,
+          status: "Processing",
+          createdAt: "2026-06-12T10:00:00Z",
+          trackingTimeline: [
+            { status: "Order Placed", time: "2026-06-12T10:00:00Z", description: "Order successfully received by UNS systems." },
+            { status: "Processing", time: "2026-06-12T14:30:00Z", description: "Order items have been packed and are ready for pickup." }
+          ],
+          items: [
+            { name: "Toilet Cleaner Liquid", quantity: 2, price: 99.00 },
+            { name: "Floor Cleaner Liquid", quantity: 1, price: 149.00 }
+          ]
+        });
+      } else {
+        setError("Could not connect to verification server. For demo, try Order ID '1001' & Phone '7396158011'.");
+      }
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const onSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    handleTrack(orderId, phone);
+  };
+
+  // Helper to determine status step color
+  const getStepIcon = (status: string) => {
+    switch(status.toLowerCase()) {
+      case 'order placed':
+        return <ClipboardList size={18} />;
+      case 'processing':
+        return <Loader2 size={18} className="animate-spin" />;
+      case 'shipped':
+        return <Truck size={18} />;
+      case 'delivered':
+        return <CheckCircle2 size={18} />;
+      default:
+        return <MapPin size={18} />;
+    }
+  };
+
+  return (
+    <div className="py-12 bg-slate-50 min-h-screen relative overflow-hidden">
+      
+      {/* Decorative Blur Blobs to match About Page visual guidelines */}
+      <div className="absolute top-[10%] left-[-15%] w-[30rem] h-[30rem] rounded-full bg-teal-150/10 blur-3xl pointer-events-none z-0" />
+      <div className="absolute bottom-[20%] right-[-15%] w-[30rem] h-[30rem] rounded-full bg-emerald-150/10 blur-3xl pointer-events-none z-0" />
+
+      <div className="max-w-7xl mx-auto px-4 relative z-10">
+        
+        {/* Top Product Shelf Banner Image (to match Koparo Clean tracking header visual) */}
+        <div className="w-full max-w-4xl mx-auto rounded-3xl overflow-hidden aspect-[21/6] sm:aspect-[21/4] border border-border shadow-soft bg-teal-950 mb-12 relative group select-none">
+          <img 
+            src="/banners/uns_track_banner.png" 
+            alt="UNS Products Shelf banner" 
+            className="w-full h-full object-cover object-center opacity-90 group-hover:scale-101 transition-transform duration-500"
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-teal-950/40 to-transparent" />
+        </div>
+
+        {/* Title & Introduction */}
+        <div className="text-center max-w-xl mx-auto mb-10" data-aos="fade-up">
+          <h1 className="text-3xl font-extrabold font-heading text-heading tracking-tight">Track Your Shipment</h1>
+          <p className="text-xs text-muted mt-2">
+            Stay updated with real-time delivery tracking of your UNS hygiene products.
+          </p>
+        </div>
+
+        {/* tracking form box (Styled to match koparoclean.clickpost.ai/en) */}
+        <div className="bg-white p-8 rounded-3xl border border-border shadow-soft mb-12 max-w-3xl mx-auto space-y-6" data-aos="fade-up">
+          
+          {/* Mode Selector Radio Options */}
+          <div className="flex justify-center items-center gap-8 border-b border-slate-100 pb-4">
+            <label className="flex items-center gap-2.5 text-xs sm:text-sm font-semibold cursor-pointer text-heading select-none">
+              <input
+                type="radio"
+                name="trackMode"
+                checked={trackMode === 'order'}
+                onChange={() => setTrackMode('order')}
+                className="w-4 h-4 text-primary bg-slate-50 border-slate-350 focus:ring-primary focus:ring-2 accent-primary"
+              />
+              Order ID
+            </label>
+            <label className="flex items-center gap-2.5 text-xs sm:text-sm font-semibold cursor-pointer text-heading select-none">
+              <input
+                type="radio"
+                name="trackMode"
+                checked={trackMode === 'tracking'}
+                onChange={() => setTrackMode('tracking')}
+                className="w-4 h-4 text-primary bg-slate-50 border-slate-350 focus:ring-primary focus:ring-2 accent-primary"
+              />
+              Tracking ID (AWB)
+            </label>
+          </div>
+
+          {/* Integrated Horizontal Search Container Bar */}
+          <form onSubmit={onSubmit} className="flex flex-col sm:flex-row items-center bg-slate-50 border border-slate-200 rounded-2xl sm:rounded-full p-2.5 shadow-inner gap-3">
+            <div className="flex flex-1 items-center w-full px-3 gap-2">
+              <span className="text-[10px] font-bold text-muted uppercase tracking-wider whitespace-nowrap select-none">
+                {trackMode === 'order' ? "Order ID" : "Tracking ID"}:
+              </span>
+              <input
+                type="text"
+                required
+                placeholder={trackMode === 'order' ? "Enter Order Number (e.g. 1001)" : "Enter AWB / Tracking ID"}
+                className="w-full bg-transparent border-none py-1.5 px-2 text-xs focus:outline-none text-heading font-medium"
+                value={orderId}
+                onChange={(e) => setOrderId(e.target.value)}
+              />
+            </div>
+            
+            <div className="hidden sm:block w-[1px] h-7 bg-slate-250" />
+            
+            <div className="flex flex-1 items-center w-full px-3 gap-2">
+              <span className="text-[10px] font-bold text-muted uppercase tracking-wider whitespace-nowrap select-none">Phone:</span>
+              <input
+                type="tel"
+                required
+                placeholder="Enter Registered Phone"
+                className="w-full bg-transparent border-none py-1.5 px-2 text-xs focus:outline-none text-heading font-medium"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+              />
+            </div>
+
+            <button
+              type="submit"
+              disabled={searching}
+              className="w-full sm:w-auto bg-black hover:bg-slate-900 text-white font-bold py-3 px-8 rounded-xl sm:rounded-full text-xs shadow-md transition-all duration-300 transform active:scale-97 flex items-center justify-center gap-1.5 flex-shrink-0"
+            >
+              {searching ? (
+                <>
+                  <Loader2 size={14} className="animate-spin" /> Verifying...
+                </>
+              ) : (
+                "Track Your Order"
+              )}
+            </button>
+          </form>
+
+          {error && (
+            <div className="bg-red-50 text-red-600 border border-red-100 p-3 rounded-lg text-xs text-center font-medium">
+              {error}
+            </div>
+          )}
+        </div>
+
+        {/* Tracking Details Results */}
+        {orderData && (
+          <div className="bg-white p-6 sm:p-8 rounded-3xl border border-border shadow-soft max-w-4xl mx-auto mb-16 space-y-8 animate-fadeIn" data-aos="fade-up">
+            
+            {/* Summary Row */}
+            <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-6 gap-4">
+              <div>
+                <span className="text-[10px] text-muted font-bold uppercase tracking-wider">Order Reference</span>
+                <h3 className="font-heading font-bold text-lg text-heading mt-0.5">UNS-#{orderData.orderNumber}</h3>
+              </div>
+              <div>
+                <span className="text-[10px] text-muted font-bold uppercase tracking-wider">Recipient Name</span>
+                <p className="text-xs font-semibold text-heading mt-0.5">{orderData.customerName}</p>
+              </div>
+              <div>
+                <span className="text-[10px] text-muted font-bold uppercase tracking-wider">Estimated Total</span>
+                <p className="text-xs font-bold text-primary mt-0.5">₹{orderData.totalAmount.toFixed(2)}</p>
+              </div>
+              <div>
+                <span className="text-[10px] text-muted font-bold uppercase tracking-wider">Current Status</span>
+                <span className="inline-block mt-0.5 px-2.5 py-0.5 bg-teal-50 border border-teal-100 text-primary text-[10px] font-bold rounded-full uppercase">
+                  {orderData.status}
+                </span>
+              </div>
+            </div>
+
+            {/* Timeline */}
+            <div className="space-y-6">
+              <h4 className="font-heading font-bold text-sm text-heading mb-4">Shipment Progress Timeline</h4>
+              
+              <div className="relative border-l-2 border-slate-100 pl-6 ml-3 space-y-8">
+                {orderData.trackingTimeline.map((item: any, index: number) => {
+                  const isLatest = index === orderData.trackingTimeline.length - 1;
+                  
+                  return (
+                    <div key={index} className="relative">
+                      {/* Timeline Dot Indicator */}
+                      <span className={`absolute -left-[35px] top-0 w-6 h-6 rounded-full flex items-center justify-center border-2 ${
+                        isLatest 
+                          ? 'bg-primary border-primary text-white animate-pulse' 
+                          : 'bg-teal-50 border-teal-200 text-primary'
+                      }`}>
+                        {getStepIcon(item.status)}
+                      </span>
+
+                      <div>
+                        <div className="flex items-center justify-between">
+                          <h5 className="font-heading font-bold text-xs sm:text-sm text-heading">{item.status}</h5>
+                          <span className="text-[10px] text-muted">{new Date(item.time).toLocaleString()}</span>
+                        </div>
+                        <p className="text-xs text-slate-500 mt-1 leading-relaxed">{item.description}</p>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Items Summary */}
+            <div className="border-t border-slate-100 pt-6">
+              <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-muted mb-4">Items in Package</h4>
+              <div className="space-y-3">
+                {orderData.items.map((item: any, i: number) => (
+                  <div key={i} className="flex justify-between items-center text-xs">
+                    <span className="text-slate-650">{item.name} <strong className="text-heading text-[10px]">x{item.quantity}</strong></span>
+                    <span className="font-semibold text-heading">₹{(item.price * item.quantity).toFixed(2)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* Ship Address */}
+            <div className="border-t border-slate-100 pt-6 text-xs space-y-2">
+              <strong className="font-bold text-heading uppercase tracking-wider text-[10px] block text-muted">Shipping Destination</strong>
+              <p className="text-slate-600 leading-relaxed">{orderData.shippingAddress}</p>
+            </div>
+
+          </div>
+        )}
+
+        {/* Recommended Products Shelf (Bestsellers Shelf styled to match Koparo Clean tracking footer) */}
+        <div className="space-y-6 pt-12 border-t border-slate-200/60" data-aos="fade-up">
+          <div className="text-center max-w-xl mx-auto">
+            <span className="text-[10px] font-bold text-primary bg-teal-50 px-2.5 py-1 rounded-full uppercase tracking-wider">UNS Bestsellers</span>
+            <h3 className="text-xl sm:text-2xl font-bold font-heading text-heading mt-3">You May Also Like</h3>
+            <p className="text-xs text-muted mt-1">Recommended plant-based, safe formulations chosen by our community of families.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-6 pt-4">
+            {displayProducts.map((product) => (
+              <ProductCard key={product.id} product={product} />
+            ))}
+          </div>
+        </div>
+
+      </div>
+    </div>
+  );
+};
+
+export default TrackOrder;
