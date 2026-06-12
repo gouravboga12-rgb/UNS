@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Calendar, User, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle, X, ZoomIn, Star, Truck, Leaf, Award, Building2, FlaskConical, Handshake } from 'lucide-react';
+import { Calendar, User, ArrowLeft, ArrowRight, ShieldCheck, CheckCircle, X, ZoomIn, Star, Truck, Leaf, Award, Building2, Handshake } from 'lucide-react';
 
 interface Blog {
   id: string;

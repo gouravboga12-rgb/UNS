@@ -1,8 +1,8 @@
 import React, { useState, useRef } from 'react';
 import {
   Phone, Mail, MapPin, MessageSquare, Send, CheckCircle2,
-  FileText, Building2, User, Hash, ClipboardList, Upload,
-  Calendar, Package, ChevronRight
+  Building2, User, Hash, ClipboardList, Upload,
+  Package, ChevronRight
 } from 'lucide-react';
 
 const inputClass =

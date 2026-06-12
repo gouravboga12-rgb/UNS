@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { ProductCard } from '../components/ProductCard';
-import { Search, Loader2, ClipboardList, MapPin, Truck, CheckCircle2 } from 'lucide-react';
+import { Loader2, ClipboardList, MapPin, Truck, CheckCircle2 } from 'lucide-react';
 
 export const TrackOrder: React.FC = () => {
   const [searchParams] = useSearchParams();
