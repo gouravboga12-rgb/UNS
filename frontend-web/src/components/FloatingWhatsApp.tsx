@@ -28,7 +28,7 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ productName,
   return (
     <button
       onClick={handleClick}
-      className="fixed bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded-full p-4 shadow-lg flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95 animate-whatsapp-pulse group"
+      className="fixed bottom-20 lg:bottom-6 right-6 z-50 bg-green-500 hover:bg-green-600 text-white rounded-full p-4 shadow-lg flex items-center justify-center transition-all duration-300 transform hover:scale-110 active:scale-95 animate-whatsapp-pulse group"
       aria-label="Contact UNS on WhatsApp"
       title="Chat with UNS"
     >
