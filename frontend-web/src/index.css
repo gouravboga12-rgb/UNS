@@ -6,7 +6,7 @@
 
 @layer base {
   body {
-    @apply bg-background text-body font-sans antialiased scroll-smooth;
+    @apply bg-background text-body font-sans antialiased scroll-smooth overflow-x-hidden;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading text-heading font-semibold tracking-tight;

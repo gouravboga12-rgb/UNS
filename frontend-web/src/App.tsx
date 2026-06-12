@@ -42,7 +42,7 @@ const AppContent: React.FC = () => {
 
   return (
     <Router>
-      <div className="flex flex-col min-h-screen bg-background">
+      <div className="flex flex-col min-h-screen bg-background overflow-x-hidden">
         <Navbar />
         
         <main className="flex-grow pb-16 lg:pb-0">
