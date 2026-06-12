@@ -6,6 +6,7 @@ import { fetchProducts, fetchCategories } from './store/productsSlice';
 import { Navbar } from './components/Navbar';
 import { Footer } from './components/Footer';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
+import { BottomNavigation } from './components/BottomNavigation';
 
 // Pages lazy/direct import
 import { Home } from './pages/Home';
@@ -44,7 +45,7 @@ const AppContent: React.FC = () => {
       <div className="flex flex-col min-h-screen bg-background">
         <Navbar />
         
-        <main className="flex-grow">
+        <main className="flex-grow pb-16 lg:pb-0">
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/categories" element={<Categories />} />
@@ -62,6 +63,7 @@ const AppContent: React.FC = () => {
 
         <Footer />
         <FloatingWhatsApp />
+        <BottomNavigation />
       </div>
     </Router>
   );
