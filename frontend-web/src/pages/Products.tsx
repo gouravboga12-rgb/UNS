@@ -239,7 +239,7 @@ export const Products: React.FC = () => {
                 </button>
               </div>
             ) : viewMode === 'grid' ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-3 gap-6">
+              <div className="grid grid-cols-2 sm:grid-cols-2 xl:grid-cols-3 gap-3 sm:gap-6">
                 {sortedProducts.map(prod => (
                   <div key={prod.id} className="animate-fadeIn">
                     <ProductCard product={prod} />

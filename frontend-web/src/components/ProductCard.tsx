@@ -54,73 +54,73 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       </Link>
 
       {/* Product Body */}
-      <div className="p-4 flex-1 flex flex-col justify-between">
+      <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">
         <div>
           {/* Category */}
-          <span className="text-[11px] text-primary font-bold uppercase tracking-wider block mb-1">
+          <span className="text-[9px] sm:text-[11px] text-primary font-bold uppercase tracking-wider block mb-1">
             {product.category}
           </span>
           
           {/* Title */}
           <Link to={`/products/${product.slug}`}>
-            <h3 className="text-sm font-semibold text-heading hover:text-primary transition-colors line-clamp-1 mb-1.5">
+            <h3 className="text-xs sm:text-sm font-semibold text-heading hover:text-primary transition-colors line-clamp-1 mb-1">
               {product.name}
             </h3>
           </Link>
 
           {/* Rating */}
-          <div className="flex items-center gap-1 mb-3">
+          <div className="flex items-center gap-1 mb-2">
             <div className="flex text-amber-400">
               {[...Array(5)].map((_, i) => (
                 <Star
                   key={i}
-                  size={12}
+                  size={10}
                   className={i < Math.floor(product.rating) ? "fill-current" : "text-slate-200"}
                 />
               ))}
             </div>
-            <span className="text-[11px] text-muted font-semibold mt-0.5">{product.rating}</span>
+            <span className="text-[10px] sm:text-[11px] text-muted font-semibold mt-0.5">{product.rating}</span>
           </div>
 
           {/* Short description */}
-          <p className="text-xs text-muted line-clamp-2 mb-4">
+          <p className="text-[10px] sm:text-xs text-muted line-clamp-2 mb-3">
             {product.shortDescription}
           </p>
         </div>
 
         {/* Price & Action Area */}
         <div>
-          <div className="flex items-baseline gap-2 mb-3">
-            <span className="text-base font-bold text-primary">
+          <div className="flex items-baseline gap-1.5 mb-2.5">
+            <span className="text-xs sm:text-base font-bold text-primary">
               ₹{product.discountPrice.toFixed(2)}
             </span>
             {product.discountPrice < product.price && (
-              <span className="text-xs text-muted line-through">
+              <span className="text-[10px] sm:text-xs text-muted line-through">
                 ₹{product.price.toFixed(2)}
               </span>
             )}
           </div>
 
           {/* Quick Actions Grid */}
-          <div className="grid grid-cols-2 gap-2">
+          <div className="grid grid-cols-1 min-[370px]:grid-cols-2 gap-1.5">
             
             {/* Add to Cart */}
             <button
               onClick={handleAddToCart}
-              className="flex items-center justify-center gap-1.5 bg-primary hover:bg-primary-light text-white text-xs font-semibold py-2 px-3 rounded-lg transition-colors shadow-sm"
+              className="flex items-center justify-center gap-1 bg-primary hover:bg-primary-light text-white text-[10px] sm:text-xs font-semibold py-1.5 px-2 rounded-lg transition-colors shadow-sm"
               title="Add to Cart"
             >
-              <ShoppingCart size={14} />
+              <ShoppingCart size={12} />
               <span>Add</span>
             </button>
 
             {/* WhatsApp enquiry */}
             <button
               onClick={handleWhatsAppEnquiry}
-              className="flex items-center justify-center gap-1.5 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 text-xs font-semibold py-2 px-3 rounded-lg transition-colors"
+              className="flex items-center justify-center gap-1 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 text-[10px] sm:text-xs font-semibold py-1.5 px-2 rounded-lg transition-colors"
               title="Inquire on WhatsApp"
             >
-              <MessageSquare size={14} />
+              <MessageSquare size={12} />
               <span>Inquire</span>
             </button>
 
