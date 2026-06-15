@@ -184,7 +184,7 @@ export const Contact: React.FC = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10">
 
           {/* Left sidebar */}
-          <div className="lg:col-span-4 space-y-6" data-aos="fade-right">
+          <div className="lg:col-span-4 space-y-6 order-2 lg:order-1" data-aos="fade-right">
             {/* WhatsApp CTA */}
             <div className="bg-gradient-to-tr from-teal-900 to-teal-950 text-white p-6 rounded-2xl shadow-lg relative overflow-hidden">
               <div className="absolute inset-0 bg-[radial-gradient(circle_at_30%_30%,#14b8a6,transparent_60%)] opacity-30" />
@@ -244,7 +244,7 @@ export const Contact: React.FC = () => {
           </div>
 
           {/* Right: Active Form (8 cols) */}
-          <div className="lg:col-span-8" data-aos="fade-left">
+          <div className="lg:col-span-8 order-1 lg:order-2" data-aos="fade-left">
 
             {/* ═══════ GENERAL ENQUIRY ═══════ */}
             {activeTab === 'enquiry' && (

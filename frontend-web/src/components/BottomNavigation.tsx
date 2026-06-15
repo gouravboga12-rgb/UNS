@@ -24,7 +24,7 @@ export const BottomNavigation: React.FC = () => {
       
       {/* Categories */}
       <Link
-        to="/categories"
+        to="/products"
         className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-center transition-all ${
           isActive(['/categories', '/products']) ? 'text-primary font-bold' : 'text-slate-400 hover:text-slate-600'
         }`}

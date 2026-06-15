@@ -85,7 +85,7 @@ export const Home: React.FC = () => {
   ];
 
   const showcaseBanners = [
-    { id: 'catalog', name: 'Product Catalog & Pricing', url: '/banners/p24.jpeg', title: 'Complete UNS Product Pricing Grid', desc: 'Browse all our 12 home and commercial cleaning formulations with maximum retail price (MRP) information.' },
+    { id: 'catalog', name: 'Product Catalog', url: '/banners/about_lineup.png', title: 'Complete UNS Product Grid', desc: 'Browse all our 12 home and commercial cleaning formulations.' },
     { id: 'range', name: 'Product Range Flyer', url: '/banners/p11.jpeg', title: 'UNS Cleaning Range & Uses', desc: 'An official overview flyer showcasing the exact purposes, features and applications of the UNS chemical range.' },
     { id: 'brochure', name: 'UNS Company Brochure', url: '/banners/p14.jpeg', title: '3-Panel Corporate Brochure', desc: 'Learn more about why to choose UNS, our high-quality raw materials, and read our detailed company catalog.' },
     { id: 'dealer', name: 'Dealer & Distributor Flyer', url: '/banners/p1.jpeg', title: 'B2B Distributorship Flyer', desc: 'Interested in becoming a dealer? Check out our official trade brochure with contact details and address.' },
@@ -311,7 +311,7 @@ export const Home: React.FC = () => {
             <p className="text-muted mt-2">Our customer favorites, rated 5-stars by thousands of families across South India.</p>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-8">
             {featuredProducts.map((prod, index) => {
               const socialProofLabels = [
                 "Trusted by 1.8k+ families",

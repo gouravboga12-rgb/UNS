@@ -24,7 +24,7 @@ export const About: React.FC = () => {
       title: "5 Essential Hygiene Habits to Prevent Infections at Home",
       slug: "5-essential-hygiene-habits",
       summary: "Simple everyday home cleaning and hygiene practices that keep germs and bacteria at bay, protecting your family.",
-      content: "## Keeping Germs Away: A Simple Guide\n\nMaintaining a clean home is the first line of defense against infections. Here are 5 critical habits to adopt:\n\n1. **High-Touch Surface Disinfection**: Regularly sanitize doorknobs, switches, remote controls, and countertops using a quality cleaner like *UNS Glass or Bathroom Cleaner*.\n2. **Clean Floors Daily**: Floors accumulate dust, pet dander, and outside dirt. Use a disinfectant floor cleaner like the *UNS Floor Cleaner* to keep floors safe for children.\n3. **Sanitize Utility Outlets**: Kitchen sinks and toilet bowls are breeding grounds for bacteria. Clean them with targeted gels at least twice a week.\n4. **Correct Handwashing**: Wash hands with antibacterial hand wash for at least 20 seconds before meals and after returning from outside.\n5. **Ventilate Rooms**: Open windows to let fresh air circulate and clear stale indoor pollutants.",
+      content: "Keeping Germs Away: A Simple Guide\n\nMaintaining a clean home is the first line of defense against infections. Here are 5 critical habits to adopt:\n\n1. High-Touch Surface Disinfection: Regularly sanitize doorknobs, switches, remote controls, and countertops using a quality cleaner like UNS Glass or Bathroom Cleaner.\n2. Clean Floors Daily: Floors accumulate dust, pet dander, and outside dirt. Use a disinfectant floor cleaner like the UNS Floor Cleaner to keep floors safe for children.\n3. Sanitize Utility Outlets: Kitchen sinks and toilet bowls are breeding grounds for bacteria. Clean them with targeted gels at least twice a week.\n4. Correct Handwashing: Wash hands with antibacterial hand wash for at least 20 seconds before meals and after returning from outside.\n5. Ventilate Rooms: Open windows to let fresh air circulate and clear stale indoor pollutants.",
       imageUrl: "/banners/p7.jpeg",
       author: "Dr. Sunitha Sharma (Hygiene Expert)",
       createdAt: "2026-06-08T09:00:00Z",
@@ -36,7 +36,7 @@ export const About: React.FC = () => {
       title: "How to Remove Hard Water Stains from Bathroom Tiles & Taps",
       slug: "remove-hard-water-stains",
       summary: "Tired of white crusty deposits on your taps and tiles? Learn the science behind scaling and how to dissolve it effortlessly.",
-      content: "## Understanding Hard Water Stains\n\nHard water contains high amounts of minerals like calcium and magnesium. When water evaporates, it leaves behind crusty, white deposits known as limescale. These stains look unsightly and can clog faucets.\n\n### The Solution\n\nTo dissolve limescale, you need an acid-safe formulation. Our *UNS Bathroom Cleaner Liquid* is designed to dissolve mineral scales quickly without corroding chrome plumbing fixtures.\n\n### Step-by-Step Guide:\n1. Apply the bathroom cleaner directly onto the scaling.\n2. Allow it to sit for 10 minutes to break the mineral bonds.\n3. Use a soft scrub pad to wipe the scales away.\n4. Rinse with clean water and dry immediately to prevent new deposits.",
+      content: "Understanding Hard Water Stains\n\nHard water contains high amounts of minerals like calcium and magnesium. When water evaporates, it leaves behind crusty, white deposits known as limescale. These stains look unsightly and can clog faucets.\n\nSolution\n\nTo dissolve limescale, you need an acid-safe formulation. Our UNS Bathroom Cleaner Liquid is designed to dissolve mineral scales quickly without corroding chrome plumbing fixtures.\n\nStep-by-Step Guide:\n1. Apply the bathroom cleaner directly onto the scaling.\n2. Allow it to sit for 10 minutes to break the mineral bonds.\n3. Use a soft scrub pad to wipe the scales away.\n4. Rinse with clean water and dry immediately to prevent new deposits.",
       imageUrl: "/banners/p14-bathroom.jpeg",
       author: "UNS Product Development Team",
       createdAt: "2026-06-05T14:30:00Z",
@@ -45,15 +45,15 @@ export const About: React.FC = () => {
     },
     {
       id: "blog-3",
-      title: "Complete Guide to UNS Cleaning Product Range & Prices",
-      slug: "uns-product-range-guide",
-      summary: "Explore our full line of 12+ household, commercial, and personal hygiene cleaning formulations. Discover which product works best for every need.",
-      content: "## UNS Complete Product Catalog\n\nUNS HOME CLEANING PRODUCTS PVT LTD offers a comprehensive range of 12+ professional-grade cleaning solutions at affordable MRP prices:\n\n### Household Cleaning\n- **Toilet Cleaner Liquid** – MRP ₹90 | Kills 99.9% germs, removes tough stains & bad odors.\n- **Bathroom Cleaner Liquid** – MRP ₹95 | Dissolves soap scum, shines tiles & fittings.\n- **Floor Cleaner Liquid** – MRP ₹90 | Deep cleaning with long-lasting floral fragrance.\n- **Glass Cleaner Liquid** – MRP ₹90 | Streak-free shine, dust-repellent formula.\n\n### Kitchen & Laundry\n- **Dish Wash Liquid** – MRP ₹90 | Powerful grease cutting, safe on hands.\n- **Detergent Liquid** – MRP ₹120 | 3x cleaning power, brighter clothes.\n- **Detergent Soap** – MRP ₹25 | Active clean, gentle on fabric.\n\n### Personal Hygiene\n- **Hand Wash Liquid** – MRP ₹90 | Soft on hands, tough on germs.\n- **Air Freshener** – MRP ₹210 | Long-lasting fragrance, refreshes every moment.\n\n### Industrial & Commercial\n- **White Phenyl** – MRP ₹90 | Kills germs, cleans & freshens all surfaces.\n- **Colour/Scented Phenyl** – MRP ₹90 | Strong cleaning with pleasant fragrance.\n- **Car Wash Shampoo** – MRP ₹210 | Rich foam, sparkling shine.\n\n*Bulk orders and dealership enquiries welcome. Call: 7396158011*",
-      imageUrl: "/banners/p24.jpeg",
-      author: "UNS Marketing Team",
+      title: "How to Choose the Right UNS Product for Every Cleaning Need",
+      slug: "choosing-right-uns-cleaning-products",
+      summary: "A complete guide to selecting the ideal UNS formulations for floors, kitchens, bathrooms, laundry, and commercial surfaces to get maximum shine and germ protection.",
+      content: "Selecting the Perfect Formulation for Your Home\n\nMaintaining a clean and hygienic environment is easy when you use the right cleaning agent. Here is how our professional-grade formulations target different surfaces:\n\n1. Hard Surface & Floor Care\nFor daily floor cleaning, use UNS Floor Cleaner. Its deep-action formula works on marble, granite, ceramic tiles, and vinyl, removing dirt while leaving a long-lasting floral fragrance. For heavy-duty sanitation, disinfection, and deodorizing, choose UNS White Phenyl or Scented Phenyl, which are infused with grade-one pine essential oils.\n\n2. Bathroom & Glass Maintenance\nBathroom scaling and soap scum require specialized formulas. UNS Bathroom Cleaner dissolves stubborn white mineral deposits, limescale, and grime from showerheads, taps, and tiles. For ceramic toilet bowls, UNS Toilet Cleaner kills germs, fights bad odors, and removes hard water rings. For windows, mirrors, glass tables, and car windshields, use UNS Glass Cleaner for a streak-free shine.\n\n3. Kitchen & Dish Care\nTough grease and food residue on utensils need a strong degreaser. UNS Dish Wash Liquid easily cuts through oil and burnt food on steel, glass, and non-stick cookware while remaining gentle and safe on your hands.\n\n4. Laundry & Fabric Hygiene\nKeep clothes clean and fresh using UNS Detergent Liquid, which penetrates deep into fabrics to lift stains, preserve colors, and protect fibers. For handwashing collars or washing single garments, use UNS Detergent Soap to scrub away dirt easily.\n\n5. Personal Hand Hygiene\nClean hands prevent the spread of household infections. UNS Hand Wash Liquid features an antibacterial formula that washes away germs, combined with skin-softening moisturizers to keep hands smooth and hydrated even with frequent use.",
+      imageUrl: "/banners/about_lineup.png",
+      author: "UNS Product Specialists",
       createdAt: "2026-06-10T11:00:00Z",
-      seoTitle: "UNS Product Range & MRP Price List - Complete Cleaning Catalog",
-      seoDescription: "Explore UNS Home Cleaning Products full range including Toilet Cleaner, Floor Cleaner, Hand Wash, Detergent, Phenyl and more with MRP pricing."
+      seoTitle: "How to Choose the Right UNS Product for Every Cleaning Need",
+      seoDescription: "Discover which UNS home cleaning formulation is best for floors, kitchens, bathroom tiles, glass, laundry, and hand hygiene without looking at prices."
     }
   ];
 
@@ -405,30 +405,6 @@ export const About: React.FC = () => {
                     </div>
                   </div>
                   <span className="text-[10px] text-muted font-medium italic">Figure: Official UNS 3-Panel Company Brochure (English)</span>
-                </div>
-              </div>
-            </section>
-
-            {/* 5. Product Pricing Grid - p24.jpeg reference */}
-            <section className="space-y-6" data-aos="fade-up">
-              <div className="text-center max-w-2xl mx-auto">
-                <span className="text-[10px] font-bold text-primary uppercase tracking-wider bg-teal-50 px-2.5 py-1 rounded-full">Full Product Pricing</span>
-                <h3 className="text-2xl sm:text-3xl font-bold font-heading text-heading mt-3">Complete Catalog with MRP Pricing</h3>
-                <p className="text-xs text-muted mt-2">Our full 12-product pricing grid – all at affordable factory-direct rates. Click to zoom and explore all products.</p>
-              </div>
-              <div
-                onClick={() => setZoomImageUrl('/banners/p24.jpeg')}
-                className="w-full max-w-4xl mx-auto rounded-2xl overflow-hidden border border-border cursor-zoom-in relative group shadow-sm"
-              >
-                <img
-                  src="/banners/p24.jpeg"
-                  alt="UNS Product Pricing Grid"
-                  className="w-full h-full object-cover group-hover:scale-101 transition-transform duration-500"
-                />
-                <div className="absolute inset-0 bg-black/25 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <div className="bg-white/90 text-teal-900 rounded-full p-3 shadow-md flex items-center gap-1.5 text-xs font-bold">
-                    <ZoomIn size={16} /> View Full Pricing Catalog
-                  </div>
                 </div>
               </div>
             </section>

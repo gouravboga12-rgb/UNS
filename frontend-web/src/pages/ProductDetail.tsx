@@ -3,6 +3,7 @@ import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
 import { addItem } from '../store/cartSlice';
+import { showToast } from '../store/toastSlice';
 import { 
   ShoppingCart, 
   MessageSquare, 
@@ -33,10 +34,49 @@ export const ProductDetail: React.FC = () => {
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
+  // Volume Variants Logic
+  const vol = product?.specifications?.["Volume"] || "";
+  const isLiquid = !!vol && 
+    !vol.toLowerCase().includes("kg") && 
+    !vol.toLowerCase().includes("g") &&
+    !product?.name.toLowerCase().includes("powder") &&
+    !product?.name.toLowerCase().includes("soap");
+
+  const LIQUID_SIZES = ['250ml', '500ml', '1 Litre', '2 Litre', '5 Litre'];
+  const SIZE_VALUES: Record<string, number> = {
+    '250ml': 1.0,
+    '500ml': 1.6,
+    '1 Litre': 2.8,
+    '2 Litre': 5.0,
+    '5 Litre': 11.0
+  };
+
+  const [selectedSize, setSelectedSize] = useState<string>('');
+
   useEffect(() => {
     if (product) {
       setActiveImage(product.images[0]);
       setReviewsList(product.reviews || []);
+
+      const pVol = product.specifications?.["Volume"] || "";
+      const pIsLiquid = !!pVol && 
+        !pVol.toLowerCase().includes("kg") && 
+        !pVol.toLowerCase().includes("g") &&
+        !product.name.toLowerCase().includes("powder") &&
+        !product.name.toLowerCase().includes("soap");
+
+      if (pIsLiquid) {
+        const trimmed = pVol.trim();
+        let initSize = '500ml';
+        if (trimmed.toLowerCase().startsWith('250') || trimmed.toLowerCase().startsWith('300')) initSize = '250ml';
+        else if (trimmed.toLowerCase().startsWith('500')) initSize = '500ml';
+        else if (trimmed.toLowerCase().startsWith('1')) initSize = '1 Litre';
+        else if (trimmed.toLowerCase().startsWith('2')) initSize = '2 Litre';
+        else if (trimmed.toLowerCase().startsWith('5')) initSize = '5 Litre';
+        setSelectedSize(initSize);
+      } else {
+        setSelectedSize('');
+      }
     }
   }, [product]);
 
@@ -52,18 +92,50 @@ export const ProductDetail: React.FC = () => {
     );
   }
 
+  const getCalculatedPrices = () => {
+    if (!isLiquid || !selectedSize) {
+      return { price: product.price, discountPrice: product.discountPrice };
+    }
+    
+    const baseVolume = vol.trim();
+    let normalizedBase = baseVolume;
+    if (normalizedBase.toLowerCase().startsWith('250') || normalizedBase.toLowerCase().startsWith('300')) normalizedBase = '250ml';
+    else if (normalizedBase.toLowerCase().startsWith('500')) normalizedBase = '500ml';
+    else if (normalizedBase.toLowerCase().startsWith('1')) normalizedBase = '1 Litre';
+    else if (normalizedBase.toLowerCase().startsWith('2')) normalizedBase = '2 Litre';
+    else if (normalizedBase.toLowerCase().startsWith('5')) normalizedBase = '5 Litre';
+    
+    const baseVal = SIZE_VALUES[normalizedBase] || 1.6;
+    const targetVal = SIZE_VALUES[selectedSize] || 1.6;
+    const multiplier = targetVal / baseVal;
+    
+    return {
+      price: Math.round(product.price * multiplier),
+      discountPrice: Math.round(product.discountPrice * multiplier)
+    };
+  };
+
+  const { price: currentPrice, discountPrice: currentDiscountPrice } = getCalculatedPrices();
+
   const handleAddToCart = () => {
+    const itemId = isLiquid ? `${product.id}-${selectedSize}` : product.id;
+    const itemName = isLiquid ? `${product.name} (${selectedSize})` : product.name;
+
     // Add multiple quantities
     for (let i = 0; i < quantity; i++) {
-      dispatch(addItem({
-        id: product.id,
-        name: product.name,
+       dispatch(addItem({
+        id: itemId,
+        name: itemName,
         slug: product.slug,
-        price: product.price,
-        discountPrice: product.discountPrice,
+        price: currentPrice,
+        discountPrice: currentDiscountPrice,
         imageUrl: product.images[0]
       }));
     }
+    dispatch(showToast({
+      productName: itemName,
+      imageUrl: product.images[0]
+    }));
   };
 
   const handleBuyNow = () => {
@@ -73,7 +145,8 @@ export const ProductDetail: React.FC = () => {
 
   const handleWhatsAppEnquiry = () => {
     const whatsappNumber = "917396158011";
-    const message = encodeURIComponent(`Hello UNS! I am interested in inquiring about "${product.name}". Please share product pricing, package choices, and shipping details.`);
+    const sizeStr = isLiquid ? ` (${selectedSize})` : "";
+    const message = encodeURIComponent(`Hello UNS! I am interested in inquiring about "${product.name}${sizeStr}". Please share product pricing, package choices, and shipping details.`);
     window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${message}`, '_blank');
   };
 
@@ -101,8 +174,8 @@ export const ProductDetail: React.FC = () => {
     }
   };
 
-  const discountPercent = product.discountPrice && product.discountPrice < product.price
-    ? Math.round(((product.price - product.discountPrice) / product.price) * 100)
+  const discountPercent = currentDiscountPrice && currentDiscountPrice < currentPrice
+    ? Math.round(((currentPrice - currentDiscountPrice) / currentPrice) * 100)
     : 0;
 
   return (
@@ -178,9 +251,9 @@ export const ProductDetail: React.FC = () => {
               <div className="bg-slate-50 p-4 rounded-xl border border-slate-100 flex items-center justify-between">
                 <div>
                   <div className="flex items-baseline gap-2">
-                    <span className="text-2xl sm:text-3xl font-black text-primary">₹{product.discountPrice.toFixed(2)}</span>
-                    {product.discountPrice < product.price && (
-                      <span className="text-sm text-muted line-through">₹{product.price.toFixed(2)}</span>
+                    <span className="text-2xl sm:text-3xl font-black text-primary">₹{currentDiscountPrice.toFixed(2)}</span>
+                    {currentDiscountPrice < currentPrice && (
+                      <span className="text-sm text-muted line-through">₹{currentPrice.toFixed(2)}</span>
                     )}
                   </div>
                   <span className="text-[10px] text-muted font-medium block mt-1">(Prices include GST)</span>
@@ -191,6 +264,33 @@ export const ProductDetail: React.FC = () => {
                   </span>
                 )}
               </div>
+
+              {/* Volume Variants Row Selector */}
+              {isLiquid && (
+                <div className="space-y-2.5">
+                  <span className="block text-xs font-bold uppercase tracking-wider text-muted">
+                    Select Volume:
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {LIQUID_SIZES.map((size) => {
+                      const active = selectedSize === size;
+                      return (
+                        <button
+                          key={size}
+                          onClick={() => setSelectedSize(size)}
+                          className={`px-4 py-2 text-xs font-bold rounded-lg border transition-all ${
+                            active
+                              ? 'border-primary bg-primary text-white shadow-sm font-bold'
+                              : 'border-border bg-white text-heading hover:border-slate-300 font-semibold'
+                          }`}
+                        >
+                          {size}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
 
               {/* Description snippet */}
               <div 
@@ -260,7 +360,9 @@ export const ProductDetail: React.FC = () => {
                       {Object.keys(product.specifications).map((key) => (
                         <div key={key} className="grid grid-cols-2 p-3 bg-white hover:bg-slate-50">
                           <span className="font-semibold text-heading">{key}</span>
-                          <span className="text-body">{product.specifications[key]}</span>
+                          <span className="text-body">
+                            {key === 'Volume' && selectedSize ? selectedSize : product.specifications[key]}
+                          </span>
                         </div>
                       ))}
                     </div>
@@ -315,9 +417,9 @@ export const ProductDetail: React.FC = () => {
               {/* Priority Floating WhatsApp Enquiry Trigger */}
               <button
                 onClick={handleWhatsAppEnquiry}
-                className="w-full bg-green-500 hover:bg-green-600 text-white font-bold py-3.5 px-6 rounded-xl transition-all flex items-center justify-center gap-2 shadow-md text-sm sm:text-base animate-whatsapp-pulse"
+                className="w-full border border-green-500 text-green-600 hover:bg-green-50 font-bold py-2.5 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-xs text-xs sm:text-sm"
               >
-                <MessageSquare className="fill-current" size={20} />
+                <MessageSquare className="fill-current" size={16} />
                 Order / Enquire via WhatsApp
               </button>
 

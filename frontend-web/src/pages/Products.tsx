@@ -15,7 +15,7 @@ export const Products: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [selectedCategory, setSelectedCategory] = useState((searchParams.get('category') || 'all').replace(/_/g, '-'));
   const [sortBy, setSortBy] = useState('latest');
-  const [priceRange, setPriceRange] = useState<number>(1000);
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
 
   // Sync search parameters from URL
   useEffect(() => {
@@ -30,8 +30,8 @@ export const Products: React.FC = () => {
     setSearchQuery('');
     setSelectedCategory('all');
     setSortBy('latest');
-    setPriceRange(1000);
     setSearchParams({});
+    setShowMobileFilters(false);
   };
 
   // Filter and Sort Logic
@@ -50,25 +50,11 @@ export const Products: React.FC = () => {
       const matchDesc = product.shortDescription.toLowerCase().includes(q);
       if (!matchName && !matchDesc) return false;
     }
-    // 3. Price Filter
-    const activePrice = product.discountPrice || product.price;
-    if (activePrice > priceRange) {
-      return false;
-    }
     return true;
   });
 
   // Sorting
   const sortedProducts = [...filteredProducts].sort((a, b) => {
-    const priceA = a.discountPrice || a.price;
-    const priceB = b.discountPrice || b.price;
-    
-    if (sortBy === 'price-low') {
-      return priceA - priceB;
-    }
-    if (sortBy === 'price-high') {
-      return priceB - priceA;
-    }
     if (sortBy === 'rating') {
       return b.rating - a.rating;
     }
@@ -83,6 +69,7 @@ export const Products: React.FC = () => {
     if (searchQuery) newParams.search = searchQuery;
     if (catSlug !== 'all') newParams.category = catSlug;
     setSearchParams(newParams);
+    setShowMobileFilters(false);
   };
 
   return (
@@ -95,10 +82,21 @@ export const Products: React.FC = () => {
           <p className="text-muted text-xs mt-1">Showing {sortedProducts.length} of {allProducts.length} products</p>
         </div>
 
+        {/* Mobile Filter Toggle Button */}
+        <div className="lg:hidden mb-6">
+          <button
+            onClick={() => setShowMobileFilters(!showMobileFilters)}
+            className="w-full flex items-center justify-center gap-2 bg-white border border-border text-heading text-xs font-bold py-3 px-4 rounded-xl shadow-soft hover:bg-slate-50 transition-colors"
+          >
+            <SlidersHorizontal size={14} className="text-primary" />
+            <span>{showMobileFilters ? 'Hide Filters & Search' : 'Show Filters & Search'}</span>
+          </button>
+        </div>
+
         <div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
           
-          {/* 1. Filters Sidebar (Desktop) */}
-          <div className="bg-white p-6 rounded-2xl border border-border shadow-soft space-y-6 h-fit lg:sticky lg:top-24">
+          {/* 1. Filters Sidebar */}
+          <div className={`${showMobileFilters ? 'block' : 'hidden'} lg:block bg-white p-6 rounded-2xl border border-border shadow-soft space-y-6 h-fit lg:sticky lg:top-24`}>
             <div className="flex items-center justify-between pb-4 border-b border-slate-100">
               <span className="font-heading font-bold text-sm text-heading flex items-center gap-2">
                 <SlidersHorizontal size={16} /> Filters
@@ -163,26 +161,6 @@ export const Products: React.FC = () => {
               </div>
             </div>
 
-            {/* Price Filter */}
-            <div>
-              <div className="flex justify-between items-center mb-2">
-                <label className="text-xs font-bold uppercase tracking-wider text-muted">Max Price</label>
-                <span className="text-xs font-bold text-primary">₹{priceRange}</span>
-              </div>
-              <input
-                type="range"
-                min="20"
-                max="1000"
-                step="5"
-                className="w-full accent-primary bg-slate-100 rounded-lg cursor-pointer h-1.5"
-                value={priceRange}
-                onChange={(e) => setPriceRange(Number(e.target.value))}
-              />
-              <div className="flex justify-between text-[10px] text-muted font-bold mt-1">
-                <span>₹20</span>
-                <span>₹1000</span>
-              </div>
-            </div>
 
           </div>
 
@@ -201,8 +179,6 @@ export const Products: React.FC = () => {
                   onChange={(e) => setSortBy(e.target.value)}
                 >
                   <option value="latest">Latest Arrivals</option>
-                  <option value="price-low">Price: Low to High</option>
-                  <option value="price-high">Price: High to Low</option>
                   <option value="rating">Top Rated</option>
                 </select>
               </div>

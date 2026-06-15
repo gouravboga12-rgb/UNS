@@ -8,6 +8,7 @@ import { Footer } from './components/Footer';
 import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { BottomNavigation } from './components/BottomNavigation';
 import { ScrollToTop } from './components/ScrollToTop';
+import { ToastNotification } from './components/ToastNotification';
 
 // Pages lazy/direct import
 import { Home } from './pages/Home';
@@ -44,8 +45,9 @@ const AppContent: React.FC = () => {
   return (
     <Router>
       <ScrollToTop />
-      <div className="flex flex-col min-h-screen bg-background overflow-x-hidden">
+      <div className="flex flex-col min-h-screen bg-background">
         <Navbar />
+        <ToastNotification />
         
         <main className="flex-grow pb-16 lg:pb-0">
           <Routes>

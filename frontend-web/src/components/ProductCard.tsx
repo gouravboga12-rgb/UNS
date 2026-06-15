@@ -2,7 +2,8 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addItem } from '../store/cartSlice';
-import { ShoppingCart, MessageSquare, Star } from 'lucide-react';
+import { showToast } from '../store/toastSlice';
+import { ShoppingCart, Star } from 'lucide-react';
 import type { Product } from '../store/productsSlice';
 
 interface ProductCardProps {
@@ -14,21 +15,29 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigating to detail page when clicking button
+    
+    const volume = product.specifications?.["Volume"] || "";
+    const isLiquid = !!volume && 
+      !volume.toLowerCase().includes("kg") && 
+      !volume.toLowerCase().includes("g") &&
+      !product.name.toLowerCase().includes("powder") &&
+      !product.name.toLowerCase().includes("soap");
+
+    const itemId = isLiquid ? `${product.id}-${volume.trim()}` : product.id;
+    const itemName = isLiquid ? `${product.name} (${volume.trim()})` : product.name;
+
     dispatch(addItem({
-      id: product.id,
-      name: product.name,
+      id: itemId,
+      name: itemName,
       slug: product.slug,
       price: product.price,
       discountPrice: product.discountPrice,
       imageUrl: product.images[0]
     }));
-  };
-
-  const handleWhatsAppEnquiry = (e: React.MouseEvent) => {
-    e.preventDefault(); // Prevent navigating
-    const whatsappNumber = "917396158011";
-    const message = encodeURIComponent(`Hello UNS! I am interested in the product: ${product.name}. Please share pricing and wholesale availability.`);
-    window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${message}`, '_blank');
+    dispatch(showToast({
+      productName: itemName,
+      imageUrl: product.images[0]
+    }));
   };
 
   const discountPercent = product.discountPrice && product.discountPrice < product.price
@@ -101,27 +110,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             )}
           </div>
 
-          {/* Quick Actions Grid */}
-          <div className="grid grid-cols-1 min-[370px]:grid-cols-2 gap-1.5">
+          {/* Quick Actions */}
+          <div className="w-full">
             
             {/* Add to Cart */}
             <button
               onClick={handleAddToCart}
-              className="flex items-center justify-center gap-1 bg-primary hover:bg-primary-light text-white text-[10px] sm:text-xs font-semibold py-1.5 px-2 rounded-lg transition-colors shadow-sm"
+              className="w-full flex items-center justify-center gap-1.5 bg-primary hover:bg-primary-light text-white text-[10px] sm:text-xs font-semibold py-2 px-2.5 rounded-lg transition-colors shadow-sm"
               title="Add to Cart"
             >
-              <ShoppingCart size={12} />
-              <span>Add</span>
-            </button>
-
-            {/* WhatsApp enquiry */}
-            <button
-              onClick={handleWhatsAppEnquiry}
-              className="flex items-center justify-center gap-1 bg-green-50 text-green-600 hover:bg-green-100 border border-green-200 text-[10px] sm:text-xs font-semibold py-1.5 px-2 rounded-lg transition-colors"
-              title="Inquire on WhatsApp"
-            >
-              <MessageSquare size={12} />
-              <span>Inquire</span>
+              <ShoppingCart size={13} />
+              <span>Add to Cart</span>
             </button>
 
           </div>

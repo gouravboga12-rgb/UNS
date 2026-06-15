@@ -90,6 +90,13 @@ const fallbackCategories: Category[] = [
     slug: "commercial-cleaning",
     description: "Industrial strength bulk-sized cleaning chemicals tailored for offices, hotels, hospitals, and factories.",
     imageUrl: "/products/floor-cleaner.png"
+  },
+  {
+    id: "cat-7",
+    name: "Herbal or Skincare Products",
+    slug: "herbal-skincare",
+    description: "Natural herbal shampoos and organic soaps enriched with active extracts for gentle care.",
+    imageUrl: "/products/herbal-shampoo.png"
   }
 ];
 
@@ -524,13 +531,13 @@ const fallbackProducts: Product[] = [
     name: "Detergent Soap",
     slug: "detergent-soap",
     category: "Laundry Care Products",
-    shortDescription: "Heavy-duty laundry bar soap for spot-cleaning and collar whitening.",
-    fullDescription: "<p>UNS Detergent Soap is a traditional heavy-duty cleaning bar designed for hand wash laundry. Specially formulated with optical brighteners and blue-cleaning enzymes, it is perfect for target scrubbing collar stains, cuff dirt, grease marks, and grass spots on school uniforms and workwear.</p>",
+    shortDescription: "Active clean, gentle on fabric.",
+    fullDescription: "<p>UNS Detergent Soap is designed for active clean and gentle fabric care. Its powerful cleaning agents wash away tough stains without harming the fabric fibers, leaving clothes fresh and long-lasting.</p>",
     images: [
       "/products/detergent-soap.png"
     ],
     price: 25.00,
-    discountPrice: 20.00,
+    discountPrice: 25.00,
     stock: 400,
     rating: 4.5,
     specifications: {
@@ -540,10 +547,11 @@ const fallbackProducts: Product[] = [
       "Optical Brightener": "Yes"
     },
     benefits: [
-      "Deep-cleaning enzymes dissolve greasy oil and dirt blocks quickly.",
-      "Optical brighteners make white fabrics look whiter and colors brighter.",
-      "Firm bar does not turn mushy in water, lasting longer.",
-      "Gentle formulation is safe on skin during manual scrubbing."
+      "Powerful cleaning",
+      "Removes tough stains",
+      "Gentle on fabric",
+      "Fresh fragrance",
+      "Value for money"
     ],
     usageInstructions: [
       "Wet the stained garment area with water.",
@@ -553,8 +561,8 @@ const fallbackProducts: Product[] = [
       "Rinse clean with water and dry."
     ],
     featured: false,
-    seoTitle: "Heavy-Duty Laundry Detergent Soap Bar - UNS",
-    seoDescription: "Buy UNS Detergent Soap Bar for manual fabric scrubbing. Ideal for school uniforms, collar oil marks, and tough spot cleaning.",
+    seoTitle: "UNS Detergent Soap Bar - Active Clean - UNS Products",
+    seoDescription: "Buy UNS Detergent Soap Bar for manual laundry washing. Active clean, gentle on fabric, with a fresh fragrance at only 25 MRP.",
     createdAt: "2026-06-10T12:55:00Z",
     reviews: []
   },
@@ -632,6 +640,115 @@ const fallbackProducts: Product[] = [
     seoTitle: "Grade-1 Commercial Disinfectant White Phenyl (5L) - UNS",
     seoDescription: "Shop bulk Grade-1 Pine Oil based Commercial White Phenyl (5L). Disinfects floors, repels insects, and deodorizes high-traffic facilities.",
     createdAt: "2026-06-10T13:05:00Z",
+    reviews: []
+  },
+  {
+    id: "prod-15",
+    name: "Detergent Powder",
+    slug: "detergent-powder",
+    category: "Laundry Care Products",
+    shortDescription: "High-efficiency stain removing washing powder for laundry.",
+    fullDescription: "<p>UNS Detergent Powder is formulated with advanced dirt-blaster technology. It dissolves quickly to remove grease, grass, oil, and food stains from your fabrics while keeping whites bright and colors locked.</p>",
+    images: [
+      "/products/detergent-powder.png"
+    ],
+    price: 150.00,
+    discountPrice: 129.00,
+    stock: 100,
+    rating: 4.6,
+    specifications: {
+      "Volume": "1 kg",
+      "Form": "Powder",
+      "Fragrance": "Active Fresh",
+      "Packaging": "Pouch"
+    },
+    benefits: [
+      "Fast dissolution in water for quick action.",
+      "Color-protect technology stops fading.",
+      "Safe for washing machines and hand laundering."
+    ],
+    usageInstructions: [
+      "Add 1 scoop of UNS Detergent Powder for regular laundry loads.",
+      "Add 2 scoops for heavily soiled clothes.",
+      "Scrub gently and rinse clean."
+    ],
+    featured: true,
+    seoTitle: "UNS Detergent Washing Powder Online - Laundry Care",
+    seoDescription: "Buy UNS Detergent Powder. Advanced stain-remover washing powder for brighter clothes and long-lasting freshness.",
+    createdAt: "2026-06-10T13:10:00Z",
+    reviews: []
+  },
+
+  {
+    id: "prod-17",
+    name: "Herbal Shampoo",
+    slug: "herbal-shampoo",
+    category: "Herbal or Skincare Products",
+    shortDescription: "Natural hair wash shampoo enriched with Neem, Aloe Vera, and Amla.",
+    fullDescription: "<p>UNS Herbal Shampoo is a unique natural blend of traditional Indian herbs including neem, aloe vera, and amla. It nourishes hair roots, reduces dandruff, and promotes strong, shiny, healthy hair growth without any harsh chemicals.</p>",
+    images: [
+      "/products/herbal-shampoo.png"
+    ],
+    price: 220.00,
+    discountPrice: 180.00,
+    stock: 120,
+    rating: 4.8,
+    specifications: {
+      "Volume": "250ml",
+      "Form": "Liquid",
+      "Active Ingredients": "Neem, Aloe Vera, Amla",
+      "Fragrance": "Natural Herbal"
+    },
+    benefits: [
+      "Nourishes hair roots and prevents hair fall.",
+      "Antibacterial neem cleanses scalp and drives dandruff away.",
+      "Aloe vera keeps hair smooth and shiny."
+    ],
+    usageInstructions: [
+      "Wet hair thoroughly with water.",
+      "Apply a small amount of UNS Herbal Shampoo and massage into scalp to create lather.",
+      "Leave for 1-2 minutes and rinse thoroughly with clean water."
+    ],
+    featured: true,
+    seoTitle: "Natural Antibacterial Herbal Shampoo - UNS Skincare",
+    seoDescription: "Buy UNS Herbal Shampoo online. Enriched with neem, aloe vera, and amla for strong, dandruff-free, and shiny hair.",
+    createdAt: "2026-06-10T13:20:00Z",
+    reviews: []
+  },
+  {
+    id: "prod-18",
+    name: "Herbal Soap",
+    slug: "herbal-soap",
+    category: "Herbal or Skincare Products",
+    shortDescription: "Organic bathing bar soap enriched with natural essential oils and green leaf extracts.",
+    fullDescription: "<p>UNS Herbal Soap is an organic bathing bar hand-crafted with pure essential oils, tulsi, and aloe vera. It gently cleanses and moisturizes the skin, leaving a refreshing natural scent and providing daily skin protection.</p>",
+    images: [
+      "/products/herbal-soap.png"
+    ],
+    price: 60.00,
+    discountPrice: 49.00,
+    stock: 200,
+    rating: 4.9,
+    specifications: {
+      "Weight": "125g",
+      "Form": "Solid Bar",
+      "Key Extracts": "Tulsi & Aloe Vera",
+      "Fragrance": "Natural Basil"
+    },
+    benefits: [
+      "Antibacterial tulsi guards skin against germs.",
+      "Aloe vera hydrates skin and retains natural moisture.",
+      "100% vegan ingredients and cruelty-free."
+    ],
+    usageInstructions: [
+      "Lather the UNS Herbal Soap bar on wet skin during bath.",
+      "Massage gently to cleanse skin.",
+      "Rinse off completely with clean water."
+    ],
+    featured: true,
+    seoTitle: "Organic Antibacterial Herbal Bathing Soap - UNS Care",
+    seoDescription: "Buy UNS Herbal Soap with tulsi and aloe vera. Gentle, antibacterial bathing bar for moisturized and healthy skin.",
+    createdAt: "2026-06-10T13:25:00Z",
     reviews: []
   }
 ];

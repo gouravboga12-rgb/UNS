@@ -78,7 +78,7 @@ export const Navbar: React.FC = () => {
               {categoriesOpen && (
                 <div className="absolute left-0 mt-2 w-56 bg-white border border-border rounded-lg shadow-lg py-2 z-50 animate-fadeIn">
                   <Link 
-                    to="/categories" 
+                    to="/products" 
                     onClick={() => setCategoriesOpen(false)}
                     className="block px-4 py-2 text-sm text-body hover:bg-teal-50 hover:text-primary font-semibold border-b border-slate-100"
                   >
@@ -150,7 +150,7 @@ export const Navbar: React.FC = () => {
             <div>
               <span className="text-muted text-xs uppercase tracking-wider font-semibold block mb-2">Categories</span>
               <div className="grid grid-cols-2 gap-2 pl-2 border-l-2 border-primary/20">
-                <Link to="/categories" onClick={() => setMobileMenuOpen(false)} className="text-sm text-body hover:text-primary font-semibold">All Categories</Link>
+                <Link to="/products" onClick={() => setMobileMenuOpen(false)} className="text-sm text-body hover:text-primary font-semibold">All Categories</Link>
                 {categories.map((cat) => (
                   <Link
                     key={cat.id}
