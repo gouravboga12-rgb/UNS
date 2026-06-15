@@ -3,6 +3,9 @@ import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
+import jwt from 'jsonwebtoken';
+import nodemailer from 'nodemailer';
+import { OAuth2Client } from 'google-auth-library';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 import { createClient } from '@supabase/supabase-js';
@@ -29,6 +32,21 @@ const PORT = process.env.PORT || 5000;
 const supabaseUrl = process.env.SUPABASE_URL || '';
 const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
 const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Auth configurations
+const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_fallback';
+const googleOAuthClient = new OAuth2Client();
+
+// Configure SMTP nodemailer transporter
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: Number(process.env.SMTP_PORT || 587),
+  secure: process.env.SMTP_PORT === '465', // true for 465, false for other ports
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASSWORD,
+  },
+});
 
 // Configure Cloudinary
 cloudinary.config({
@@ -926,6 +944,264 @@ app.get('/api/admin/dashboard', async (req: Request, res: Response) => {
       { name: 'Laundry Care Products', value: 18000 }
     ]
   });
+});
+
+// -------------------------------------------------------------
+// Authentication APIs
+// -------------------------------------------------------------
+
+// Sign Up API
+app.post('/api/auth/signup', async (req: Request, res: Response) => {
+  const { name, email, phone, password } = req.body;
+
+  if (!name || !email || !phone || !password) {
+    return res.status(400).json({ error: 'All fields are required.' });
+  }
+
+  if (email === 'unshomecleaningproductspvtltd@gmail.com') {
+    return res.status(400).json({ error: 'This email is reserved for administration.' });
+  }
+
+  try {
+    // 1. Check if user already exists
+    const { data: existingUser, error: checkErr } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'User with this email already exists.' });
+    }
+
+    // 2. Create the user
+    const id = 'usr-' + generateId();
+    const { error: insertErr } = await supabase
+      .from('users')
+      .insert({
+        id,
+        name,
+        email,
+        phone,
+        password, // Plain text for mock schema simplicity
+        role: 'user',
+        createdAt: new Date().toISOString()
+      });
+
+    if (insertErr) {
+      console.error('Error inserting user:', insertErr.message);
+      return res.status(500).json({ error: 'Failed to create user record.' });
+    }
+
+    // 3. Send welcome email via SMTP
+    const mailOptions = {
+      from: process.env.SMTP_FROM || '"UNS Home Cleaning Products" <unshomecleaningproductspvtltd@gmail.com>',
+      to: email,
+      subject: 'Welcome to UNS Cleaning Products!',
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f1f5f9; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #0d9488; margin: 0; font-size: 24px; font-weight: 800;">UNS Cleaning Products</h1>
+            <p style="color: #64748b; margin: 4px 0 0 0; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700;">Clean Today... Healthy Tomorrow...</p>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 24px;" />
+          <h2 style="color: #0f172a; margin-top: 0; font-size: 18px; font-weight: 700;">Hello ${name},</h2>
+          <p style="font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 16px;">
+            Welcome to UNS Home Cleaning Products! We are thrilled to have you register an account with us.
+          </p>
+          <p style="font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 16px;">
+            Explore our premium formulations designed for commercial, industrial, and household cleanliness.
+          </p>
+          <div style="background-color: #f8fafc; border-radius: 8px; padding: 16px; margin: 24px 0;">
+            <p style="font-size: 13px; color: #475569; margin: 0 0 8px 0; font-weight: 600;">Your Account Details:</p>
+            <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0;"><strong>Name:</strong> ${name}</p>
+            <p style="font-size: 12px; color: #64748b; margin: 0;"><strong>Email:</strong> ${email}</p>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+            This is an automated system email from UNS Home Cleaning Products PVT LTD. Please do not reply.
+          </p>
+        </div>
+      `,
+    };
+
+    transporter.sendMail(mailOptions).catch(err => {
+      console.error('[SMTP welcome email dispatch failure]:', err.message);
+    });
+
+    // 4. Sign JWT
+    const token = jwt.sign({ id, email, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      token,
+      user: { id, name, email, phone, role: 'user' }
+    });
+
+  } catch (err: any) {
+    console.error('Signup error:', err);
+    res.status(500).json({ error: 'Server error during signup.' });
+  }
+});
+
+// Sign In API
+app.post('/api/auth/signin', async (req: Request, res: Response) => {
+  const { email, password } = req.body;
+
+  if (!email || !password) {
+    return res.status(400).json({ error: 'Email and password are required.' });
+  }
+
+  try {
+    // 1. Fetch user by email
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching user:', error.message);
+      return res.status(500).json({ error: 'Authentication database query failed.' });
+    }
+
+    if (!user || user.password !== password) {
+      return res.status(401).json({ error: 'Invalid email or password.' });
+    }
+
+    // 2. Sign JWT
+    const token = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        role: user.role
+      }
+    });
+
+  } catch (err: any) {
+    console.error('Signin error:', err);
+    res.status(500).json({ error: 'Server error during signin.' });
+  }
+});
+
+// Google Authentication API
+app.post('/api/auth/google', async (req: Request, res: Response) => {
+  const { token, clientId } = req.body;
+
+  if (!token || !clientId) {
+    return res.status(400).json({ error: 'Token and Google Client ID are required.' });
+  }
+
+  try {
+    // 1. Verify Google token
+    const ticket = await googleOAuthClient.verifyIdToken({
+      idToken: token,
+      audience: clientId,
+    });
+    const payload = ticket.getPayload();
+
+    if (!payload || !payload.email) {
+      return res.status(400).json({ error: 'Invalid Google token payload.' });
+    }
+
+    const email = payload.email.toLowerCase();
+    const name = payload.name || 'Google User';
+
+    // 2. Find or create the user in users table
+    const { data: existingUser, error: fetchErr } = await supabase
+      .from('users')
+      .select('*')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (fetchErr) {
+      console.error('Supabase error finding Google user:', fetchErr.message);
+      return res.status(500).json({ error: 'Database search error.' });
+    }
+
+    let user = existingUser;
+
+    if (!user) {
+      const id = 'usr-' + generateId();
+      const phone = '';
+      const password = 'GOOGLE_OAUTH_PASS_' + Math.random().toString(36).substring(2, 11);
+      const role = 'user';
+
+      const { error: insertErr } = await supabase
+        .from('users')
+        .insert({
+          id,
+          name,
+          email,
+          phone,
+          password,
+          role,
+          createdAt: new Date().toISOString()
+        });
+
+      if (insertErr) {
+        console.error('Supabase error inserting Google user:', insertErr.message);
+        return res.status(500).json({ error: 'Database insert error.' });
+      }
+
+      user = { id, name, email, phone, role, password, createdAt: new Date().toISOString() };
+
+      // Send welcome email via SMTP
+      const mailOptions = {
+        from: process.env.SMTP_FROM || '"UNS Home Cleaning Products" <unshomecleaningproductspvtltd@gmail.com>',
+        to: email,
+        subject: 'Welcome to UNS Cleaning Products!',
+        html: `
+          <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f1f5f9; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);">
+            <div style="text-align: center; margin-bottom: 24px;">
+              <h1 style="color: #0d9488; margin: 0; font-size: 24px; font-weight: 800;">UNS Cleaning Products</h1>
+              <p style="color: #64748b; margin: 4px 0 0 0; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700;">Clean Today... Healthy Tomorrow...</p>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 24px;" />
+            <h2 style="color: #0f172a; margin-top: 0; font-size: 18px; font-weight: 700;">Hello ${name},</h2>
+            <p style="font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 16px;">
+              Welcome to UNS Home Cleaning Products! We are thrilled to have you sign in using your Google Account.
+            </p>
+            <div style="background-color: #f8fafc; border-radius: 8px; padding: 16px; margin: 24px 0;">
+              <p style="font-size: 13px; color: #475569; margin: 0 0 8px 0; font-weight: 600;">Your Account Details:</p>
+              <p style="font-size: 12px; color: #64748b; margin: 0 0 4px 0;"><strong>Name:</strong> ${name}</p>
+              <p style="font-size: 12px; color: #64748b; margin: 0;"><strong>Email:</strong> ${email}</p>
+            </div>
+            <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+            <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+              This is an automated system email from UNS Home Cleaning Products PVT LTD. Please do not reply.
+            </p>
+          </div>
+        `,
+      };
+
+      transporter.sendMail(mailOptions).catch(err => {
+        console.error('[SMTP Google welcome email dispatch failure]:', err.message);
+      });
+    }
+
+    // 3. Sign JWT
+    const jwtToken = jwt.sign({ id: user.id, email: user.email, role: user.role }, JWT_SECRET, { expiresIn: '7d' });
+
+    res.json({
+      token: jwtToken,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone || '',
+        role: user.role
+      }
+    });
+
+  } catch (err: any) {
+    console.error('Google verification backend error:', err);
+    res.status(500).json({ error: 'Server authentication verification error.' });
+  }
 });
 
 // Start Server

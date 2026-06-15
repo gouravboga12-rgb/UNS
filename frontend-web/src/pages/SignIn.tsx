@@ -1,33 +1,89 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
 import logoImg from '../assets/logo.png';
+
+// Place your Google Client ID here.
+const GOOGLE_CLIENT_ID = "870895006042-pb5em17nmrgs2tikpg09uvdhn9ps0q4p.apps.googleusercontent.com"; 
 
 export const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const navigate = useNavigate();
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    // User check
-    const usersRaw = localStorage.getItem('uns_users');
-    const users = usersRaw ? JSON.parse(usersRaw) : [];
-    const foundUser = users.find((u: any) => u.email === email && u.password === password);
+  useEffect(() => {
+    // Dynamic loading of Google OAuth GSI script
+    const script = document.createElement('script');
+    script.src = 'https://accounts.google.com/gsi/client';
+    script.async = true;
+    script.defer = true;
+    document.body.appendChild(script);
 
-    if (foundUser) {
-      const currentUser = {
-        name: foundUser.name,
-        email: foundUser.email,
-        phone: foundUser.phone,
-        role: 'user'
-      };
-      localStorage.setItem('uns_current_user', JSON.stringify(currentUser));
+    script.onload = () => {
+      const google = (window as any).google;
+      if (google && GOOGLE_CLIENT_ID) {
+        google.accounts.id.initialize({
+          client_id: GOOGLE_CLIENT_ID,
+          callback: handleGoogleCredentialResponse,
+        });
+
+        google.accounts.id.renderButton(
+          document.getElementById('google-signin-btn'),
+          { theme: 'outline', size: 'large', width: '100%' }
+        );
+      }
+    };
+
+    return () => {
+      document.body.removeChild(script);
+    };
+  }, []);
+
+  const handleGoogleCredentialResponse = async (response: any) => {
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/google', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: response.credential,
+          clientId: GOOGLE_CLIENT_ID,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Google verification failed.');
+      }
+
+      localStorage.setItem('uns_current_user', JSON.stringify(data.user));
+      localStorage.setItem('uns_token', data.token);
       window.dispatchEvent(new Event('authChange'));
       navigate('/');
-    } else {
-      alert('Invalid email or password.');
+    } catch (err: any) {
+      alert(err.message || 'Google Sign-In failed.');
+    }
+  };
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/signin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Invalid email or password.');
+      }
+
+      localStorage.setItem('uns_current_user', JSON.stringify(data.user));
+      localStorage.setItem('uns_token', data.token);
+      window.dispatchEvent(new Event('authChange'));
+      navigate('/');
+    } catch (err: any) {
+      alert(err.message || 'Login failed.');
     }
   };
 
@@ -49,19 +105,26 @@ export const SignIn: React.FC = () => {
       </div>
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md" data-aos="fade-up">
         <div className="bg-white py-8 px-4 shadow-soft border border-border sm:rounded-2xl sm:px-10">
-          <button
-            type="button"
-            onClick={() => alert('Google Sign-In is not configured for this demo.')}
-            className="w-full flex justify-center items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold py-2.5 px-4 border border-slate-300 rounded-lg shadow-sm text-xs transition-all hover:border-slate-400 active:scale-[0.99] mb-5"
-          >
-            <svg className="h-4 w-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-              <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-              <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-              <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
-              <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
-            </svg>
-            <span className="font-medium text-slate-700">Sign in with Google</span>
-          </button>
+          {/* Google Sign In Button */}
+          <div className="mb-5 flex justify-center w-full min-h-[44px]">
+            {GOOGLE_CLIENT_ID ? (
+              <div id="google-signin-btn" className="w-full"></div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => alert('Google Client ID is not configured. Please set GOOGLE_CLIENT_ID at the top of frontend-web/src/pages/SignIn.tsx to enable Google Authentication.')}
+                className="w-full flex justify-center items-center gap-2 bg-white hover:bg-slate-50 text-slate-700 font-semibold py-2.5 px-4 border border-slate-300 rounded-lg shadow-sm text-xs transition-all hover:border-slate-400 active:scale-[0.99]"
+              >
+                <svg className="h-4 w-4" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                  <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                  <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                  <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" fill="#FBBC05"/>
+                  <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" fill="#EA4335"/>
+                </svg>
+                <span className="font-medium text-slate-700">Sign in with Google</span>
+              </button>
+            )}
+          </div>
 
           <div className="relative mb-6">
             <div className="absolute inset-0 flex items-center">
