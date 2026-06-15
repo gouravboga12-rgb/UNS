@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { ProductCard } from '../components/ProductCard';
 import { LayoutGrid, List, SlidersHorizontal, Search, RotateCcw } from 'lucide-react';
+import { CompactCategoriesGrid } from '../components/CompactCategoriesGrid';
 
 export const Products: React.FC = () => {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -30,7 +31,11 @@ export const Products: React.FC = () => {
     setSearchQuery('');
     setSelectedCategory('all');
     setSortBy('latest');
-    setSearchParams({});
+    const newParams: Record<string, string> = {};
+    if (searchParams.get('showCategories') === 'true') {
+      newParams.showCategories = 'true';
+    }
+    setSearchParams(newParams);
     setShowMobileFilters(false);
   };
 
@@ -68,6 +73,9 @@ export const Products: React.FC = () => {
     const newParams: Record<string, string> = {};
     if (searchQuery) newParams.search = searchQuery;
     if (catSlug !== 'all') newParams.category = catSlug;
+    if (searchParams.get('showCategories') === 'true') {
+      newParams.showCategories = 'true';
+    }
     setSearchParams(newParams);
     setShowMobileFilters(false);
   };
@@ -77,10 +85,26 @@ export const Products: React.FC = () => {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Breadcrumb / Title */}
-        <div className="mb-8">
+        <div className="mb-8 text-center sm:text-left">
           <h1 className="text-3xl font-bold font-heading text-heading">UNS Cleaning Formulations</h1>
           <p className="text-muted text-xs mt-1">Showing {sortedProducts.length} of {allProducts.length} products</p>
         </div>
+
+        {/* Categories Grid (Blinkit/Zomato Compact Style) */}
+        {searchParams.get('showCategories') === 'true' && (
+          <div className="block lg:hidden mb-8">
+            <CompactCategoriesGrid
+              selectedCategory={selectedCategory}
+              onCategorySelect={(slug) => {
+                if (selectedCategory === slug) {
+                  handleCategoryChange('all');
+                } else {
+                  handleCategoryChange(slug);
+                }
+              }}
+            />
+          </div>
+        )}
 
         {/* Mobile Filter Toggle Button */}
         <div className="lg:hidden mb-6">
@@ -120,11 +144,13 @@ export const Products: React.FC = () => {
                   value={searchQuery}
                   onChange={(e) => {
                     setSearchQuery(e.target.value);
-                    if (e.target.value) {
-                      setSearchParams({ search: e.target.value, ...(selectedCategory !== 'all' ? { category: selectedCategory } : {}) });
-                    } else {
-                      setSearchParams(selectedCategory !== 'all' ? { category: selectedCategory } : {});
+                    const newParams: Record<string, string> = {};
+                    if (e.target.value) newParams.search = e.target.value;
+                    if (selectedCategory !== 'all') newParams.category = selectedCategory;
+                    if (searchParams.get('showCategories') === 'true') {
+                      newParams.showCategories = 'true';
                     }
+                    setSearchParams(newParams);
                   }}
                 />
                 <Search className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted" size={14} />

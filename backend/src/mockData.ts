@@ -795,6 +795,8 @@ export interface Order {
   trackingTimeline: { status: string; time: string; description: string }[];
   items: { productId: string; name: string; quantity: number; price: number }[];
   createdAt: string;
+  trackingId?: string;
+  trackingLink?: string;
 }
 
 export const mockOrders: Order[] = [

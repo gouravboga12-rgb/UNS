@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 import { Provider, useDispatch } from 'react-redux';
 import { store } from './store';
 import { fetchProducts, fetchCategories } from './store/productsSlice';
@@ -28,6 +28,8 @@ import 'aos/dist/aos.css';
 
 const AppContent: React.FC = () => {
   const dispatch = useDispatch();
+  const location = useLocation();
+  const isAdminRoute = location.pathname.startsWith('/admin');
 
   useEffect(() => {
     // Initialize animations
@@ -43,13 +45,13 @@ const AppContent: React.FC = () => {
   }, [dispatch]);
 
   return (
-    <Router>
+    <>
       <ScrollToTop />
-      <div className="flex flex-col min-h-screen bg-background">
-        <Navbar />
+      <div className="flex flex-col min-h-screen bg-background w-full max-w-full overflow-x-hidden">
+        {!isAdminRoute && <Navbar />}
         <ToastNotification />
         
-        <main className="flex-grow pb-16 lg:pb-0">
+        <main className={isAdminRoute ? "flex-grow" : "flex-grow pb-16 lg:pb-0 w-full max-w-full overflow-x-hidden"}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/categories" element={<Categories />} />
@@ -60,23 +62,26 @@ const AppContent: React.FC = () => {
             <Route path="/about" element={<About />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/admin" element={<AdminDashboard />} />
+            <Route path="/admin/*" element={<AdminDashboard />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/signup" element={<SignUp />} />
           </Routes>
         </main>
 
-        <Footer />
-        <FloatingWhatsApp />
-        <BottomNavigation />
+        {!isAdminRoute && <Footer />}
+        {!isAdminRoute && <FloatingWhatsApp />}
+        {!isAdminRoute && <BottomNavigation />}
       </div>
-    </Router>
+    </>
   );
 };
 
 export const App: React.FC = () => {
   return (
     <Provider store={store}>
-      <AppContent />
+      <Router>
+        <AppContent />
+      </Router>
     </Provider>
   );
 };

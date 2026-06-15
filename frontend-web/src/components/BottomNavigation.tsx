@@ -20,13 +20,13 @@ export const BottomNavigation: React.FC = () => {
   };
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-40 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] lg:hidden flex justify-around items-center h-16 safe-bottom">
+    <div className="fixed bottom-0 left-0 right-0 z-50 bg-white border-t border-slate-200 shadow-[0_-4px_12px_rgba(0,0,0,0.05)] lg:hidden flex justify-around items-center h-16">
       
       {/* Categories */}
       <Link
-        to="/products"
+        to="/products?showCategories=true"
         className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-center transition-all ${
-          isActive(['/categories', '/products']) ? 'text-primary font-bold' : 'text-slate-400 hover:text-slate-600'
+          isActive(['/categories', '/products']) || location.search.includes('showCategories=true') ? 'text-primary font-bold' : 'text-slate-400 hover:text-slate-600'
         }`}
       >
         <LayoutGrid size={20} className={isActive(['/categories', '/products']) ? 'scale-105 transition-transform' : ''} />

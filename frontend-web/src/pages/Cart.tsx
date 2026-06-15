@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
 import { updateQuantity, removeItem, clearCart } from '../store/cartSlice';
-import { Trash2, MessageSquare, ShieldCheck, ShoppingBag, Plus, Minus, ArrowRight } from 'lucide-react';
+import { Trash2, MessageSquare, ShieldCheck, ShoppingBag, Plus, Minus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export const Cart: React.FC = () => {
@@ -15,7 +15,6 @@ export const Cart: React.FC = () => {
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
   const [checkoutSuccess, setCheckoutSuccess] = useState<any | null>(null);
-  const [orderMethod, setOrderMethod] = useState<'cod' | 'whatsapp'>('whatsapp');
   const [loading, setLoading] = useState(false);
 
   // Calculations
@@ -52,81 +51,53 @@ export const Cart: React.FC = () => {
       totalAmount: total
     };
 
-    if (orderMethod === 'cod') {
-      try {
-        // Place COD order on Mock API
-        const response = await fetch('http://localhost:5000/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload)
-        });
+    // Order via WhatsApp flow
+    const whatsappNumber = "917396158011";
+    
+    let itemsListText = "";
+    cartItems.forEach((item, index) => {
+      itemsListText += `${index + 1}. ${item.name} (${item.quantity} units) x ₹${(item.discountPrice || item.price).toFixed(2)}\n`;
+    });
 
-        if (response.ok) {
-          const result = await response.json();
-          setCheckoutSuccess(result);
-          dispatch(clearCart());
-        } else {
-          // Local fallback creation if backend is offline
-          const mockResult = {
-            orderNumber: 1000 + Math.floor(Math.random() * 900) + 1,
-            customerPhone: phone,
-            id: `ord-local-${Math.random().toString(36).substring(2, 9)}`,
-            totalAmount: total
-          };
-          setCheckoutSuccess(mockResult);
-          dispatch(clearCart());
-        }
-      } catch {
-        // Safe local fallback on server connection error
-        const mockResult = {
-          orderNumber: 1000 + Math.floor(Math.random() * 900) + 1,
-          customerPhone: phone,
-          id: `ord-local-${Math.random().toString(36).substring(2, 9)}`,
-          totalAmount: total
-        };
-        setCheckoutSuccess(mockResult);
-        dispatch(clearCart());
-      }
-    } else {
-      // Order via WhatsApp flow
-      const whatsappNumber = "917396158011";
-      
-      let itemsListText = "";
-      cartItems.forEach((item, index) => {
-        itemsListText += `${index + 1}. ${item.name} (${item.quantity} units) x ₹${(item.discountPrice || item.price).toFixed(2)}\n`;
+    const messageText = `*NEW ORDER INQUIRY - UNS HOME CLEANING PRODUCTS*\n\n` +
+                        `*Customer Name:* ${name}\n` +
+                        `*Phone Number:* ${phone}\n` +
+                        `*Delivery Address:* ${address}\n\n` +
+                        `*Items Ordered:*\n${itemsListText}\n` +
+                        `*Subtotal:* ₹${subtotal.toFixed(2)}\n` +
+                        `*Shipping:* ₹${shipping === 0 ? "FREE" : "₹" + shipping}\n` +
+                        `*Estimated Total:* ₹${total.toFixed(2)}\n\n` +
+                        `Please confirm order delivery terms and bank options.`;
+
+    const encodedMsg = encodeURIComponent(messageText);
+    
+    let registeredOrder: any = null;
+    // Keep state clean and dispatch order to backend so tracking exists for it
+    try {
+      const response = await fetch('http://localhost:5000/api/orders', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ...orderPayload, status: 'Pending' })
       });
-
-      const messageText = `*NEW ORDER INQUIRY - UNS HOME CLEANING PRODUCTS*\n\n` +
-                          `*Customer Name:* ${name}\n` +
-                          `*Phone Number:* ${phone}\n` +
-                          `*Delivery Address:* ${address}\n\n` +
-                          `*Items Ordered:*\n${itemsListText}\n` +
-                          `*Subtotal:* ₹${subtotal.toFixed(2)}\n` +
-                          `*Shipping:* ₹${shipping === 0 ? "FREE" : "₹" + shipping}\n` +
-                          `*Estimated Total:* ₹${total.toFixed(2)}\n\n` +
-                          `Please confirm order delivery terms and bank options.`;
-
-      const encodedMsg = encodeURIComponent(messageText);
-      
-      // Keep state clean and dispatch order to backend so tracking exists for it
-      try {
-        await fetch('http://localhost:5000/api/orders', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...orderPayload, status: 'Pending' })
-        });
-      } catch {
-        // Silently catch server errors in mock mode
+      if (response.ok) {
+        registeredOrder = await response.json();
       }
-
-      dispatch(clearCart());
-      setCheckoutSuccess({ whatsappRedirect: true, messageText });
-      setLoading(false);
-
-      // Open WhatsApp Web/API
-      window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodedMsg}`, '_blank');
+    } catch {
+      // Silently catch server errors in mock mode
     }
+
+    dispatch(clearCart());
+    setCheckoutSuccess({
+      whatsappRedirect: true,
+      messageText,
+      orderNumber: registeredOrder?.orderNumber || registeredOrder?.id || `WA-${Math.floor(1000 + Math.random() * 9000)}`,
+      phone: phone,
+      total: total
+    });
     setLoading(false);
+
+    // Open WhatsApp Web/API
+    window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodedMsg}`, '_blank');
   };
 
   if (checkoutSuccess) {
@@ -136,52 +107,35 @@ export const Cart: React.FC = () => {
           <ShieldCheck size={36} />
         </div>
         
-        {checkoutSuccess.whatsappRedirect ? (
-          <>
-            <h2 className="text-2xl font-bold font-heading text-heading">WhatsApp Order Initiated!</h2>
-            <p className="text-xs text-muted leading-relaxed">
-              We have redirected you to WhatsApp to finalize your delivery scheduling and billing details. If the chat window didn't open, click the button below to retry.
-            </p>
-            <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-left text-xs font-mono whitespace-pre-line max-h-40 overflow-y-auto mb-4">
-              {checkoutSuccess.messageText}
-            </div>
-            <button
-              onClick={() => {
-                const url = `https://api.whatsapp.com/send?phone=917396158011&text=${encodeURIComponent(checkoutSuccess.messageText)}`;
-                window.open(url, '_blank');
-              }}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 px-6 rounded-lg text-xs transition-colors inline-flex items-center gap-1.5"
-            >
-              <MessageSquare size={16} /> Open WhatsApp Chat Again
-            </button>
-          </>
-        ) : (
-          <>
-            <h2 className="text-2xl font-bold font-heading text-heading">Order Placed Successfully!</h2>
-            <p className="text-xs text-muted leading-relaxed">
-              Your Cash on Delivery order has been registered in our system. We will call you shortly to confirm packaging dispatch details.
-            </p>
-            <div className="bg-teal-50 border border-teal-100 rounded-xl p-4 inline-block text-left text-xs space-y-1">
-              <div><strong className="text-heading">Order Tracking ID:</strong> <span className="font-mono text-primary select-all">{checkoutSuccess.orderNumber || checkoutSuccess.id}</span></div>
-              <div><strong className="text-heading">Registered Phone:</strong> {phone}</div>
-              <div><strong className="text-heading">Total Amount:</strong> ₹{checkoutSuccess.totalAmount || total}</div>
-            </div>
-            <div className="flex justify-center gap-3 pt-2">
-              <Link
-                to={`/track-order?orderId=${checkoutSuccess.orderNumber || checkoutSuccess.id}&phone=${phone}`}
-                className="bg-primary hover:bg-primary-light text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm"
-              >
-                Track Live Order
-              </Link>
-              <Link
-                to="/"
-                className="text-xs text-muted hover:text-heading font-semibold py-2.5"
-              >
-                Return to Shop
-              </Link>
-            </div>
-          </>
-        )}
+        <h2 className="text-2xl font-bold font-heading text-heading">WhatsApp Order Initiated!</h2>
+        <p className="text-xs text-muted leading-relaxed">
+          We have redirected you to WhatsApp to finalize your delivery scheduling and billing details. If the chat window didn't open, click the button below to retry.
+        </p>
+        <div className="bg-teal-50 border border-teal-100 rounded-xl p-4 inline-block text-left text-xs space-y-1 w-full max-w-md mx-auto">
+          <div><strong className="text-heading">Order Tracking ID:</strong> <span className="font-mono text-primary select-all">{checkoutSuccess.orderNumber}</span></div>
+          <div><strong className="text-heading">Registered Phone:</strong> {checkoutSuccess.phone}</div>
+          <div><strong className="text-heading">Total Amount:</strong> ₹{checkoutSuccess.total}</div>
+        </div>
+        <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-left text-xs font-mono whitespace-pre-line max-h-40 overflow-y-auto mb-4">
+          {checkoutSuccess.messageText}
+        </div>
+        <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
+          <button
+            onClick={() => {
+              const url = `https://api.whatsapp.com/send?phone=917396158011&text=${encodeURIComponent(checkoutSuccess.messageText)}`;
+              window.open(url, '_blank');
+            }}
+            className="bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 px-6 rounded-lg text-xs transition-colors inline-flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            <MessageSquare size={16} /> Open WhatsApp Chat Again
+          </button>
+          <Link
+            to={`/track-order?orderId=${checkoutSuccess.orderNumber}&phone=${checkoutSuccess.phone}`}
+            className="bg-primary hover:bg-primary-light text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm flex items-center justify-center"
+          >
+            Track Live Order
+          </Link>
+        </div>
       </div>
     );
   }
@@ -343,61 +297,17 @@ export const Cart: React.FC = () => {
                   />
                 </div>
 
-                {/* Checkout Method Toggle */}
-                <div>
-                  <label className="block text-[10px] font-bold text-muted mb-2 uppercase tracking-wider">Select Checkout Method</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    
-                    {/* WhatsApp */}
-                    <button
-                      type="button"
-                      onClick={() => setOrderMethod('whatsapp')}
-                      className={`p-3 border rounded-xl flex flex-col items-center gap-1 transition-all ${
-                        orderMethod === 'whatsapp' 
-                          ? 'border-green-500 bg-green-50/20 text-green-600 font-bold' 
-                          : 'border-border text-muted hover:border-slate-300'
-                      }`}
-                    >
-                      <MessageSquare size={18} />
-                      <span className="text-[10px]">Order via WhatsApp</span>
-                    </button>
-
-                    {/* Cash on Delivery */}
-                    <button
-                      type="button"
-                      onClick={() => setOrderMethod('cod')}
-                      className={`p-3 border rounded-xl flex flex-col items-center gap-1 transition-all ${
-                        orderMethod === 'cod' 
-                          ? 'border-primary bg-teal-50/20 text-primary font-bold' 
-                          : 'border-border text-muted hover:border-slate-300'
-                      }`}
-                    >
-                      <ShoppingBag size={18} />
-                      <span className="text-[10px]">Cash on Delivery</span>
-                    </button>
-
-                  </div>
-                </div>
-
                 {/* Submit button */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full text-white font-bold py-3 px-6 rounded-lg text-xs shadow transition-all flex items-center justify-center gap-2 mt-4 ${
-                    orderMethod === 'whatsapp' 
-                      ? 'bg-green-500 hover:bg-green-600' 
-                      : 'bg-primary hover:bg-primary-light'
-                  }`}
+                  className="w-full text-white font-bold py-3 px-6 rounded-lg text-xs shadow transition-all flex items-center justify-center gap-2 mt-4 bg-green-500 hover:bg-green-600"
                 >
                   {loading ? (
                     "Processing Order..."
-                  ) : orderMethod === 'whatsapp' ? (
-                    <>
-                      <MessageSquare size={16} /> Order with WhatsApp Enquiry
-                    </>
                   ) : (
                     <>
-                      Confirm Cash on Delivery Order <ArrowRight size={14} />
+                      <MessageSquare size={16} /> Order with WhatsApp Enquiry
                     </>
                   )}
                 </button>

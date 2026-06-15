@@ -4,9 +4,16 @@
 @tailwind components;
 @tailwind utilities;
 
+html, body, #root {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden !important;
+  position: relative;
+}
+
 @layer base {
   body {
-    @apply bg-background text-body font-sans antialiased scroll-smooth overflow-x-hidden;
+    @apply bg-background text-body font-sans antialiased scroll-smooth;
   }
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading text-heading font-semibold tracking-tight;

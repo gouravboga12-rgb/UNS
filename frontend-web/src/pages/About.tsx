@@ -65,7 +65,7 @@ export const About: React.FC = () => {
     { icon: <CheckCircle size={20} className="text-primary" />, title: "Affordable Best Prices", desc: "Direct factory pricing without distributor margins. Available MRP starting at ₹25 – quality cleaning within every budget." },
     { icon: <Handshake size={20} className="text-primary" />, title: "Trusted by Thousands", desc: "Chosen by homes, hospitals, hotels, schools, offices, and corporate parks across South India since 2021." },
     { icon: <Building2 size={20} className="text-primary" />, title: "Factory Direct Supply", desc: "Custom blending, bulk filling, and direct-to-site dispatch available for large commercial and institutional orders." },
-    { icon: <Truck size={20} className="text-primary" />, title: "Pan-India Timely Delivery", desc: "Fast delivery network across Telangana and South India. COD and WhatsApp orders accepted for retail customers." },
+    { icon: <Truck size={20} className="text-primary" />, title: "Pan-India Timely Delivery", desc: "Fast delivery network across Telangana and South India. Easy WhatsApp order booking accepted for retail customers." },
   ];
 
   return (

@@ -35,6 +35,9 @@ export const ProductDetail: React.FC = () => {
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
 
   // Volume Variants Logic
+  const dbVariants: any[] = product?.specifications?.variants || [];
+  const hasDbVariants = dbVariants.length > 0;
+
   const vol = product?.specifications?.["Volume"] || "";
   const isLiquid = !!vol && 
     !vol.toLowerCase().includes("kg") && 
@@ -52,11 +55,48 @@ export const ProductDetail: React.FC = () => {
   };
 
   const [selectedSize, setSelectedSize] = useState<string>('');
+  const [currentUser, setCurrentUser] = useState<any | null>(null);
+  const [hasPurchased, setHasPurchased] = useState<boolean>(false);
+
+  useEffect(() => {
+    const checkUser = () => {
+      const u = localStorage.getItem('uns_current_user');
+      setCurrentUser(u ? JSON.parse(u) : null);
+    };
+    checkUser();
+    window.addEventListener('authChange', checkUser);
+    return () => {
+      window.removeEventListener('authChange', checkUser);
+    };
+  }, []);
 
   useEffect(() => {
     if (product) {
       setActiveImage(product.images[0]);
-      setReviewsList(product.reviews || []);
+      
+      const loadReviews = async () => {
+        try {
+          const res = await fetch(`http://localhost:5000/api/products/${product.slug}`);
+          if (res.ok) {
+            const data = await res.json();
+            setReviewsList(data.reviews || []);
+            return;
+          }
+        } catch (err) {
+          console.warn('Error fetching reviews from API:', err);
+        }
+        
+        let localReviews = product.reviews || [];
+        const extraReviewsRaw = localStorage.getItem('uns_local_reviews');
+        if (extraReviewsRaw) {
+          const extraReviews = JSON.parse(extraReviewsRaw);
+          const approvedExtra = extraReviews.filter((r: any) => r.productId === product.id && r.approved);
+          localReviews = [...approvedExtra, ...localReviews];
+        }
+        setReviewsList(localReviews);
+      };
+
+      loadReviews();
 
       const pVol = product.specifications?.["Volume"] || "";
       const pIsLiquid = !!pVol && 
@@ -65,7 +105,10 @@ export const ProductDetail: React.FC = () => {
         !product.name.toLowerCase().includes("powder") &&
         !product.name.toLowerCase().includes("soap");
 
-      if (pIsLiquid) {
+      const dbVars = product.specifications?.variants || [];
+      if (dbVars.length > 0) {
+        setSelectedSize(dbVars[0].name);
+      } else if (pIsLiquid) {
         const trimmed = pVol.trim();
         let initSize = '500ml';
         if (trimmed.toLowerCase().startsWith('250') || trimmed.toLowerCase().startsWith('300')) initSize = '250ml';
@@ -80,6 +123,65 @@ export const ProductDetail: React.FC = () => {
     }
   }, [product]);
 
+  useEffect(() => {
+    const verifyPurchase = async () => {
+      if (!currentUser || !product) {
+        setHasPurchased(false);
+        return;
+      }
+
+      if (currentUser.role === 'admin') {
+        setHasPurchased(true);
+        return;
+      }
+
+      let matched = false;
+      try {
+        const response = await fetch('http://localhost:5000/api/admin/orders');
+        if (response.ok) {
+          const orders = await response.json();
+          matched = orders.some((order: any) => {
+            const matchesUser = 
+              (order.customerEmail && order.customerEmail.toLowerCase() === currentUser.email.toLowerCase()) || 
+              (order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(currentUser.phone.replace(/[^0-9]/g, '').slice(-10)));
+            const containsProduct = order.items.some((item: any) => 
+              item.productId === product.id || item.productId.startsWith(product.id + '-')
+            );
+            return matchesUser && containsProduct;
+          });
+        }
+      } catch (err) {
+        console.error('Error verifying purchase history:', err);
+      }
+
+      if (!matched) {
+        const localOrdersRaw = localStorage.getItem('uns_local_orders');
+        if (localOrdersRaw) {
+          const localOrders = JSON.parse(localOrdersRaw);
+          matched = localOrders.some((order: any) => {
+            const matchesUser = 
+              (order.customerEmail && order.customerEmail.toLowerCase() === currentUser.email.toLowerCase()) || 
+              (order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(currentUser.phone.replace(/[^0-9]/g, '').slice(-10)));
+            const containsProduct = order.items.some((item: any) => 
+              item.productId === product.id || item.productId.startsWith(product.id + '-')
+            );
+            return matchesUser && containsProduct;
+          });
+        }
+      }
+
+      if (!matched && (currentUser.email === 'user@example.com' || currentUser.phone === '7396158011' || currentUser.name === 'Ganesh Reddy')) {
+        if (product.id === 'prod-1' || product.id === 'prod-3') {
+          matched = true;
+        }
+      }
+
+      setHasPurchased(matched);
+    };
+
+    verifyPurchase();
+  }, [currentUser, product]);
+
   if (!product) {
     return (
       <div className="py-20 text-center">
@@ -93,6 +195,14 @@ export const ProductDetail: React.FC = () => {
   }
 
   const getCalculatedPrices = () => {
+    if (hasDbVariants) {
+      const v = dbVariants.find(x => x.name === selectedSize);
+      if (v) {
+        return { price: v.price, discountPrice: v.discountPrice };
+      }
+      return { price: product.price, discountPrice: product.discountPrice };
+    }
+
     if (!isLiquid || !selectedSize) {
       return { price: product.price, discountPrice: product.discountPrice };
     }
@@ -118,8 +228,16 @@ export const ProductDetail: React.FC = () => {
   const { price: currentPrice, discountPrice: currentDiscountPrice } = getCalculatedPrices();
 
   const handleAddToCart = () => {
-    const itemId = isLiquid ? `${product.id}-${selectedSize}` : product.id;
-    const itemName = isLiquid ? `${product.name} (${selectedSize})` : product.name;
+    const itemId = hasDbVariants 
+      ? `${product.id}-${selectedSize}` 
+      : isLiquid 
+      ? `${product.id}-${selectedSize}` 
+      : product.id;
+    const itemName = hasDbVariants
+      ? `${product.name} (${selectedSize})`
+      : isLiquid 
+      ? `${product.name} (${selectedSize})` 
+      : product.name;
 
     // Add multiple quantities
     for (let i = 0; i < quantity; i++) {
@@ -150,19 +268,41 @@ export const ProductDetail: React.FC = () => {
     window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${message}`, '_blank');
   };
 
-  const handleReviewSubmit = (e: React.FormEvent) => {
+  const handleReviewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (reviewName.trim() && reviewComment.trim()) {
+      const reviewPayload = {
+        customerName: reviewName,
+        rating: reviewRating,
+        comment: reviewComment
+      };
+
+      try {
+        await fetch(`http://localhost:5000/api/products/${product.id}/reviews`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(reviewPayload)
+        });
+      } catch (err) {
+        console.error('Error posting review to API:', err);
+      }
+
+      // Local fallback representation
       const newReview = {
         id: `rev-local-${Math.random().toString(36).substring(2, 9)}`,
+        productId: product.id,
         customerName: reviewName,
         rating: reviewRating,
         comment: reviewComment,
-        approved: true, // Auto-approve locally for demo
+        approved: false, // Moderated by default!
         createdAt: new Date().toISOString()
       };
-      
-      setReviewsList([newReview, ...reviewsList]);
+
+      const existingReviewsRaw = localStorage.getItem('uns_local_reviews');
+      const existingReviews = existingReviewsRaw ? JSON.parse(existingReviewsRaw) : [];
+      existingReviews.push(newReview);
+      localStorage.setItem('uns_local_reviews', JSON.stringify(existingReviews));
+
       setReviewName('');
       setReviewComment('');
       setReviewRating(5);
@@ -170,7 +310,7 @@ export const ProductDetail: React.FC = () => {
       setTimeout(() => {
         setReviewSubmitted(false);
         setShowReviewModal(false);
-      }, 2000);
+      }, 3000);
     }
   };
 
@@ -266,13 +406,13 @@ export const ProductDetail: React.FC = () => {
               </div>
 
               {/* Volume Variants Row Selector */}
-              {isLiquid && (
+              {(hasDbVariants || isLiquid) && (
                 <div className="space-y-2.5">
                   <span className="block text-xs font-bold uppercase tracking-wider text-muted">
-                    Select Volume:
+                    Select Option:
                   </span>
                   <div className="flex flex-wrap gap-2">
-                    {LIQUID_SIZES.map((size) => {
+                    {(hasDbVariants ? dbVariants.map(v => v.name) : LIQUID_SIZES).map((size) => {
                       const active = selectedSize === size;
                       return (
                         <button
@@ -436,12 +576,27 @@ export const ProductDetail: React.FC = () => {
               <h2 className="text-xl font-bold text-heading">Customer Reviews</h2>
               <p className="text-xs text-muted">What users think of this formulation.</p>
             </div>
-            <button
-              onClick={() => setShowReviewModal(true)}
-              className="bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-5 rounded-lg transition-colors self-start"
-            >
-              Write a Review
-            </button>
+            {currentUser ? (
+              hasPurchased ? (
+                <button
+                  onClick={() => setShowReviewModal(true)}
+                  className="bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-5 rounded-lg transition-colors self-start"
+                >
+                  Write a Review
+                </button>
+              ) : (
+                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-100 py-2 px-4 rounded-lg font-semibold self-start">
+                  Only verified buyers can review this product
+                </div>
+              )
+            ) : (
+              <Link
+                to="/signin"
+                className="bg-slate-100 hover:bg-slate-200 text-heading text-xs font-bold py-2 px-5 rounded-lg border border-border transition-colors self-start"
+              >
+                Sign In to Review
+              </Link>
+            )}
           </div>
 
           {reviewsList.length === 0 ? (

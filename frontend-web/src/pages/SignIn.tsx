@@ -10,11 +10,24 @@ export const SignIn: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate login and redirect
-    if (email === 'admin@uns.com' || email.includes('admin')) {
-      navigate('/admin');
-    } else {
+    
+    // User check
+    const usersRaw = localStorage.getItem('uns_users');
+    const users = usersRaw ? JSON.parse(usersRaw) : [];
+    const foundUser = users.find((u: any) => u.email === email && u.password === password);
+
+    if (foundUser) {
+      const currentUser = {
+        name: foundUser.name,
+        email: foundUser.email,
+        phone: foundUser.phone,
+        role: 'user'
+      };
+      localStorage.setItem('uns_current_user', JSON.stringify(currentUser));
+      window.dispatchEvent(new Event('authChange'));
       navigate('/');
+    } else {
+      alert('Invalid email or password.');
     }
   };
 
@@ -121,11 +134,15 @@ export const SignIn: React.FC = () => {
 
           </form>
 
-          {/* Quick Info */}
-          <div className="mt-6 pt-6 border-t border-slate-100 text-[10px] text-center text-muted leading-relaxed">
-            <span className="font-bold text-heading">Demo Accounts:</span><br />
-            Customer login: <span className="font-mono text-primary select-all">user@example.com</span> | Admin login: <span className="font-mono text-primary select-all">admin@uns.com</span>
+          {/* Redirect to Sign Up */}
+          <div className="mt-6 text-center text-xs text-body font-medium">
+            Don't have an account?{' '}
+            <Link to="/signup" className="font-bold text-primary hover:text-primary-light transition-colors hover:underline">
+              Sign Up
+            </Link>
           </div>
+
+
 
         </div>
       </div>

@@ -12,7 +12,32 @@ export const SignUp: React.FC = () => {
 
   const handleRegister = (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate signup success
+    
+    // Save to users list
+    const usersRaw = localStorage.getItem('uns_users');
+    const users = usersRaw ? JSON.parse(usersRaw) : [];
+    
+    // Prevent registering with admin email
+    if (email === 'unshomecleaningproductspvtltd@gmail.com') {
+      alert('This email is reserved for administration.');
+      return;
+    }
+    
+    if (users.some((u: any) => u.email === email)) {
+      alert('User with this email already exists.');
+      return;
+    }
+
+    const newUser = { name, email, phone, password, role: 'user' };
+    users.push(newUser);
+    localStorage.setItem('uns_users', JSON.stringify(users));
+
+    // Log in user immediately
+    const currentUser = { name, email, phone, role: 'user' };
+    localStorage.setItem('uns_current_user', JSON.stringify(currentUser));
+    window.dispatchEvent(new Event('authChange'));
+
+    alert('Account registered successfully!');
     navigate('/');
   };
 

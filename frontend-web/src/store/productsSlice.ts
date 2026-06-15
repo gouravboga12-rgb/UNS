@@ -23,7 +23,7 @@ export interface Product {
   discountPrice: number;
   stock: number;
   rating: number;
-  specifications: Record<string, string>;
+  specifications: Record<string, any>;
   benefits: string[];
   usageInstructions: string[];
   featured: boolean;
@@ -799,6 +799,58 @@ const productsSlice = createSlice({
     },
     deleteProductLocally: (state, action: PayloadAction<string>) => {
       state.items = state.items.filter(p => p.id !== action.payload);
+    },
+    addCategoryLocally: (state, action: PayloadAction<Category>) => {
+      state.categories.push(action.payload);
+    },
+    updateCategoryLocally: (state, action: PayloadAction<Category>) => {
+      const idx = state.categories.findIndex(c => c.id === action.payload.id);
+      if (idx !== -1) {
+        state.categories[idx] = action.payload;
+      }
+    },
+    deleteCategoryLocally: (state, action: PayloadAction<string>) => {
+      state.categories = state.categories.filter(c => c.id !== action.payload);
+    },
+    updateReviewLocally: (state, action: PayloadAction<{ productId: string; reviewId: string; comment: string; rating: number; approved?: boolean }>) => {
+      const prod = state.items.find(p => p.id === action.payload.productId);
+      if (prod && prod.reviews) {
+        const rev = prod.reviews.find(r => r.id === action.payload.reviewId);
+        if (rev) {
+          rev.comment = action.payload.comment;
+          rev.rating = action.payload.rating;
+          if (action.payload.approved !== undefined) {
+            rev.approved = action.payload.approved;
+          }
+          // Recalculate rating
+          const approved = prod.reviews.filter(r => r.approved);
+          const sum = approved.reduce((acc, r) => acc + r.rating, 0);
+          prod.rating = approved.length ? Number((sum / approved.length).toFixed(1)) : 5.0;
+        }
+      }
+    },
+    approveReviewLocally: (state, action: PayloadAction<{ productId: string; reviewId: string }>) => {
+      const prod = state.items.find(p => p.id === action.payload.productId);
+      if (prod && prod.reviews) {
+        const rev = prod.reviews.find(r => r.id === action.payload.reviewId);
+        if (rev) {
+          rev.approved = true;
+          // Recalculate rating
+          const approved = prod.reviews.filter(r => r.approved);
+          const sum = approved.reduce((acc, r) => acc + r.rating, 0);
+          prod.rating = approved.length ? Number((sum / approved.length).toFixed(1)) : 5.0;
+        }
+      }
+    },
+    deleteReviewLocally: (state, action: PayloadAction<{ productId: string; reviewId: string }>) => {
+      const prod = state.items.find(p => p.id === action.payload.productId);
+      if (prod && prod.reviews) {
+        prod.reviews = prod.reviews.filter(r => r.id !== action.payload.reviewId);
+        // Recalculate rating
+        const approved = prod.reviews.filter(r => r.approved);
+        const sum = approved.reduce((acc, r) => acc + r.rating, 0);
+        prod.rating = approved.length ? Number((sum / approved.length).toFixed(1)) : 5.0;
+      }
     }
   },
   extraReducers: (builder) => {
@@ -820,5 +872,16 @@ const productsSlice = createSlice({
   },
 });
 
-export const { setLocalProducts, addProductLocally, updateProductLocally, deleteProductLocally } = productsSlice.actions;
+export const { 
+  setLocalProducts, 
+  addProductLocally, 
+  updateProductLocally, 
+  deleteProductLocally,
+  addCategoryLocally,
+  updateCategoryLocally,
+  deleteCategoryLocally,
+  updateReviewLocally,
+  approveReviewLocally,
+  deleteReviewLocally
+} = productsSlice.actions;
 export default productsSlice.reducer;

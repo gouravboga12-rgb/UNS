@@ -3,7 +3,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { ProductCard } from '../components/ProductCard';
-import { Loader2, ClipboardList, MapPin, Truck, CheckCircle2 } from 'lucide-react';
+import { Loader2, ClipboardList, MapPin, Truck, CheckCircle2, X } from 'lucide-react';
 
 export const TrackOrder: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -17,6 +17,7 @@ export const TrackOrder: React.FC = () => {
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<any | null>(null);
+  const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
   // Selector for bestseller/recommended shelf products
   const products = useSelector((state: RootState) => state.products.items);
@@ -227,7 +228,7 @@ export const TrackOrder: React.FC = () => {
           <div className="bg-white p-6 sm:p-8 rounded-3xl border border-border shadow-soft max-w-4xl mx-auto mb-16 space-y-8 animate-fadeIn" data-aos="fade-up">
             
             {/* Summary Row */}
-            <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-6 gap-4">
+            <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-6 gap-6">
               <div>
                 <span className="text-[10px] text-muted font-bold uppercase tracking-wider">Order Reference</span>
                 <h3 className="font-heading font-bold text-lg text-heading mt-0.5">UNS-#{orderData.orderNumber}</h3>
@@ -242,9 +243,39 @@ export const TrackOrder: React.FC = () => {
               </div>
               <div>
                 <span className="text-[10px] text-muted font-bold uppercase tracking-wider">Current Status</span>
-                <span className="inline-block mt-0.5 px-2.5 py-0.5 bg-teal-50 border border-teal-100 text-primary text-[10px] font-bold rounded-full uppercase">
-                  {orderData.status}
-                </span>
+                <div className="mt-0.5">
+                  <span className="inline-block px-2.5 py-0.5 bg-teal-50 border border-teal-100 text-primary text-[10px] font-bold rounded-full uppercase">
+                    {orderData.status}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Tracking ID & Link */}
+              {orderData.trackingId && (
+                <div>
+                  <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">Tracking ID</span>
+                  <span className="text-xs font-mono font-bold text-heading mt-0.5 block">{orderData.trackingId}</span>
+                  {orderData.trackingLink && (
+                    <a 
+                      href={orderData.trackingLink} 
+                      target="_blank" 
+                      rel="noopener noreferrer" 
+                      className="text-[10px] text-primary hover:underline font-bold block mt-0.5"
+                    >
+                      Track via Courier ↗
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {/* Invoice Action Button */}
+              <div>
+                <button
+                  onClick={() => setShowInvoiceModal(true)}
+                  className="bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-4 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                >
+                  View / Download Invoice
+                </button>
               </div>
             </div>
 
@@ -317,6 +348,154 @@ export const TrackOrder: React.FC = () => {
           </div>
         </div>
 
+        {showInvoiceModal && orderData && (
+          <InvoiceModal orderData={orderData} onClose={() => setShowInvoiceModal(false)} />
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Invoice Modal Component integration at end of TrackOrder.tsx
+const InvoiceModal: React.FC<{ orderData: any; onClose: () => void }> = ({ orderData, onClose }) => {
+  const subtotal = orderData.totalAmount - (orderData.totalAmount > 500 ? 0 : 50);
+  const shipping = orderData.totalAmount > 500 ? 0 : 50;
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm print:bg-white print:p-0 print:block">
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #printable-invoice, #printable-invoice * {
+            visibility: visible;
+          }
+          #printable-invoice {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            box-shadow: none !important;
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+          }
+          .print-hidden {
+            display: none !important;
+          }
+        }
+      `}</style>
+      <div 
+        id="printable-invoice"
+        className="bg-white rounded-2xl max-w-2xl w-full border border-border shadow-2xl p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto print:max-h-full print:border-none print:shadow-none print:p-0 animate-zoomIn"
+      >
+        {/* Close trigger */}
+        <button 
+          onClick={onClose}
+          className="absolute top-4 right-4 text-muted hover:text-heading print-hidden p-1 rounded-full hover:bg-slate-100"
+        >
+          <X size={18} />
+        </button>
+
+        {/* Invoice Header */}
+        <div className="flex justify-between items-start border-b border-slate-150 pb-5 mb-5 print:border-slate-200">
+          <div>
+            <h2 className="font-heading text-lg font-black text-primary tracking-wide">UNS HOME CLEANING PRODUCTS</h2>
+            <p className="text-[10px] text-muted font-bold tracking-tight mt-0.5">Clean Today... Healthy Tomorrow...</p>
+            <p className="text-[9px] text-slate-500 mt-2 leading-relaxed">
+              Plot No. 12, Industrial Area, Phase 1,<br/>
+              Siddipet, Telangana, 502103<br/>
+              Email: unshomecleaningproductspvtltd@gmail.com | Phone: +91 7396158011
+            </p>
+          </div>
+          <div className="text-right">
+            <h3 className="text-lg font-black text-heading uppercase tracking-wider">TAX INVOICE</h3>
+            <p className="text-[10px] text-muted mt-1">Invoice No: <strong className="text-heading font-bold">INV-{orderData.orderNumber}</strong></p>
+            <p className="text-[10px] text-muted">Order ID: <strong className="font-mono text-heading font-bold">{orderData.id}</strong></p>
+            <p className="text-[10px] text-muted">Date: {new Date(orderData.createdAt).toLocaleDateString()}</p>
+          </div>
+        </div>
+
+        {/* Billing / Shipping */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 mb-6 text-xs leading-relaxed">
+          <div>
+            <h4 className="font-bold text-[10px] uppercase text-muted tracking-wider mb-1">Billing Address:</h4>
+            <p className="font-bold text-heading">{orderData.customerName}</p>
+            <p>Phone: {orderData.customerPhone}</p>
+            {orderData.customerEmail && <p>Email: {orderData.customerEmail}</p>}
+          </div>
+          <div>
+            <h4 className="font-bold text-[10px] uppercase text-muted tracking-wider mb-1">Shipping Destination:</h4>
+            <p className="text-slate-650">{orderData.shippingAddress}</p>
+          </div>
+        </div>
+
+        {/* Invoice Items Table */}
+        <div className="border border-border rounded-xl overflow-hidden mb-6">
+          <table className="w-full text-xs text-left border-collapse">
+            <thead>
+              <tr className="bg-slate-50 border-b border-border font-bold text-heading text-[10px] uppercase tracking-wider">
+                <th className="p-3 w-12 text-center">S.No</th>
+                <th className="p-3">Product Description</th>
+                <th className="p-3 text-right">Unit Price</th>
+                <th className="p-3 text-center w-16">Qty</th>
+                <th className="p-3 text-right">Total Price</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 text-body">
+              {orderData.items.map((item: any, idx: number) => (
+                <tr key={idx} className="hover:bg-slate-50/20">
+                  <td className="p-3 text-center text-muted">{idx + 1}</td>
+                  <td className="p-3 font-semibold text-heading">{item.name}</td>
+                  <td className="p-3 text-right">₹{item.price.toFixed(2)}</td>
+                  <td className="p-3 text-center">{item.quantity}</td>
+                  <td className="p-3 text-right font-semibold text-heading">₹{(item.price * item.quantity).toFixed(2)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Sum calculation card */}
+        <div className="flex justify-end mb-6">
+          <div className="w-64 space-y-2 text-xs">
+            <div className="flex justify-between text-slate-500 font-medium">
+              <span>Subtotal</span>
+              <span>₹{subtotal.toFixed(2)}</span>
+            </div>
+            <div className="flex justify-between text-slate-500 font-medium">
+              <span>Shipping Charges</span>
+              <span>{shipping === 0 ? "FREE" : `₹${shipping.toFixed(2)}`}</span>
+            </div>
+            <div className="flex justify-between text-sm font-bold text-heading border-t border-slate-100 pt-2">
+              <span>Grand Total</span>
+              <span className="text-primary font-black text-base">₹{orderData.totalAmount.toFixed(2)}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Payment details / footer notes */}
+        <div className="border-t border-slate-150 pt-4 text-[9px] text-muted leading-relaxed mb-6 space-y-1">
+          <p><strong>Payment Status:</strong> Pending Verification</p>
+          <p>This is a computer-generated tax invoice and does not require a physical signature.</p>
+        </div>
+
+        {/* Print controls */}
+        <div className="flex justify-end gap-3 print-hidden border-t border-slate-100 pt-4">
+          <button
+            onClick={() => window.print()}
+            className="bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-5 rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+          >
+            Print / Save as PDF
+          </button>
+          <button
+            onClick={onClose}
+            className="text-xs text-muted hover:text-heading font-semibold py-2 px-4 border border-border rounded-lg hover:bg-slate-50 transition-colors"
+          >
+            Close
+          </button>
+        </div>
       </div>
     </div>
   );

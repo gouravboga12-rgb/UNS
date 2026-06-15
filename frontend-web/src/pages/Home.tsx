@@ -115,8 +115,8 @@ export const Home: React.FC = () => {
       a: "We are actively expanding our retail distribution network. You can register interest by submitting the contact form on our Contact page or click 'Inquire via WhatsApp' to chat directly with our trade team. We offer marketing support, collaterals, and tiered pricing schemes."
     },
     {
-      q: "Is Cash on Delivery (COD) available for orders?",
-      a: "Yes! We support Cash on Delivery (COD) as well as order booking through WhatsApp. You can add items to your cart, fill in your details, and place your order securely."
+      q: "How can I place an order for UNS products?",
+      a: "We support easy, instant order booking through WhatsApp. Simply add items to your cart, fill in your delivery details, and place your order. Our team will verify and coordinate delivery with you."
     },
     {
       q: "Where are UNS products manufactured?",
@@ -160,7 +160,7 @@ export const Home: React.FC = () => {
               '👶 Kid Safe & Pet Friendly Formulations',
               '🇮🇳 Proudly Made In India',
               '🚚 Fast Delivery Across South India',
-              '💵 COD & WhatsApp Orders Available',
+              '🛍️ Easy WhatsApp Order Booking',
             ].flatMap((item, i) => [
               <span key={`${gi}-${i}`} className="text-xs font-bold uppercase tracking-widest text-white px-8 whitespace-nowrap flex-shrink-0">{item}</span>,
               <span key={`${gi}-sep-${i}`} className="ticker-sep text-teal-400 flex-shrink-0 text-base">•</span>,
@@ -180,7 +180,7 @@ export const Home: React.FC = () => {
         </div>
 
         {/* Horizontally scrollable row — centered when all fit, scrollable on small screens */}
-        <div className="relative">
+        <div className="relative w-full max-w-full overflow-hidden">
           <div className="flex gap-8 sm:gap-12 overflow-x-auto pb-4 px-4 sm:px-8 lg:px-16 scroll-smooth no-scrollbar justify-start lg:justify-center">
             {(() => {
               const catConfig: Record<string, { gradient: string; img: string }> = {
@@ -301,7 +301,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 4. "Mom's Favorites" (Bestsellers with Social Proof Badges) */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white overflow-hidden w-full max-w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16" data-aos="fade-up">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-50 border border-orange-100 text-orange-700 text-xs font-bold uppercase tracking-wider">
@@ -343,7 +343,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 5. "Why We're Different" - Core USPs Row */}
-      <section className="py-16 bg-emerald-50/50 border-y border-emerald-100">
+      <section className="py-16 bg-emerald-50/50 border-y border-emerald-100 overflow-hidden w-full max-w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <h2 className="text-2xl sm:text-3xl font-bold text-heading">Why We're Different</h2>
@@ -397,7 +397,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 6. "Which Mess Matters?" - Concern-Based Shopping Grid */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white overflow-hidden w-full max-w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-14" data-aos="fade-up">
             <span className="text-[10px] font-bold text-primary uppercase tracking-widest bg-teal-50 px-3 py-1.5 rounded-full border border-teal-100">
@@ -439,7 +439,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 7. Milestone stats: "It's not just clean, it's UNS Clean" */}
-      <section className="py-20 bg-slate-50 border-t border-b border-slate-100">
+      <section className="py-20 bg-slate-50 border-t border-b border-slate-100 overflow-hidden w-full max-w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
           <h2 className="text-3xl font-bold text-heading mb-3">It's Not Just Clean, It's UNS Clean</h2>
           <p className="text-muted max-w-2xl mx-auto text-sm mb-12">
@@ -485,7 +485,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 8. Founder Story & Key Surfactant Details */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white overflow-hidden w-full max-w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-stretch">
             
@@ -555,7 +555,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 9. Official Product Flyers & Catalog tab showcase gallery with Zoom lightbox modal */}
-      <section className="py-20 bg-slate-50 border-t border-b border-slate-200">
+      <section className="py-20 bg-slate-50 border-t border-b border-slate-200 overflow-hidden w-full max-w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-12" data-aos="fade-up">
             <span className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full bg-teal-50 border border-teal-100 text-primary text-xs font-bold uppercase tracking-wider">
@@ -693,7 +693,7 @@ export const Home: React.FC = () => {
       )}
 
       {/* 10. "What's Hiding in Your Everyday Cleaners?" (Educational USP comparison) */}
-      <section className="py-20 bg-white">
+      <section className="py-20 bg-white overflow-hidden w-full max-w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
             
@@ -773,7 +773,7 @@ export const Home: React.FC = () => {
       </section>
 
       {/* 11. Collapsible FAQs Accordion */}
-      <section className="py-20 bg-slate-50 border-t border-slate-200">
+      <section className="py-20 bg-slate-50 border-t border-slate-200 overflow-hidden w-full max-w-full">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-12">
             <span className="text-xs font-bold uppercase tracking-widest text-primary bg-teal-50 px-3 py-1 rounded-full border border-teal-100">

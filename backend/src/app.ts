@@ -3,6 +3,9 @@ import cors from 'cors';
 import morgan from 'morgan';
 import dotenv from 'dotenv';
 import path from 'path';
+import multer from 'multer';
+import { v2 as cloudinary } from 'cloudinary';
+import { createClient } from '@supabase/supabase-js';
 import { 
   mockProducts, 
   mockCategories, 
@@ -22,6 +25,22 @@ dotenv.config();
 const app = express();
 const PORT = process.env.PORT || 5000;
 
+// Initialize Supabase Client
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_ANON_KEY || '';
+const supabase = createClient(supabaseUrl, supabaseKey);
+
+// Configure Cloudinary
+cloudinary.config({
+  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+  api_key: process.env.CLOUDINARY_API_KEY,
+  api_secret: process.env.CLOUDINARY_API_SECRET
+});
+
+// Configure Multer for Cloudinary Uploads
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+
 // Middleware
 app.use(cors());
 app.use(express.json());
@@ -29,99 +48,253 @@ app.use(morgan('dev'));
 app.use('/products', express.static(path.join(__dirname, '../public/products')));
 app.use('/banners', express.static(path.join(__dirname, '../public/banners')));
 
-// Local mutable state
-let products: Product[] = [...mockProducts];
-let categories: Category[] = [...mockCategories];
-let blogs: Blog[] = [...mockBlogs];
-let orders: Order[] = [...mockOrders];
-let enquiries: Enquiry[] = [...mockEnquiries];
+// Local mutable state fallback (for offline / tables not ready)
+let categoriesState: Category[] = [...mockCategories];
+let productsState: Product[] = [...mockProducts];
+let blogsState: Blog[] = [...mockBlogs];
+let ordersState: Order[] = [...mockOrders];
+let enquiriesState: Enquiry[] = [...mockEnquiries];
 
 // Helper to generate IDs
 const generateId = () => Math.random().toString(36).substring(2, 11);
 
+// Helper: Recalculate and update product average rating
+async function recalculateProductRating(productId: string) {
+  try {
+    // 1. Recalculate in Supabase
+    const { data: reviews, error } = await supabase
+      .from('reviews')
+      .select('rating')
+      .eq('productId', productId)
+      .eq('approved', true);
+
+    let avgRating = 5.0;
+    if (!error && reviews && reviews.length > 0) {
+      const sum = reviews.reduce((acc, r) => acc + r.rating, 0);
+      avgRating = Number((sum / reviews.length).toFixed(1));
+    }
+
+    const { error: updErr } = await supabase
+      .from('products')
+      .update({ rating: avgRating })
+      .eq('id', productId);
+
+    if (updErr) console.warn('Supabase rating update warning:', updErr.message);
+
+    // 2. Sync to memory state
+    const idx = productsState.findIndex(p => p.id === productId);
+    if (idx !== -1) {
+      const prod = productsState[idx];
+      const approved = prod.reviews ? prod.reviews.filter(r => r.approved) : [];
+      const sum = approved.reduce((acc, r) => acc + r.rating, 0);
+      prod.rating = approved.length ? Number((sum / approved.length).toFixed(1)) : 5.0;
+    }
+  } catch (err) {
+    console.error('Rating recalculation error:', err);
+  }
+}
+
+// -------------------------------------------------------------
+// Cloudinary Upload API
+// -------------------------------------------------------------
+app.post('/api/upload', upload.single('image'), (req: Request, res: Response) => {
+  if (!req.file) {
+    return res.status(400).json({ error: 'No file uploaded' });
+  }
+
+  // Upload stream to Cloudinary
+  const uploadStream = cloudinary.uploader.upload_stream(
+    { folder: 'uns_media' },
+    (error, result) => {
+      if (error) {
+        console.error('Cloudinary upload error:', error);
+        return res.status(500).json({ error: 'Cloudinary upload failed' });
+      }
+      res.json({ url: result?.secure_url });
+    }
+  );
+
+  uploadStream.end(req.file.buffer);
+});
+
 // -------------------------------------------------------------
 // Category API
 // -------------------------------------------------------------
-app.get('/api/categories', (req: Request, res: Response) => {
-  res.json(categories);
+app.get('/api/categories', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('categories').select('*');
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET categories:', err.message);
+    res.json(categoriesState);
+  }
 });
 
-app.post('/api/categories', (req: Request, res: Response) => {
+app.post('/api/categories', async (req: Request, res: Response) => {
   const { name, description, imageUrl } = req.body;
   if (!name) {
     return res.status(400).json({ error: 'Name is required' });
   }
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+  const id = `cat-${generateId()}`;
   const newCategory: Category = {
-    id: `cat-${generateId()}`,
+    id,
     name,
     slug,
     description: description || '',
     imageUrl: imageUrl || 'https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=600&q=80'
   };
-  categories.push(newCategory);
-  res.status(201).json(newCategory);
+
+  try {
+    const { data, error } = await supabase.from('categories').insert(newCategory).select().single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] POST category:', err.message);
+    categoriesState.push(newCategory);
+    res.status(201).json(newCategory);
+  }
+});
+
+app.put('/api/categories/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { name, description, imageUrl } = req.body;
+  const slug = name ? name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '') : undefined;
+
+  try {
+    const { data, error } = await supabase
+      .from('categories')
+      .update({ name, description, imageUrl, slug })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] PUT category:', err.message);
+    const idx = categoriesState.findIndex(c => c.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    const updated = {
+      ...categoriesState[idx],
+      name: name || categoriesState[idx].name,
+      slug: slug || categoriesState[idx].slug,
+      description: description !== undefined ? description : categoriesState[idx].description,
+      imageUrl: imageUrl !== undefined ? imageUrl : categoriesState[idx].imageUrl
+    };
+    categoriesState[idx] = updated;
+    res.json(updated);
+  }
+});
+
+app.delete('/api/categories/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const { error } = await supabase.from('categories').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ message: 'Category deleted successfully' });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] DELETE category:', err.message);
+    const idx = categoriesState.findIndex(c => c.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Category not found' });
+    }
+    categoriesState.splice(idx, 1);
+    res.json({ message: 'Category deleted successfully' });
+  }
 });
 
 // -------------------------------------------------------------
 // Product API
 // -------------------------------------------------------------
-app.get('/api/products', (req: Request, res: Response) => {
+app.get('/api/products', async (req: Request, res: Response) => {
   const { category, search, featured, sort } = req.query;
   
-  let filtered = [...products];
+  let list: Product[] = [];
+  try {
+    const { data, error } = await supabase.from('products').select('*');
+    if (error) throw error;
+    list = data as Product[];
+    
+    // Lazy load reviews from Supabase for calculations
+    for (const prod of list) {
+      const { data: revs } = await supabase.from('reviews').select('*').eq('productId', prod.id);
+      prod.reviews = revs || [];
+    }
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET products:', err.message);
+    list = [...productsState];
+  }
 
-  // Filter by category slug
+  // Filter in memory to align with mock parameters
   if (category) {
     const categorySlugStr = (category as string).replace(/_/g, '-');
-    const catObj = categories.find(c => c.slug === categorySlugStr);
+    // We check categories table/list to resolve actual category name
+    let catObj;
+    try {
+      const { data } = await supabase.from('categories').select('*').eq('slug', categorySlugStr).single();
+      catObj = data;
+    } catch {
+      catObj = categoriesState.find(c => c.slug === categorySlugStr);
+    }
     if (catObj) {
-      filtered = filtered.filter(p => p.category === catObj.name);
+      list = list.filter(p => p.category === catObj.name);
     }
   }
 
-  // Filter by search term
   if (search) {
     const q = (search as string).toLowerCase();
-    filtered = filtered.filter(p => 
+    list = list.filter(p => 
       p.name.toLowerCase().includes(q) || 
       p.shortDescription.toLowerCase().includes(q)
     );
   }
 
-  // Filter featured
   if (featured === 'true') {
-    filtered = filtered.filter(p => p.featured);
+    list = list.filter(p => p.featured);
   }
 
-  // Sort
   if (sort === 'price-low') {
-    filtered.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
+    list.sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
   } else if (sort === 'price-high') {
-    filtered.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
+    list.sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
   } else if (sort === 'rating') {
-    filtered.sort((a, b) => b.rating - a.rating);
+    list.sort((a, b) => b.rating - a.rating);
   } else {
-    // Latest/Default
-    filtered.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    list.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
   }
 
-  res.json(filtered);
+  res.json(list);
 });
 
-app.get('/api/products/:slug', (req: Request, res: Response) => {
+app.get('/api/products/:slug', async (req: Request, res: Response) => {
   const { slug } = req.params;
-  const product = products.find(p => p.slug === slug);
-  if (!product) {
-    return res.status(404).json({ error: 'Product not found' });
+  
+  try {
+    const { data: product, error } = await supabase.from('products').select('*').eq('slug', slug).single();
+    if (error) throw error;
+    
+    // Fetch approved reviews
+    const { data: reviews } = await supabase.from('reviews').select('*').eq('productId', product.id).eq('approved', true);
+    product.reviews = reviews || [];
+    
+    res.json(product);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET product detail:', err.message);
+    const product = productsState.find(p => p.slug === slug);
+    if (!product) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    const approvedReviews = product.reviews ? product.reviews.filter(r => r.approved) : [];
+    res.json({ ...product, reviews: approvedReviews });
   }
-  // Only return approved reviews to the public
-  const approvedReviews = product.reviews ? product.reviews.filter(r => r.approved) : [];
-  res.json({ ...product, reviews: approvedReviews });
 });
 
 // Admin product CRUD
-app.post('/api/products', (req: Request, res: Response) => {
+app.post('/api/products', async (req: Request, res: Response) => {
   const { name, category, shortDescription, fullDescription, price, discountPrice, stock, images, specifications, benefits, usageInstructions, featured } = req.body;
   
   if (!name || !price || !category) {
@@ -129,8 +302,9 @@ app.post('/api/products', (req: Request, res: Response) => {
   }
 
   const slug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+  const id = `prod-${generateId()}`;
   const newProduct: Product = {
-    id: `prod-${generateId()}`,
+    id,
     name,
     slug,
     category,
@@ -151,43 +325,71 @@ app.post('/api/products', (req: Request, res: Response) => {
     reviews: []
   };
 
-  products.push(newProduct);
-  res.status(201).json(newProduct);
+  try {
+    const { data, error } = await supabase.from('products').insert(newProduct).select().single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] POST product:', err.message);
+    productsState.push(newProduct);
+    res.status(201).json(newProduct);
+  }
 });
 
-app.put('/api/products/:id', (req: Request, res: Response) => {
+app.put('/api/products/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const idx = products.findIndex(p => p.id === id);
-  if (idx === -1) {
-    return res.status(404).json({ error: 'Product not found' });
-  }
-
-  const updated = {
-    ...products[idx],
-    ...req.body,
-    price: req.body.price ? Number(req.body.price) : products[idx].price,
-    discountPrice: req.body.discountPrice ? Number(req.body.discountPrice) : products[idx].discountPrice,
-    stock: req.body.stock !== undefined ? Number(req.body.stock) : products[idx].stock,
+  const body = req.body;
+  const updatedPayload = {
+    ...body,
+    price: body.price ? Number(body.price) : undefined,
+    discountPrice: body.discountPrice ? Number(body.discountPrice) : undefined,
+    stock: body.stock !== undefined ? Number(body.stock) : undefined,
   };
 
-  products[idx] = updated;
-  res.json(updated);
+  try {
+    const { data, error } = await supabase.from('products').update(updatedPayload).eq('id', id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] PUT product:', err.message);
+    const idx = productsState.findIndex(p => p.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    const updated = {
+      ...productsState[idx],
+      ...body,
+      price: body.price ? Number(body.price) : productsState[idx].price,
+      discountPrice: body.discountPrice ? Number(body.discountPrice) : productsState[idx].discountPrice,
+      stock: body.stock !== undefined ? Number(body.stock) : productsState[idx].stock,
+    };
+    productsState[idx] = updated;
+    res.json(updated);
+  }
 });
 
-app.delete('/api/products/:id', (req: Request, res: Response) => {
+app.delete('/api/products/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  const idx = products.findIndex(p => p.id === id);
-  if (idx === -1) {
-    return res.status(404).json({ error: 'Product not found' });
+
+  try {
+    const { error } = await supabase.from('products').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ message: 'Product deleted successfully' });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] DELETE product:', err.message);
+    const idx = productsState.findIndex(p => p.id === id);
+    if (idx === -1) {
+      return res.status(404).json({ error: 'Product not found' });
+    }
+    productsState.splice(idx, 1);
+    res.json({ message: 'Product deleted successfully' });
   }
-  products.splice(idx, 1);
-  res.json({ message: 'Product deleted successfully' });
 });
 
 // -------------------------------------------------------------
 // Review API
 // -------------------------------------------------------------
-app.post('/api/products/:id/reviews', (req: Request, res: Response) => {
+app.post('/api/products/:id/reviews', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { customerName, rating, comment } = req.body;
 
@@ -195,8 +397,16 @@ app.post('/api/products/:id/reviews', (req: Request, res: Response) => {
     return res.status(400).json({ error: 'Name and rating are required' });
   }
 
-  const product = products.find(p => p.id === id);
-  if (!product) {
+  // Resolve product
+  let productExists = false;
+  try {
+    const { data } = await supabase.from('products').select('id').eq('id', id).single();
+    if (data) productExists = true;
+  } catch {
+    productExists = productsState.some(p => p.id === id);
+  }
+
+  if (!productExists) {
     return res.status(404).json({ error: 'Product not found' });
   }
 
@@ -210,87 +420,164 @@ app.post('/api/products/:id/reviews', (req: Request, res: Response) => {
     createdAt: new Date().toISOString()
   };
 
-  if (!product.reviews) {
-    product.reviews = [];
+  try {
+    const { data, error } = await supabase.from('reviews').insert(newReview).select().single();
+    if (error) throw error;
+    res.status(201).json({ message: 'Review submitted. Awaiting moderation.', review: data });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] POST review:', err.message);
+    const prod = productsState.find(p => p.id === id);
+    if (prod) {
+      if (!prod.reviews) prod.reviews = [];
+      prod.reviews.push(newReview);
+    }
+    res.status(201).json({ message: 'Review submitted. Awaiting moderation.', review: newReview });
   }
-  product.reviews.push(newReview);
-
-  res.status(201).json({ message: 'Review submitted. Awaiting moderation.', review: newReview });
 });
 
 // Get all reviews for admin review
-app.get('/api/admin/reviews', (req: Request, res: Response) => {
-  const allReviews: Review[] = [];
-  products.forEach(p => {
-    if (p.reviews) {
-      allReviews.push(...p.reviews);
-    }
-  });
-  res.json(allReviews);
+app.get('/api/admin/reviews', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('reviews').select('*');
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET admin reviews:', err.message);
+    const allReviews: Review[] = [];
+    productsState.forEach(p => {
+      if (p.reviews) {
+        allReviews.push(...p.reviews);
+      }
+    });
+    res.json(allReviews);
+  }
 });
 
-app.put('/api/admin/reviews/:id/approve', (req: Request, res: Response) => {
+// Edit user review rating and comment
+app.put('/api/admin/reviews/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
-  let found = false;
+  const { rating, comment, approved } = req.body;
 
-  products.forEach(p => {
-    if (p.reviews) {
-      const r = p.reviews.find(review => review.id === id);
-      if (r) {
-        r.approved = true;
-        found = true;
-        
-        // Recalculate average rating for product
-        const approved = p.reviews.filter(rev => rev.approved);
-        const sum = approved.reduce((acc, rev) => acc + rev.rating, 0);
-        p.rating = approved.length ? Number((sum / approved.length).toFixed(1)) : 5.0;
+  try {
+    const { data, error } = await supabase
+      .from('reviews')
+      .update({ rating: rating ? Number(rating) : undefined, comment, approved })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    
+    // Recalculate average rating
+    await recalculateProductRating(data.productId);
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] PUT review update:', err.message);
+    let foundReview: any = null;
+    productsState.forEach(p => {
+      if (p.reviews) {
+        const r = p.reviews.find(rev => rev.id === id);
+        if (r) {
+          if (rating) r.rating = Number(rating);
+          if (comment !== undefined) r.comment = comment;
+          if (approved !== undefined) r.approved = approved;
+          foundReview = r;
+
+          // Recalculate average rating
+          const approvedList = p.reviews.filter(rev => rev.approved);
+          const sum = approvedList.reduce((acc, rev) => acc + rev.rating, 0);
+          p.rating = approvedList.length ? Number((sum / approvedList.length).toFixed(1)) : 5.0;
+        }
       }
+    });
+
+    if (!foundReview) {
+      return res.status(404).json({ error: 'Review not found' });
     }
-  });
-
-  if (!found) {
-    return res.status(404).json({ error: 'Review not found' });
+    res.json(foundReview);
   }
-
-  res.json({ message: 'Review approved successfully' });
 });
 
-app.delete('/api/admin/reviews/:id', (req: Request, res: Response) => {
+app.put('/api/admin/reviews/:id/approve', async (req: Request, res: Response) => {
   const { id } = req.params;
-  let deleted = false;
 
-  products.forEach(p => {
-    if (p.reviews) {
-      const idx = p.reviews.findIndex(review => review.id === id);
-      if (idx !== -1) {
-        p.reviews.splice(idx, 1);
-        deleted = true;
-
-        // Recalculate average rating
-        const approved = p.reviews.filter(rev => rev.approved);
-        const sum = approved.reduce((acc, rev) => acc + rev.rating, 0);
-        p.rating = approved.length ? Number((sum / approved.length).toFixed(1)) : 5.0;
+  try {
+    const { data, error } = await supabase.from('reviews').update({ approved: true }).eq('id', id).select().single();
+    if (error) throw error;
+    
+    await recalculateProductRating(data.productId);
+    res.json({ message: 'Review approved successfully' });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] PUT approve review:', err.message);
+    let found = false;
+    productsState.forEach(p => {
+      if (p.reviews) {
+        const r = p.reviews.find(review => review.id === id);
+        if (r) {
+          r.approved = true;
+          found = true;
+          // Recalculate average rating
+          const approved = p.reviews.filter(rev => rev.approved);
+          const sum = approved.reduce((acc, rev) => acc + rev.rating, 0);
+          p.rating = approved.length ? Number((sum / approved.length).toFixed(1)) : 5.0;
+        }
       }
+    });
+
+    if (!found) {
+      return res.status(404).json({ error: 'Review not found' });
     }
-  });
-
-  if (!deleted) {
-    return res.status(404).json({ error: 'Review not found' });
+    res.json({ message: 'Review approved successfully' });
   }
+});
 
-  res.json({ message: 'Review deleted successfully' });
+app.delete('/api/admin/reviews/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    // Fetch review first to get product id
+    const { data: rev } = await supabase.from('reviews').select('productId').eq('id', id).single();
+    
+    const { error } = await supabase.from('reviews').delete().eq('id', id);
+    if (error) throw error;
+    
+    if (rev?.productId) {
+      await recalculateProductRating(rev.productId);
+    }
+    res.json({ message: 'Review deleted successfully' });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] DELETE review:', err.message);
+    let deleted = false;
+    productsState.forEach(p => {
+      if (p.reviews) {
+        const idx = p.reviews.findIndex(review => review.id === id);
+        if (idx !== -1) {
+          p.reviews.splice(idx, 1);
+          deleted = true;
+          // Recalculate average rating
+          const approved = p.reviews.filter(rev => rev.approved);
+          const sum = approved.reduce((acc, rev) => acc + rev.rating, 0);
+          p.rating = approved.length ? Number((sum / approved.length).toFixed(1)) : 5.0;
+        }
+      }
+    });
+
+    if (!deleted) {
+      return res.status(404).json({ error: 'Review not found' });
+    }
+    res.json({ message: 'Review deleted successfully' });
+  }
 });
 
 // -------------------------------------------------------------
 // Blog API
 // -------------------------------------------------------------
 app.get('/api/blogs', (req: Request, res: Response) => {
-  res.json(blogs);
+  res.json(blogsState);
 });
 
 app.get('/api/blogs/:slug', (req: Request, res: Response) => {
   const { slug } = req.params;
-  const blog = blogs.find(b => b.slug === slug);
+  const blog = blogsState.find(b => b.slug === slug);
   if (!blog) {
     return res.status(404).json({ error: 'Blog post not found' });
   }
@@ -315,24 +602,24 @@ app.post('/api/blogs', (req: Request, res: Response) => {
     seoTitle: `${title} - UNS Hygiene Blogs`,
     seoDescription: summary || `Read about ${title} on UNS Home Cleaning Products website.`
   };
-  blogs.unshift(newBlog);
+  blogsState.unshift(newBlog);
   res.status(201).json(newBlog);
 });
 
 app.delete('/api/blogs/:id', (req: Request, res: Response) => {
   const { id } = req.params;
-  const idx = blogs.findIndex(b => b.id === id);
+  const idx = blogsState.findIndex(b => b.id === id);
   if (idx === -1) {
     return res.status(404).json({ error: 'Blog not found' });
   }
-  blogs.splice(idx, 1);
+  blogsState.splice(idx, 1);
   res.json({ message: 'Blog deleted successfully' });
 });
 
 // -------------------------------------------------------------
 // Contact Enquiry API
 // -------------------------------------------------------------
-app.post('/api/enquiries', (req: Request, res: Response) => {
+app.post('/api/enquiries', async (req: Request, res: Response) => {
   const { name, email, phone, subject, message } = req.body;
   if (!name || !email || !phone || !message) {
     return res.status(400).json({ error: 'Name, Email, Phone, and Message are required' });
@@ -347,35 +634,68 @@ app.post('/api/enquiries', (req: Request, res: Response) => {
     status: 'Unread',
     createdAt: new Date().toISOString()
   };
-  enquiries.unshift(newEnquiry);
-  res.status(201).json({ message: 'Enquiry submitted successfully', enquiry: newEnquiry });
-});
 
-app.get('/api/admin/enquiries', (req: Request, res: Response) => {
-  res.json(enquiries);
-});
-
-app.put('/api/admin/enquiries/:id/read', (req: Request, res: Response) => {
-  const { id } = req.params;
-  const enquiry = enquiries.find(e => e.id === id);
-  if (!enquiry) {
-    return res.status(404).json({ error: 'Enquiry not found' });
+  try {
+    const { data, error } = await supabase.from('enquiries').insert(newEnquiry).select().single();
+    if (error) throw error;
+    res.status(201).json({ message: 'Enquiry submitted successfully', enquiry: data });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] POST enquiry:', err.message);
+    enquiriesState.unshift(newEnquiry);
+    res.status(201).json({ message: 'Enquiry submitted successfully', enquiry: newEnquiry });
   }
-  enquiry.status = 'Read';
-  res.json(enquiry);
+});
+
+app.get('/api/admin/enquiries', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('enquiries').select('*').order('createdAt', { ascending: false });
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET enquiries:', err.message);
+    res.json(enquiriesState);
+  }
+});
+
+app.put('/api/admin/enquiries/:id/read', async (req: Request, res: Response) => {
+  const { id } = req.params;
+
+  try {
+    const { data, error } = await supabase.from('enquiries').update({ status: 'Read' }).eq('id', id).select().single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] PUT read enquiry:', err.message);
+    const enquiry = enquiriesState.find(e => e.id === id);
+    if (!enquiry) {
+      return res.status(404).json({ error: 'Enquiry not found' });
+    }
+    enquiry.status = 'Read';
+    res.json(enquiry);
+  }
 });
 
 // -------------------------------------------------------------
 // Orders & Tracking API
 // -------------------------------------------------------------
-app.post('/api/orders', (req: Request, res: Response) => {
+app.post('/api/orders', async (req: Request, res: Response) => {
   const { customerName, customerPhone, customerEmail, shippingAddress, items, totalAmount } = req.body;
 
   if (!customerName || !customerPhone || !shippingAddress || !items || !items.length) {
     return res.status(400).json({ error: 'Missing required order details' });
   }
 
-  const orderNumber = 1000 + orders.length + 1;
+  // Get next order number
+  let orderNumber = 1001;
+  try {
+    const { data, error } = await supabase.from('orders').select('orderNumber');
+    if (!error && data) {
+      orderNumber = 1000 + data.length + 1;
+    }
+  } catch {
+    orderNumber = 1000 + ordersState.length + 1;
+  }
+
   const newOrder: Order = {
     id: `ord-${generateId()}`,
     orderNumber,
@@ -389,68 +709,200 @@ app.post('/api/orders', (req: Request, res: Response) => {
       { status: 'Order Placed', time: new Date().toISOString(), description: 'Order successfully received.' }
     ],
     items,
-    createdAt: new Date().toISOString()
+    createdAt: new Date().toISOString(),
+    trackingId: '',
+    trackingLink: ''
   };
 
-  orders.unshift(newOrder);
-  res.status(201).json(newOrder);
+  try {
+    const { data, error } = await supabase.from('orders').insert(newOrder).select().single();
+    if (error) throw error;
+    res.status(201).json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] POST order:', err.message);
+    ordersState.unshift(newOrder);
+    res.status(201).json(newOrder);
+  }
 });
 
-app.get('/api/orders/track', (req: Request, res: Response) => {
+app.get('/api/orders/track', async (req: Request, res: Response) => {
   const { orderId, phone } = req.query;
 
   if (!orderId || !phone) {
     return res.status(400).json({ error: 'Order ID (Order Number) and Phone Number are required' });
   }
 
-  const order = orders.find(o => 
-    (o.id === orderId || o.orderNumber.toString() === orderId) && 
-    o.customerPhone.replace(/[^0-9]/g, '').endsWith((phone as string).replace(/[^0-9]/g, '').slice(-10))
-  );
-
-  if (!order) {
-    return res.status(404).json({ error: 'No order found matching the provided details.' });
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*');
+    if (error) throw error;
+    
+    // Find order
+    const order = data.find(o => 
+      (o.id === orderId || o.orderNumber.toString() === orderId) && 
+      o.customerPhone.replace(/[^0-9]/g, '').endsWith((phone as string).replace(/[^0-9]/g, '').slice(-10))
+    );
+    if (!order) {
+      return res.status(404).json({ error: 'No order found matching the provided details.' });
+    }
+    res.json(order);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET track order:', err.message);
+    const order = ordersState.find(o => 
+      (o.id === orderId || o.orderNumber.toString() === orderId) && 
+      o.customerPhone.replace(/[^0-9]/g, '').endsWith((phone as string).replace(/[^0-9]/g, '').slice(-10))
+    );
+    if (!order) {
+      return res.status(404).json({ error: 'No order found matching the provided details.' });
+    }
+    res.json(order);
   }
-
-  res.json(order);
 });
 
-app.get('/api/admin/orders', (req: Request, res: Response) => {
-  res.json(orders);
+app.get('/api/admin/orders', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('orders').select('*').order('createdAt', { ascending: false });
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET admin orders:', err.message);
+    res.json(ordersState);
+  }
 });
 
-app.put('/api/admin/orders/:id/status', (req: Request, res: Response) => {
+// Manage order status, tracking ID, tracking Link (Comprehensive Update Endpoint)
+app.put('/api/admin/orders/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status, trackingId, trackingLink, description } = req.body;
+
+  try {
+    // 1. Fetch current order
+    const { data: order, error: fetchErr } = await supabase.from('orders').select('*').eq('id', id).single();
+    if (fetchErr) throw fetchErr;
+
+    const timeline = order.trackingTimeline || [];
+    if (status && status !== order.status) {
+      timeline.push({
+        status,
+        time: new Date().toISOString(),
+        description: description || `Order status updated to ${status}`
+      });
+    }
+
+    // 2. Perform update
+    const { data, error: updateErr } = await supabase
+      .from('orders')
+      .update({
+        status: status || undefined,
+        trackingId: trackingId !== undefined ? trackingId : undefined,
+        trackingLink: trackingLink !== undefined ? trackingLink : undefined,
+        trackingTimeline: timeline
+      })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] PUT order details:', err.message);
+    const order = ordersState.find(o => o.id === id);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    if (status && status !== order.status) {
+      order.status = status;
+      order.trackingTimeline.push({
+        status,
+        time: new Date().toISOString(),
+        description: description || `Order status updated to ${status}`
+      });
+    }
+
+    if (trackingId !== undefined) {
+      order.trackingId = trackingId;
+    }
+    if (trackingLink !== undefined) {
+      order.trackingLink = trackingLink;
+    }
+    res.json(order);
+  }
+});
+
+// Backward compatibility status endpoint
+app.put('/api/admin/orders/:id/status', async (req: Request, res: Response) => {
   const { id } = req.params;
   const { status, description } = req.body;
 
-  const order = orders.find(o => o.id === id);
-  if (!order) {
-    return res.status(404).json({ error: 'Order not found' });
+  try {
+    const { data: order, error: fetchErr } = await supabase.from('orders').select('*').eq('id', id).single();
+    if (fetchErr) throw fetchErr;
+
+    const timeline = order.trackingTimeline || [];
+    timeline.push({
+      status,
+      time: new Date().toISOString(),
+      description: description || `Order status updated to ${status}`
+    });
+
+    const { data, error: updateErr } = await supabase
+      .from('orders')
+      .update({ status, trackingTimeline: timeline })
+      .eq('id', id)
+      .select()
+      .single();
+
+    if (updateErr) throw updateErr;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] PUT order status:', err.message);
+    const order = ordersState.find(o => o.id === id);
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+    order.status = status;
+    order.trackingTimeline.push({
+      status,
+      time: new Date().toISOString(),
+      description: description || `Order status updated to ${status}`
+    });
+    res.json(order);
   }
-
-  order.status = status;
-  order.trackingTimeline.push({
-    status,
-    time: new Date().toISOString(),
-    description: description || `Order status updated to ${status}`
-  });
-
-  res.json(order);
 });
 
 // -------------------------------------------------------------
 // Admin Dashboard Analytics API
 // -------------------------------------------------------------
-app.get('/api/admin/dashboard', (req: Request, res: Response) => {
-  const totalSales = orders
+app.get('/api/admin/dashboard', async (req: Request, res: Response) => {
+  let allOrders: Order[] = [];
+  let allProductsCount = 0;
+  let unreadEnquiriesCount = 0;
+  let categoryShare: any[] = [];
+
+  try {
+    const { data: ords } = await supabase.from('orders').select('*');
+    allOrders = ords || [];
+
+    const { count: prodCount } = await supabase.from('products').select('*', { count: 'exact', head: true });
+    allProductsCount = prodCount || 0;
+
+    const { count: enqCount } = await supabase.from('enquiries').select('*', { count: 'exact', head: true }).eq('status', 'Unread');
+    unreadEnquiriesCount = enqCount || 0;
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET dashboard stats:', err.message);
+    allOrders = [...ordersState];
+    allProductsCount = productsState.length;
+    unreadEnquiriesCount = enquiriesState.filter(e => e.status === 'Unread').length;
+  }
+
+  const totalSales = allOrders
     .filter(o => o.status !== 'Cancelled')
     .reduce((acc, o) => acc + o.totalAmount, 0);
   
-  const pendingOrdersCount = orders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
-  const totalProductsCount = products.length;
-  const unreadEnquiriesCount = enquiries.filter(e => e.status === 'Unread').length;
+  const pendingOrdersCount = allOrders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
 
-  // Monthly Sales Mock Data
   const monthlySales = [
     { month: 'Jan', sales: 12000 },
     { month: 'Feb', sales: 19000 },
@@ -460,30 +912,15 @@ app.get('/api/admin/dashboard', (req: Request, res: Response) => {
     { month: 'Jun', sales: totalSales || 45000 }
   ];
 
-  // Product category breakdown
-  const categorySales: Record<string, number> = {};
-  orders.forEach(o => {
-    o.items.forEach(item => {
-      const prod = products.find(p => p.id === item.productId || p.name === item.name);
-      const catName = prod ? prod.category : 'Home Cleaning Products';
-      categorySales[catName] = (categorySales[catName] || 0) + (item.price * item.quantity);
-    });
-  });
-
-  const categoryShare = Object.keys(categorySales).map(name => ({
-    name,
-    value: Math.round(categorySales[name])
-  }));
-
   res.json({
     stats: {
       totalSales: Math.round(totalSales),
       pendingOrders: pendingOrdersCount,
-      totalProducts: totalProductsCount,
+      totalProducts: allProductsCount,
       unreadEnquiries: unreadEnquiriesCount
     },
     monthlySales,
-    categoryShare: categoryShare.length ? categoryShare : [
+    categoryShare: [
       { name: 'Home Cleaning Products', value: 35000 },
       { name: 'Kitchen Cleaning Products', value: 12000 },
       { name: 'Laundry Care Products', value: 18000 }
