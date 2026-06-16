@@ -4,6 +4,7 @@ import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
 import { addItem } from '../store/cartSlice';
 import { showToast } from '../store/toastSlice';
+import { fetchProducts } from '../store/productsSlice';
 import { 
   ShoppingCart, 
   MessageSquare, 
@@ -12,7 +13,8 @@ import {
   Star, 
   Plus, 
   Minus,
-  Sparkles
+  Sparkles,
+  Edit
 } from 'lucide-react';
 
 export const ProductDetail: React.FC = () => {
@@ -37,6 +39,12 @@ export const ProductDetail: React.FC = () => {
   // Volume Variants Logic
   const dbVariants: any[] = product?.specifications?.variants || [];
   const hasDbVariants = dbVariants.length > 0;
+  const isOutOfStock = product?.specifications?.stockStatus === 'Out of Stock';
+  
+  const showBenefits = Array.isArray(product?.benefits) && product.benefits.length > 0;
+  const showInstructions = Array.isArray(product?.usageInstructions) && product.usageInstructions.length > 0;
+  const visibleSpecs = Object.keys(product?.specifications || {}).filter(key => !['variants', 'stockStatus', 'customStockStatus'].includes(key));
+  const showSpecs = visibleSpecs.length > 0;
 
   const vol = product?.specifications?.["Volume"] || "";
   const isLiquid = !!vol && 
@@ -57,6 +65,52 @@ export const ProductDetail: React.FC = () => {
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<any | null>(null);
   const [hasPurchased, setHasPurchased] = useState<boolean>(false);
+
+  const [showEditReviewModal, setShowEditReviewModal] = useState(false);
+  const [editingReview, setEditingReview] = useState<any | null>(null);
+  const [editRating, setEditRating] = useState(5);
+  const [editComment, setEditComment] = useState('');
+  const [savingEdit, setSavingEdit] = useState(false);
+
+  const handleOpenEditReviewModal = (rev: any) => {
+    setEditingReview(rev);
+    setEditRating(rev.rating);
+    setEditComment(rev.comment);
+    setShowEditReviewModal(true);
+  };
+
+  const handleEditReviewSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReview) return;
+    setSavingEdit(true);
+
+    try {
+      const res = await fetch(`http://localhost:5000/api/admin/reviews/${editingReview.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: editRating, comment: editComment }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to update review.');
+      }
+
+      alert('Review updated successfully!');
+      
+      // Update local state
+      setReviewsList(prev => prev.map(r => r.id === editingReview.id ? { ...r, rating: editRating, comment: editComment } : r));
+
+      // Refresh product list in Redux to update averages
+      dispatch(fetchProducts() as any);
+
+      setShowEditReviewModal(false);
+    } catch (err: any) {
+      alert(err.message || 'Review edit failed.');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
 
   useEffect(() => {
     const checkUser = () => {
@@ -97,6 +151,15 @@ export const ProductDetail: React.FC = () => {
       };
 
       loadReviews();
+
+      // Dynamically select the first active tab with contents
+      if (Array.isArray(product.benefits) && product.benefits.length > 0) {
+        setActiveTab('benefits');
+      } else if (Array.isArray(product.usageInstructions) && product.usageInstructions.length > 0) {
+        setActiveTab('instructions');
+      } else if (Object.keys(product.specifications || {}).filter(key => !['variants', 'stockStatus', 'customStockStatus'].includes(key)).length > 0) {
+        setActiveTab('specs');
+      }
 
       const pVol = product.specifications?.["Volume"] || "";
       const pIsLiquid = !!pVol && 
@@ -367,9 +430,36 @@ export const ProductDetail: React.FC = () => {
               
               {/* Heading */}
               <div>
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-50 border border-teal-100 text-primary text-[10px] font-bold uppercase tracking-wider mb-2">
-                  <Sparkles size={10} /> {product.category}
-                </span>
+                <div className="flex flex-wrap gap-2 mb-2">
+                  <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-teal-50 border border-teal-100 text-primary text-[10px] font-bold uppercase tracking-wider">
+                    <Sparkles size={10} /> {product.category}
+                  </span>
+                  {/* Stock availability badge — always visible */}
+                  {(() => {
+                    const s = product.specifications?.stockStatus;
+                    const isOut = s === 'Out of Stock';
+                    const isNew = s === 'New Post';
+                    const isCustom = s === 'Custom';
+                    const label = isCustom
+                      ? (product.specifications?.customStockStatus || 'Special Status')
+                      : isNew ? 'New Arrival'
+                      : isOut ? 'Out of Stock'
+                      : 'In Stock';
+                    const color = isOut
+                      ? 'bg-red-50 border-red-100 text-red-600'
+                      : isNew
+                      ? 'bg-purple-50 border-purple-100 text-purple-600'
+                      : isCustom
+                      ? 'bg-amber-50 border-amber-100 text-amber-600'
+                      : 'bg-emerald-50 border-emerald-100 text-emerald-600';
+                    return (
+                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider border ${color}`}>
+                        <span className={`w-1.5 h-1.5 rounded-full ${isOut ? 'bg-red-500' : isNew ? 'bg-purple-500' : isCustom ? 'bg-amber-500' : 'bg-emerald-500'}`} />
+                        {label}
+                      </span>
+                    );
+                  })()}
+                </div>
                 <h1 className="text-2xl sm:text-3xl font-bold font-heading text-heading mt-1">{product.name}</h1>
                 
                 {/* Rating */}
@@ -439,76 +529,84 @@ export const ProductDetail: React.FC = () => {
               />
 
               {/* Interactive Info Tabs */}
-              <div>
-                <div className="flex border-b border-border text-xs sm:text-sm font-semibold text-muted mb-4">
-                  <button
-                    onClick={() => setActiveTab('benefits')}
-                    className={`pb-2 pr-4 transition-all relative ${
-                      activeTab === 'benefits' ? 'text-primary border-b-2 border-primary' : 'hover:text-primary'
-                    }`}
-                  >
-                    Product Benefits
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('instructions')}
-                    className={`pb-2 px-4 transition-all relative ${
-                      activeTab === 'instructions' ? 'text-primary border-b-2 border-primary' : 'hover:text-primary'
-                    }`}
-                  >
-                    Usage Instructions
-                  </button>
-                  <button
-                    onClick={() => setActiveTab('specs')}
-                    className={`pb-2 px-4 transition-all relative ${
-                      activeTab === 'specs' ? 'text-primary border-b-2 border-primary' : 'hover:text-primary'
-                    }`}
-                  >
-                    Technical Details
-                  </button>
+              {(showBenefits || showInstructions || showSpecs) && (
+                <div>
+                  <div className="flex border-b border-border text-xs sm:text-sm font-semibold text-muted mb-4">
+                    {showBenefits && (
+                      <button
+                        onClick={() => setActiveTab('benefits')}
+                        className={`pb-2 pr-4 transition-all relative ${
+                          activeTab === 'benefits' ? 'text-primary border-b-2 border-primary' : 'hover:text-primary'
+                        }`}
+                      >
+                        Product Benefits
+                      </button>
+                    )}
+                    {showInstructions && (
+                      <button
+                        onClick={() => setActiveTab('instructions')}
+                        className={`pb-2 px-4 transition-all relative ${
+                          activeTab === 'instructions' ? 'text-primary border-b-2 border-primary' : 'hover:text-primary'
+                        }`}
+                      >
+                        Usage Instructions
+                      </button>
+                    )}
+                    {showSpecs && (
+                      <button
+                        onClick={() => setActiveTab('specs')}
+                        className={`pb-2 px-4 transition-all relative ${
+                          activeTab === 'specs' ? 'text-primary border-b-2 border-primary' : 'hover:text-primary'
+                        }`}
+                      >
+                        Technical Details
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="min-h-36 py-2">
+                    {/* Benefits */}
+                    {showBenefits && activeTab === 'benefits' && (
+                      <ul className="space-y-2.5">
+                        {product.benefits.map((ben, i) => (
+                          <li key={i} className="flex items-start gap-2.5 text-xs text-slate-700">
+                            <CheckCircle className="text-accent flex-shrink-0 mt-0.5" size={16} />
+                            <span>{ben}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+
+                    {/* Instructions */}
+                    {showInstructions && activeTab === 'instructions' && (
+                      <ol className="space-y-3.5">
+                        {product.usageInstructions.map((ins, i) => (
+                          <li key={i} className="flex gap-3 text-xs text-slate-700">
+                            <span className="w-5 h-5 rounded-full bg-teal-50 border border-teal-100 text-primary flex items-center justify-center font-bold flex-shrink-0">
+                              {i + 1}
+                            </span>
+                            <span className="leading-relaxed">{ins}</span>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+
+                    {/* Specifications */}
+                    {showSpecs && activeTab === 'specs' && (
+                      <div className="border border-border rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
+                        {visibleSpecs.map((key) => (
+                          <div key={key} className="grid grid-cols-2 p-3 bg-white hover:bg-slate-50">
+                            <span className="font-semibold text-heading">{key}</span>
+                            <span className="text-body">
+                              {key === 'Volume' && selectedSize ? selectedSize : product.specifications[key]}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
                 </div>
-
-                <div className="min-h-36 py-2">
-                  {/* Benefits */}
-                  {activeTab === 'benefits' && (
-                    <ul className="space-y-2.5">
-                      {product.benefits.map((ben, i) => (
-                        <li key={i} className="flex items-start gap-2.5 text-xs text-slate-700">
-                          <CheckCircle className="text-accent flex-shrink-0 mt-0.5" size={16} />
-                          <span>{ben}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-
-                  {/* Instructions */}
-                  {activeTab === 'instructions' && (
-                    <ol className="space-y-3.5">
-                      {product.usageInstructions.map((ins, i) => (
-                        <li key={i} className="flex gap-3 text-xs text-slate-700">
-                          <span className="w-5 h-5 rounded-full bg-teal-50 border border-teal-100 text-primary flex items-center justify-center font-bold flex-shrink-0">
-                            {i + 1}
-                          </span>
-                          <span className="leading-relaxed">{ins}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  )}
-
-                  {/* Specifications */}
-                  {activeTab === 'specs' && (
-                    <div className="border border-border rounded-xl overflow-hidden divide-y divide-slate-100 text-xs">
-                      {Object.keys(product.specifications).map((key) => (
-                        <div key={key} className="grid grid-cols-2 p-3 bg-white hover:bg-slate-50">
-                          <span className="font-semibold text-heading">{key}</span>
-                          <span className="text-body">
-                            {key === 'Volume' && selectedSize ? selectedSize : product.specifications[key]}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
 
             </div>
 
@@ -538,18 +636,28 @@ export const ProductDetail: React.FC = () => {
                 {/* Add to Cart */}
                 <button
                   onClick={handleAddToCart}
-                  className="flex-1 min-w-40 bg-slate-105 border border-primary text-primary hover:bg-teal-50 font-bold py-2.5 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm"
+                  disabled={isOutOfStock}
+                  className={`flex-1 min-w-40 font-bold py-2.5 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-sm ${
+                    isOutOfStock 
+                      ? 'bg-slate-100 text-slate-400 border border-slate-200 cursor-not-allowed' 
+                      : 'bg-slate-105 border border-primary text-primary hover:bg-teal-50'
+                  }`}
                 >
                   <ShoppingCart size={18} />
-                  Add to Cart
+                  {isOutOfStock ? 'Out of Stock' : 'Add to Cart'}
                 </button>
 
                 {/* Buy Now */}
                 <button
                   onClick={handleBuyNow}
-                  className="flex-1 min-w-40 bg-primary hover:bg-primary-light text-white font-bold py-2.5 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md"
+                  disabled={isOutOfStock}
+                  className={`flex-1 min-w-40 font-bold py-2.5 px-6 rounded-lg transition-all flex items-center justify-center gap-2 shadow-md ${
+                    isOutOfStock 
+                      ? 'bg-slate-200 text-slate-400 cursor-not-allowed' 
+                      : 'bg-primary hover:bg-primary-light text-white'
+                  }`}
                 >
-                  Buy Now
+                  {isOutOfStock ? 'Out of Stock' : 'Buy Now'}
                 </button>
 
               </div>
@@ -608,7 +716,18 @@ export const ProductDetail: React.FC = () => {
               {reviewsList.map((rev) => (
                 <div key={rev.id} className="pt-6 first:pt-0">
                   <div className="flex items-center justify-between mb-2">
-                    <h4 className="font-heading font-semibold text-sm text-heading">{rev.customerName}</h4>
+                    <div className="flex items-center gap-2">
+                      <h4 className="font-heading font-semibold text-sm text-heading">{rev.customerName}</h4>
+                      {currentUser?.role === 'admin' && (
+                        <button
+                          onClick={() => handleOpenEditReviewModal(rev)}
+                          className="text-[10px] text-primary hover:text-primary-light font-bold flex items-center gap-0.5 hover:underline"
+                          title="Edit Review Rating and Comment"
+                        >
+                          <Edit size={10} /> Edit Review
+                        </button>
+                      )}
+                    </div>
                     <span className="text-[10px] text-muted">{new Date(rev.createdAt).toLocaleDateString()}</span>
                   </div>
                   <div className="flex text-amber-400 mb-3">
@@ -703,6 +822,79 @@ export const ProductDetail: React.FC = () => {
 
             <button 
               onClick={() => setShowReviewModal(false)}
+              className="absolute top-4 right-4 text-muted hover:text-heading"
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Review Modal Dialog (Admin Only) */}
+      {showEditReviewModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-border shadow-2xl p-6 relative animate-zoomIn">
+            <h3 className="font-heading font-bold text-lg text-heading mb-4">Edit Customer Review</h3>
+            
+            <form onSubmit={handleEditReviewSubmit} className="space-y-4">
+              <div>
+                <label className="block text-xs font-bold text-muted mb-1.5 uppercase tracking-wider">Customer Name</label>
+                <input
+                  type="text"
+                  disabled
+                  className="w-full bg-slate-100 border border-border rounded-lg py-2 px-3 text-xs text-slate-500 cursor-not-allowed"
+                  value={editingReview?.customerName || ''}
+                />
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-muted mb-1.5 uppercase tracking-wider">Rating</label>
+                <div className="flex gap-2">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <button
+                      key={star}
+                      type="button"
+                      onClick={() => setEditRating(star)}
+                      className={`text-2xl transition-colors ${star <= editRating ? 'text-amber-400' : 'text-slate-200 hover:text-amber-300'}`}
+                    >
+                      ★
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-xs font-bold text-muted mb-1.5 uppercase tracking-wider">Review Comment</label>
+                <textarea
+                  required
+                  rows={4}
+                  placeholder="Update review comment..."
+                  className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary resize-none"
+                  value={editComment}
+                  onChange={(e) => setEditComment(e.target.value)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowEditReviewModal(false)}
+                  className="text-xs text-muted hover:text-heading font-semibold py-2 px-4"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={savingEdit}
+                  className="bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-5 rounded-lg transition-colors"
+                >
+                  {savingEdit ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
+
+            <button 
+              onClick={() => setShowEditReviewModal(false)}
               className="absolute top-4 right-4 text-muted hover:text-heading"
             >
               ✕

@@ -190,11 +190,26 @@ export const Home: React.FC = () => {
                 'laundry-care':        { gradient: 'from-blue-300 via-sky-200 to-cyan-100',        img: '/banners/p12.jpeg' },
                 'vehicle-care':        { gradient: 'from-rose-300 via-pink-200 to-red-100',        img: '/banners/p4.jpeg' },
                 'commercial-cleaning': { gradient: 'from-teal-300 via-cyan-200 to-emerald-100',   img: '/banners/p14-bathroom.jpeg' },
+                'herbal-skincare':     { gradient: 'from-lime-300 via-green-200 to-emerald-100',   img: '/products/herbal-shampoo.png' },
               };
+              // Palette for dynamically added categories not in catConfig
+              const dynamicGradients = [
+                'from-indigo-300 via-blue-200 to-violet-100',
+                'from-fuchsia-300 via-pink-200 to-rose-100',
+                'from-amber-300 via-orange-200 to-yellow-100',
+                'from-cyan-300 via-sky-200 to-blue-100',
+                'from-red-300 via-rose-200 to-pink-100',
+                'from-violet-300 via-purple-200 to-indigo-100',
+                'from-yellow-300 via-lime-200 to-green-100',
+                'from-slate-300 via-gray-200 to-zinc-100',
+              ];
               // Clean display name: remove " Products" suffix
               const cleanName = (name: string) => name.replace(/ Products$/i, '');
-              return categories.map((cat) => {
-                const cfg = catConfig[cat.slug] || { gradient: 'from-slate-200 via-slate-100 to-white', img: '/banners/p5.jpeg' };
+              return categories.map((cat, catIdx) => {
+                const isKnown = !!catConfig[cat.slug];
+                const dynamicGradient = dynamicGradients[catIdx % dynamicGradients.length];
+                const cfg = catConfig[cat.slug] || { gradient: dynamicGradient, img: cat.imageUrl || '/banners/p5.jpeg' };
+                const finalImg = isKnown ? catConfig[cat.slug].img : (cat.imageUrl || '/banners/p5.jpeg');
                 return (
                   <Link
                     key={cat.id}
@@ -209,7 +224,7 @@ export const Home: React.FC = () => {
                       {/* Inner circle with image */}
                       <div className="w-full h-full rounded-full overflow-hidden bg-white/20">
                         <img
-                          src={cfg.img}
+                          src={finalImg}
                           alt={cleanName(cat.name)}
                           className="w-full h-full object-cover object-top scale-110 group-hover:scale-125 transition-transform duration-500"
                         />

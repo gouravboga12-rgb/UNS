@@ -9,6 +9,12 @@ const GOOGLE_CLIENT_ID = "870895006042-pb5em17nmrgs2tikpg09uvdhn9ps0q4p.apps.goo
 export const SignIn: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showForgotModal, setShowForgotModal] = useState(false);
+  const [forgotEmail, setForgotEmail] = useState('');
+  const [forgotOtp, setForgotOtp] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [forgotStep, setForgotStep] = useState(1);
+  const [forgotLoading, setForgotLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -84,6 +90,62 @@ export const SignIn: React.FC = () => {
       navigate('/');
     } catch (err: any) {
       alert(err.message || 'Login failed.');
+    }
+  };
+
+  const handleSendResetOtp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/send-reset-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: forgotEmail }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to send reset OTP.');
+      }
+
+      alert('A password reset OTP has been sent to your email.');
+      setForgotStep(2);
+    } catch (err: any) {
+      alert(err.message || 'Error requesting password reset OTP.');
+    } finally {
+      setForgotLoading(false);
+    }
+  };
+
+  const handleVerifyAndResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setForgotLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/reset-password', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: forgotEmail,
+          otp: forgotOtp,
+          newPassword: newPassword,
+        }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to reset password.');
+      }
+
+      alert('Your password has been successfully reset. Please log in with your new password.');
+      setShowForgotModal(false);
+      setForgotEmail('');
+      setForgotOtp('');
+      setNewPassword('');
+      setForgotStep(1);
+    } catch (err: any) {
+      alert(err.message || 'Password reset failed.');
+    } finally {
+      setForgotLoading(false);
     }
   };
 
@@ -182,7 +244,16 @@ export const SignIn: React.FC = () => {
               </div>
 
               <div className="text-right">
-                <a href="#" className="font-semibold text-primary hover:text-primary-light">
+                <a
+                  href="#"
+                  onClick={(e) => {
+                    e.preventDefault();
+                    setShowForgotModal(true);
+                    setForgotStep(1);
+                    setForgotEmail(email); // Prefill with whatever they entered in signin email box
+                  }}
+                  className="font-semibold text-primary hover:text-primary-light"
+                >
                   Forgot your password?
                 </a>
               </div>
@@ -209,6 +280,108 @@ export const SignIn: React.FC = () => {
 
         </div>
       </div>
+
+      {showForgotModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-border" data-aos="scale-up">
+            <h3 className="text-lg font-bold text-heading text-center">Reset Password</h3>
+            
+            {forgotStep === 1 ? (
+              <form onSubmit={handleSendResetOtp} className="mt-4 space-y-4">
+                <p className="text-xs text-muted text-center">
+                  Enter your registered email address. We will send you a One-Time Password (OTP) to verify your identity.
+                </p>
+                <div>
+                  <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">Email Address</label>
+                  <div className="relative">
+                    <input
+                      type="email"
+                      required
+                      placeholder="e.g. customer@example.com"
+                      className="w-full bg-slate-50 border border-border rounded-lg py-2 pl-10 pr-3 text-xs focus:outline-none focus:border-primary"
+                      value={forgotEmail}
+                      onChange={(e) => setForgotEmail(e.target.value)}
+                    />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={14} />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full bg-primary hover:bg-primary-light text-white font-bold py-2.5 px-6 rounded-lg text-xs shadow transition-colors flex items-center justify-center gap-1"
+                >
+                  {forgotLoading ? 'Sending OTP...' : 'Send OTP'}
+                </button>
+                <div className="text-center mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="text-xs text-muted hover:text-body transition-colors font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            ) : (
+              <form onSubmit={handleVerifyAndResetPassword} className="mt-4 space-y-4">
+                <p className="text-xs text-muted text-center">
+                  Enter the 6-digit OTP sent to <strong className="text-body">{forgotEmail}</strong> and your new password.
+                </p>
+                <div>
+                  <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">Enter 6-Digit OTP</label>
+                  <input
+                    type="text"
+                    required
+                    maxLength={6}
+                    placeholder="e.g. 123456"
+                    className="w-full bg-slate-50 border border-border rounded-lg py-2 text-center text-lg font-mono font-bold tracking-widest focus:outline-none focus:border-primary"
+                    value={forgotOtp}
+                    onChange={(e) => setForgotOtp(e.target.value.replace(/\D/g, ''))}
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5">New Password</label>
+                  <div className="relative">
+                    <input
+                      type="password"
+                      required
+                      placeholder="••••••••"
+                      className="w-full bg-slate-50 border border-border rounded-lg py-2 pl-10 pr-3 text-xs focus:outline-none focus:border-primary"
+                      value={newPassword}
+                      onChange={(e) => setNewPassword(e.target.value)}
+                    />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 text-muted" size={14} />
+                  </div>
+                </div>
+                <button
+                  type="submit"
+                  disabled={forgotLoading}
+                  className="w-full bg-primary hover:bg-primary-light text-white font-bold py-2.5 px-6 rounded-lg text-xs shadow transition-colors flex items-center justify-center gap-1"
+                >
+                  {forgotLoading ? 'Resetting Password...' : 'Reset Password'}
+                </button>
+                <div className="flex justify-between items-center text-xs mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setForgotStep(1)}
+                    className="text-muted hover:text-body transition-colors font-medium"
+                  >
+                    Back
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setShowForgotModal(false)}
+                    className="text-muted hover:text-body transition-colors font-semibold"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </form>
+            )}
+
+          </div>
+        </div>
+      )}
     </div>
   );
 };

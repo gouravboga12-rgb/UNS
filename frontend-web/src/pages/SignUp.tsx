@@ -11,6 +11,10 @@ export const SignUp: React.FC = () => {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [showOtpModal, setShowOtpModal] = useState(false);
+  const [otp, setOtp] = useState('');
+  const [loading, setLoading] = useState(false);
+  const [sendingOtp, setSendingOtp] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -69,26 +73,76 @@ export const SignUp: React.FC = () => {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSendingOtp(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/signup', {
+      const res = await fetch('http://localhost:5000/api/auth/send-signup-otp', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, phone, password }),
+        body: JSON.stringify({ email, phone }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        throw new Error(data.error || 'Registration failed.');
+        throw new Error(data.error || 'Failed to send verification email.');
+      }
+
+      setOtp('');
+      setShowOtpModal(true);
+    } catch (err: any) {
+      alert(err.message || 'Registration failed.');
+    } finally {
+      setSendingOtp(false);
+    }
+  };
+
+  const handleVerifyAndRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/signup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, phone, password, otp }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to verify OTP or complete registration.');
       }
 
       localStorage.setItem('uns_current_user', JSON.stringify(data.user));
       localStorage.setItem('uns_token', data.token);
       window.dispatchEvent(new Event('authChange'));
 
-      alert('Account registered successfully!');
+      alert('Account registered and verified successfully!');
+      setShowOtpModal(false);
       navigate('/');
     } catch (err: any) {
-      alert(err.message || 'Registration failed.');
+      alert(err.message || 'OTP verification failed.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleResendOtp = async () => {
+    setSendingOtp(true);
+    try {
+      const res = await fetch('http://localhost:5000/api/auth/send-signup-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, phone }),
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || 'Failed to resend OTP.');
+      }
+
+      alert('A new OTP has been sent to your email.');
+    } catch (err: any) {
+      alert(err.message || 'Resending OTP failed.');
+    } finally {
+      setSendingOtp(false);
     }
   };
 
@@ -228,6 +282,57 @@ export const SignUp: React.FC = () => {
 
         </div>
       </div>
+
+      {showOtpModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6 border border-border" data-aos="scale-up">
+            <h3 className="text-lg font-bold text-heading text-center">Verify Your Email</h3>
+            <p className="mt-2 text-xs text-muted text-center">
+              We have sent a 6-digit One-Time Password (OTP) to <strong className="text-body">{email}</strong>. Please check your inbox.
+            </p>
+            <form onSubmit={handleVerifyAndRegister} className="mt-6 space-y-4">
+              <div>
+                <label className="block text-[10px] font-bold text-muted uppercase tracking-wider mb-1.5 text-center">
+                  Enter 6-Digit OTP
+                </label>
+                <input
+                  type="text"
+                  required
+                  maxLength={6}
+                  placeholder="e.g. 123456"
+                  className="w-full bg-slate-50 border border-border rounded-lg py-3 text-center text-lg font-mono font-bold tracking-widest focus:outline-none focus:border-primary"
+                  value={otp}
+                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, ''))}
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-primary hover:bg-primary-light text-white font-bold py-2.5 px-6 rounded-lg text-xs shadow transition-colors flex items-center justify-center gap-1"
+              >
+                {loading ? 'Verifying...' : 'Verify & Register'}
+              </button>
+              <div className="flex justify-between items-center text-xs mt-4">
+                <button
+                  type="button"
+                  onClick={() => setShowOtpModal(false)}
+                  className="text-muted hover:text-body transition-colors font-medium"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={sendingOtp}
+                  onClick={handleResendOtp}
+                  className="text-primary hover:text-primary-light transition-colors font-bold"
+                >
+                  {sendingOtp ? 'Resending...' : 'Resend OTP'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

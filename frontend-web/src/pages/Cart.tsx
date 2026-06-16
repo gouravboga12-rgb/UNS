@@ -107,9 +107,9 @@ export const Cart: React.FC = () => {
           <ShieldCheck size={36} />
         </div>
         
-        <h2 className="text-2xl font-bold font-heading text-heading">WhatsApp Order Initiated!</h2>
+        <h2 className="text-2xl font-bold font-heading text-heading">Order Placed Successfully!</h2>
         <p className="text-xs text-muted leading-relaxed">
-          We have redirected you to WhatsApp to finalize your delivery scheduling and billing details. If the chat window didn't open, click the button below to retry.
+          Your order has been received. We will contact you shortly on WhatsApp to confirm delivery details and payment options. If the chat window didn't open, click the button below.
         </p>
         <div className="bg-teal-50 border border-teal-100 rounded-xl p-4 inline-block text-left text-xs space-y-1 w-full max-w-md mx-auto">
           <div><strong className="text-heading">Order Tracking ID:</strong> <span className="font-mono text-primary select-all">{checkoutSuccess.orderNumber}</span></div>
@@ -183,9 +183,16 @@ export const Cart: React.FC = () => {
                         {item.name}
                       </h4>
                     </Link>
-                    <span className="text-xs font-bold text-primary block mt-1">
-                      ₹{(item.discountPrice || item.price).toFixed(2)}
-                    </span>
+                    <div className="flex items-baseline gap-1.5 mt-1">
+                      <span className="text-xs font-bold text-primary">
+                        ₹{((item.discountPrice || item.price) * item.quantity).toFixed(2)}
+                      </span>
+                      {item.quantity > 1 && (
+                        <span className="text-[10px] text-muted font-medium">
+                          (₹{(item.discountPrice || item.price).toFixed(2)} × {item.quantity})
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Quantity Modifier */}
@@ -307,7 +314,7 @@ export const Cart: React.FC = () => {
                     "Processing Order..."
                   ) : (
                     <>
-                      <MessageSquare size={16} /> Order with WhatsApp Enquiry
+                      <ShoppingBag size={16} /> Order Now
                     </>
                   )}
                 </button>

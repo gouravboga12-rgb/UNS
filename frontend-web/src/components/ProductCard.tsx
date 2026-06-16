@@ -12,6 +12,7 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
   const dispatch = useDispatch();
+  const isOutOfStock = product.specifications?.stockStatus === 'Out of Stock';
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigating to detail page when clicking button
@@ -52,6 +53,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
         {discountPercent > 0 && (
           <span className="absolute top-3 left-3 z-10 bg-accent text-white text-[11px] font-bold px-2 py-1 rounded-md shadow-sm">
             {discountPercent}% OFF
+          </span>
+        )}
+        {product.specifications?.stockStatus && (
+          <span className={`absolute top-3 right-3 z-10 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider shadow-sm border ${
+            product.specifications.stockStatus === 'Out of Stock' 
+              ? 'bg-red-50 border-red-100 text-red-600'
+              : product.specifications.stockStatus === 'New Post'
+              ? 'bg-purple-50 border-purple-100 text-purple-600'
+              : product.specifications.stockStatus === 'Custom'
+              ? 'bg-amber-50 border-amber-100 text-amber-600'
+              : 'bg-emerald-50 border-emerald-100 text-emerald-600'
+          }`}>
+            {product.specifications.stockStatus === 'Custom' 
+              ? (product.specifications.customStockStatus || 'Stock')
+              : product.specifications.stockStatus === 'New Post'
+              ? 'New'
+              : product.specifications.stockStatus
+            }
           </span>
         )}
         <img
@@ -116,11 +135,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
             {/* Add to Cart */}
             <button
               onClick={handleAddToCart}
-              className="w-full flex items-center justify-center gap-1.5 bg-primary hover:bg-primary-light text-white text-[10px] sm:text-xs font-semibold py-2 px-2.5 rounded-lg transition-colors shadow-sm"
-              title="Add to Cart"
+              disabled={isOutOfStock}
+              className={`w-full flex items-center justify-center gap-1.5 text-[10px] sm:text-xs font-semibold py-2 px-2.5 rounded-lg transition-colors shadow-sm ${
+                isOutOfStock 
+                  ? 'bg-slate-100 border border-slate-200 text-slate-400 cursor-not-allowed' 
+                  : 'bg-primary hover:bg-primary-light text-white'
+              }`}
+              title={isOutOfStock ? "Out of Stock" : "Add to Cart"}
             >
               <ShoppingCart size={13} />
-              <span>Add to Cart</span>
+              <span>{isOutOfStock ? "Out of Stock" : "Add to Cart"}</span>
             </button>
 
           </div>

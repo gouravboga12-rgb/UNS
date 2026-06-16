@@ -8,12 +8,17 @@ import { Loader2, ClipboardList, MapPin, Truck, CheckCircle2, X } from 'lucide-r
 export const TrackOrder: React.FC = () => {
   const [searchParams] = useSearchParams();
   
+  // Check authenticated user
+  const u = localStorage.getItem('uns_current_user');
+  const currentUser = u ? JSON.parse(u) : null;
+  const userPhone = currentUser?.phone || '';
+  
   // Track Mode selector ('order' matches Koparo Clean UI, 'tracking' represents AWB tracking)
   const [trackMode, setTrackMode] = useState<'order' | 'tracking'>('order');
 
   // Form input states
   const [orderId, setOrderId] = useState(searchParams.get('orderId') || '');
-  const [phone, setPhone] = useState(searchParams.get('phone') || '');
+  const [phone, setPhone] = useState(userPhone);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<any | null>(null);
@@ -25,28 +30,34 @@ export const TrackOrder: React.FC = () => {
   const displayProducts = bestSellers.length ? bestSellers : products.slice(0, 5);
 
   useEffect(() => {
-    const defaultOrder = searchParams.get('orderId');
-    const defaultPhone = searchParams.get('phone');
-    if (defaultOrder && defaultPhone) {
-      handleTrack(defaultOrder, defaultPhone);
+    if (userPhone) {
+      setPhone(userPhone);
     }
-  }, [searchParams]);
+  }, [userPhone]);
+
+  useEffect(() => {
+    const defaultOrder = searchParams.get('orderId');
+    if (defaultOrder && userPhone) {
+      handleTrack(defaultOrder, userPhone);
+    }
+  }, [searchParams, userPhone]);
 
   const handleTrack = async (id: string, ph: string) => {
-    if (!id.trim() || !ph.trim()) return;
+    const targetPhone = userPhone || ph;
+    if (!id.trim() || !targetPhone.trim()) return;
     
     setSearching(true);
     setError(null);
     setOrderData(null);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/track?orderId=${encodeURIComponent(id)}&phone=${encodeURIComponent(ph)}`);
+      const response = await fetch(`http://localhost:5000/api/orders/track?orderId=${encodeURIComponent(id)}&phone=${encodeURIComponent(targetPhone)}`);
       if (response.ok) {
         const data = await response.json();
         setOrderData(data);
       } else {
         // Fallback for offline demo
-        if (id === '1001' && ph.replace(/[^0-9]/g, '').endsWith('7396158011')) {
+        if (id === '1001' && targetPhone.replace(/[^0-9]/g, '').endsWith('7396158011')) {
           setOrderData({
             orderNumber: 1001,
             customerName: "Ganesh Reddy",
@@ -70,7 +81,7 @@ export const TrackOrder: React.FC = () => {
       }
     } catch {
       // Local fallback on server connection error
-      if (id === '1001' && ph.replace(/[^0-9]/g, '').endsWith('7396158011')) {
+      if (id === '1001' && targetPhone.replace(/[^0-9]/g, '').endsWith('7396158011')) {
         setOrderData({
           orderNumber: 1001,
           customerName: "Ganesh Reddy",

@@ -76,6 +76,16 @@ let enquiriesState: Enquiry[] = [...mockEnquiries];
 // Helper to generate IDs
 const generateId = () => Math.random().toString(36).substring(2, 11);
 
+interface OtpEntry {
+  otp: string;
+  expiresAt: number;
+}
+const signupOtpCache: Record<string, OtpEntry> = {};
+const resetOtpCache: Record<string, OtpEntry> = {};
+
+const generateOtp = () => Math.floor(100000 + Math.random() * 900000).toString();
+
+
 // Helper: Recalculate and update product average rating
 async function recalculateProductRating(productId: string) {
   try {
@@ -142,7 +152,15 @@ app.get('/api/categories', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('categories').select('*');
     if (error) throw error;
-    res.json(data);
+    // Normalize: Supabase returns column names as lowercase, so imageurl -> imageUrl
+    const normalized = (data || []).map((cat: any) => ({
+      id: cat.id,
+      name: cat.name,
+      slug: cat.slug,
+      description: cat.description || '',
+      imageUrl: cat.imageUrl || cat.imageurl || cat.image_url || ''
+    }));
+    res.json(normalized);
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET categories:', err.message);
     res.json(categoriesState);
@@ -167,7 +185,8 @@ app.post('/api/categories', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('categories').insert(newCategory).select().single();
     if (error) throw error;
-    res.status(201).json(data);
+    const normalized = { id: data.id, name: data.name, slug: data.slug, description: data.description || '', imageUrl: data.imageUrl || data.imageurl || data.image_url || newCategory.imageUrl };
+    res.status(201).json(normalized);
   } catch (err: any) {
     console.warn('[Supabase Fallback] POST category:', err.message);
     categoriesState.push(newCategory);
@@ -188,7 +207,8 @@ app.put('/api/categories/:id', async (req: Request, res: Response) => {
       .select()
       .single();
     if (error) throw error;
-    res.json(data);
+    const normalized = { id: data.id, name: data.name, slug: data.slug, description: data.description || '', imageUrl: data.imageUrl || data.imageurl || data.image_url || imageUrl || '' };
+    res.json(normalized);
   } catch (err: any) {
     console.warn('[Supabase Fallback] PUT category:', err.message);
     const idx = categoriesState.findIndex(c => c.id === id);
@@ -235,7 +255,28 @@ app.get('/api/products', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('products').select('*');
     if (error) throw error;
-    list = data as Product[];
+    // Normalize Supabase snake_case/lowercase columns to camelCase
+    list = (data as any[]).map((p: any) => ({
+      id: p.id,
+      name: p.name,
+      slug: p.slug,
+      category: p.category,
+      shortDescription: p.shortDescription || p.shortdescription || '',
+      fullDescription: p.fullDescription || p.fulldescription || '',
+      images: p.images || [],
+      price: Number(p.price) || 0,
+      discountPrice: Number(p.discountPrice || p.discountprice) || Number(p.price) || 0,
+      stock: Number(p.stock) || 0,
+      rating: Number(p.rating) || 5.0,
+      specifications: p.specifications || {},
+      benefits: p.benefits || [],
+      usageInstructions: p.usageInstructions || p.usageinstructions || [],
+      featured: !!p.featured,
+      seoTitle: p.seoTitle || p.seotitle || '',
+      seoDescription: p.seoDescription || p.seodescription || '',
+      createdAt: p.createdAt || p.createdat || new Date().toISOString(),
+      reviews: []
+    })) as Product[];
     
     // Lazy load reviews from Supabase for calculations
     for (const prod of list) {
@@ -292,8 +333,30 @@ app.get('/api/products/:slug', async (req: Request, res: Response) => {
   const { slug } = req.params;
   
   try {
-    const { data: product, error } = await supabase.from('products').select('*').eq('slug', slug).single();
+    const { data: rawProduct, error } = await supabase.from('products').select('*').eq('slug', slug).single();
     if (error) throw error;
+    
+    // Normalize Supabase lowercase columns to camelCase
+    const product: any = {
+      id: rawProduct.id,
+      name: rawProduct.name,
+      slug: rawProduct.slug,
+      category: rawProduct.category,
+      shortDescription: rawProduct.shortDescription || rawProduct.shortdescription || '',
+      fullDescription: rawProduct.fullDescription || rawProduct.fulldescription || '',
+      images: rawProduct.images || [],
+      price: Number(rawProduct.price) || 0,
+      discountPrice: Number(rawProduct.discountPrice || rawProduct.discountprice) || Number(rawProduct.price) || 0,
+      stock: Number(rawProduct.stock) || 0,
+      rating: Number(rawProduct.rating) || 5.0,
+      specifications: rawProduct.specifications || {},
+      benefits: rawProduct.benefits || [],
+      usageInstructions: rawProduct.usageInstructions || rawProduct.usageinstructions || [],
+      featured: !!rawProduct.featured,
+      seoTitle: rawProduct.seoTitle || rawProduct.seotitle || '',
+      seoDescription: rawProduct.seoDescription || rawProduct.seodescription || '',
+      createdAt: rawProduct.createdAt || rawProduct.createdat || new Date().toISOString(),
+    };
     
     // Fetch approved reviews
     const { data: reviews } = await supabase.from('reviews').select('*').eq('productId', product.id).eq('approved', true);
@@ -310,6 +373,7 @@ app.get('/api/products/:slug', async (req: Request, res: Response) => {
     res.json({ ...product, reviews: approvedReviews });
   }
 });
+
 
 // Admin product CRUD
 app.post('/api/products', async (req: Request, res: Response) => {
@@ -343,10 +407,12 @@ app.post('/api/products', async (req: Request, res: Response) => {
     reviews: []
   };
 
+  const { reviews, ...dbProduct } = newProduct;
+
   try {
-    const { data, error } = await supabase.from('products').insert(newProduct).select().single();
+    const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
     if (error) throw error;
-    res.status(201).json(data);
+    res.status(201).json({ ...data, reviews: [] });
   } catch (err: any) {
     console.warn('[Supabase Fallback] POST product:', err.message);
     productsState.push(newProduct);
@@ -364,10 +430,15 @@ app.put('/api/products/:id', async (req: Request, res: Response) => {
     stock: body.stock !== undefined ? Number(body.stock) : undefined,
   };
 
+  const { reviews, ...dbPayload } = updatedPayload;
+
   try {
-    const { data, error } = await supabase.from('products').update(updatedPayload).eq('id', id).select().single();
+    const { data, error } = await supabase.from('products').update(dbPayload).eq('id', id).select().single();
     if (error) throw error;
-    res.json(data);
+    
+    // Fetch current reviews for response completeness
+    const { data: revs } = await supabase.from('reviews').select('*').eq('productId', id);
+    res.json({ ...data, reviews: revs || [] });
   } catch (err: any) {
     console.warn('[Supabase Fallback] PUT product:', err.message);
     const idx = productsState.findIndex(p => p.id === id);
@@ -693,6 +764,20 @@ app.put('/api/admin/enquiries/:id/read', async (req: Request, res: Response) => 
   }
 });
 
+app.delete('/api/admin/enquiries/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabase.from('enquiries').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ message: 'Enquiry deleted successfully' });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] DELETE enquiry:', err.message);
+    enquiriesState = enquiriesState.filter(e => e.id !== id);
+    res.json({ message: 'Enquiry deleted successfully' });
+  }
+});
+
+
 // -------------------------------------------------------------
 // Orders & Tracking API
 // -------------------------------------------------------------
@@ -946,20 +1031,256 @@ app.get('/api/admin/dashboard', async (req: Request, res: Response) => {
   });
 });
 
+app.delete('/api/admin/orders/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabase.from('orders').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ message: 'Order deleted successfully' });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] DELETE order:', err.message);
+    ordersState = ordersState.filter(o => o.id !== id);
+    res.json({ message: 'Order deleted successfully' });
+  }
+});
+
+app.get('/api/admin/users', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('users').select('*').order('createdAt', { ascending: false });
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET admin users:', err.message);
+    res.json([]);
+  }
+});
+
+app.delete('/api/admin/users/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabase.from('users').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ message: 'User deleted successfully' });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] DELETE admin user:', err.message);
+    res.json({ message: 'User deleted successfully' });
+  }
+});
+
+
 // -------------------------------------------------------------
 // Authentication APIs
 // -------------------------------------------------------------
 
-// Sign Up API
-app.post('/api/auth/signup', async (req: Request, res: Response) => {
-  const { name, email, phone, password } = req.body;
-
-  if (!name || !email || !phone || !password) {
-    return res.status(400).json({ error: 'All fields are required.' });
+// Send OTP for Sign Up
+app.post('/api/auth/send-signup-otp', async (req: Request, res: Response) => {
+  const { email, phone } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required.' });
   }
 
-  if (email === 'unshomecleaningproductspvtltd@gmail.com') {
+  const normalizedEmail = email.toLowerCase().trim();
+
+  if (normalizedEmail === 'unshomecleaningproductspvtltd@gmail.com') {
     return res.status(400).json({ error: 'This email is reserved for administration.' });
+  }
+
+  try {
+    const { data: existingUser, error: checkErr } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (existingUser) {
+      return res.status(400).json({ error: 'User with this email already exists.' });
+    }
+
+    if (phone) {
+      const { data: existingPhoneUser, error: phoneCheckErr } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', phone.trim())
+        .maybeSingle();
+
+      if (existingPhoneUser) {
+        return res.status(400).json({ error: 'User with this phone number already exists.' });
+      }
+    }
+
+    const otp = generateOtp();
+    signupOtpCache[normalizedEmail] = {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    };
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || '"UNS Home Cleaning Products" <unshomecleaningproductspvtltd@gmail.com>',
+      to: normalizedEmail,
+      subject: 'Verify your email for UNS Home Cleaning Products',
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f1f5f9; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #0d9488; margin: 0; font-size: 24px; font-weight: 800;">UNS Cleaning Products</h1>
+            <p style="color: #64748b; margin: 4px 0 0 0; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700;">Clean Today... Healthy Tomorrow...</p>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 24px;" />
+          <h2 style="color: #0f172a; margin-top: 0; font-size: 18px; font-weight: 700;">Email Verification OTP</h2>
+          <p style="font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 24px;">
+            Thank you for registering. Please use the following One-Time Password (OTP) to verify your email address. This OTP is valid for 5 minutes.
+          </p>
+          <div style="text-align: center; margin: 30px 0; background-color: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1;">
+            <span style="font-size: 36px; font-weight: 800; letter-spacing: 0.25em; color: #0d9488; font-family: monospace;">${otp}</span>
+          </div>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 16px;">
+            If you did not initiate this request, please ignore this email.
+          </p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+            This is an automated system email from UNS Home Cleaning Products PVT LTD. Please do not reply.
+          </p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'OTP sent to email successfully.' });
+  } catch (err: any) {
+    console.error('Send signup OTP error:', err);
+    res.status(500).json({ error: 'Failed to send OTP email.' });
+  }
+});
+
+// Send OTP for Reset Password
+app.post('/api/auth/send-reset-otp', async (req: Request, res: Response) => {
+  const { email } = req.body;
+  if (!email) {
+    return res.status(400).json({ error: 'Email is required.' });
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  try {
+    const { data: existingUser, error: checkErr } = await supabase
+      .from('users')
+      .select('id')
+      .eq('email', normalizedEmail)
+      .maybeSingle();
+
+    if (!existingUser) {
+      return res.status(400).json({ error: 'No user account found with this email address.' });
+    }
+
+    const otp = generateOtp();
+    resetOtpCache[normalizedEmail] = {
+      otp,
+      expiresAt: Date.now() + 5 * 60 * 1000
+    };
+
+    const mailOptions = {
+      from: process.env.SMTP_FROM || '"UNS Home Cleaning Products" <unshomecleaningproductspvtltd@gmail.com>',
+      to: normalizedEmail,
+      subject: 'Reset your password for UNS Home Cleaning Products',
+      html: `
+        <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: 0 auto; padding: 30px; border: 1px solid #f1f5f9; border-radius: 16px; background-color: #ffffff; box-shadow: 0 4px 6px -1px rgb(0 0 0 / 0.05);">
+          <div style="text-align: center; margin-bottom: 24px;">
+            <h1 style="color: #0d9488; margin: 0; font-size: 24px; font-weight: 800;">UNS Cleaning Products</h1>
+            <p style="color: #64748b; margin: 4px 0 0 0; font-size: 12px; letter-spacing: 0.05em; text-transform: uppercase; font-weight: 700;">Clean Today... Healthy Tomorrow...</p>
+          </div>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin-bottom: 24px;" />
+          <h2 style="color: #0f172a; margin-top: 0; font-size: 18px; font-weight: 700;">Password Reset OTP</h2>
+          <p style="font-size: 14px; color: #334155; line-height: 1.6; margin-bottom: 24px;">
+            We received a request to reset your password. Please use the following One-Time Password (OTP) to proceed. This OTP is valid for 5 minutes.
+          </p>
+          <div style="text-align: center; margin: 30px 0; background-color: #f8fafc; padding: 20px; border-radius: 12px; border: 1px dashed #cbd5e1;">
+            <span style="font-size: 36px; font-weight: 800; letter-spacing: 0.25em; color: #0d9488; font-family: monospace;">${otp}</span>
+          </div>
+          <p style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 16px;">
+            If you did not request a password reset, please ignore this email.
+          </p>
+          <hr style="border: 0; border-top: 1px solid #e2e8f0; margin: 24px 0;" />
+          <p style="font-size: 11px; color: #94a3b8; text-align: center; margin: 0;">
+            This is an automated system email from UNS Home Cleaning Products PVT LTD. Please do not reply.
+          </p>
+        </div>
+      `,
+    };
+
+    await transporter.sendMail(mailOptions);
+    res.json({ message: 'Password reset OTP sent to email.' });
+  } catch (err: any) {
+    console.error('Send reset OTP error:', err);
+    res.status(500).json({ error: 'Failed to send OTP email.' });
+  }
+});
+
+// Reset Password API
+app.post('/api/auth/reset-password', async (req: Request, res: Response) => {
+  const { email, otp, newPassword } = req.body;
+  if (!email || !otp || !newPassword) {
+    return res.status(400).json({ error: 'Email, OTP, and new password are required.' });
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  const entry = resetOtpCache[normalizedEmail];
+  if (!entry) {
+    return res.status(400).json({ error: 'No active OTP verification session found.' });
+  }
+
+  if (entry.otp !== otp.trim()) {
+    return res.status(400).json({ error: 'Invalid OTP code.' });
+  }
+
+  if (Date.now() > entry.expiresAt) {
+    delete resetOtpCache[normalizedEmail];
+    return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
+  }
+
+  try {
+    const { error: updateErr } = await supabase
+      .from('users')
+      .update({ password: newPassword })
+      .eq('email', normalizedEmail);
+
+    if (updateErr) {
+      console.error('Error resetting password:', updateErr.message);
+      return res.status(500).json({ error: 'Failed to update database password.' });
+    }
+
+    delete resetOtpCache[normalizedEmail];
+    res.json({ message: 'Password has been updated successfully.' });
+  } catch (err: any) {
+    console.error('Password reset error:', err);
+    res.status(500).json({ error: 'Server error during password reset.' });
+  }
+});
+
+// Sign Up API
+app.post('/api/auth/signup', async (req: Request, res: Response) => {
+  const { name, email, phone, password, otp } = req.body;
+
+  if (!name || !email || !phone || !password || !otp) {
+    return res.status(400).json({ error: 'All fields including OTP are required.' });
+  }
+
+  const normalizedEmail = email.toLowerCase().trim();
+
+  if (normalizedEmail === 'unshomecleaningproductspvtltd@gmail.com') {
+    return res.status(400).json({ error: 'This email is reserved for administration.' });
+  }
+
+  // Verify OTP
+  const otpEntry = signupOtpCache[normalizedEmail];
+  if (!otpEntry) {
+    return res.status(400).json({ error: 'No OTP request found for this email.' });
+  }
+  if (otpEntry.otp !== otp.trim()) {
+    return res.status(400).json({ error: 'Invalid OTP code.' });
+  }
+  if (Date.now() > otpEntry.expiresAt) {
+    delete signupOtpCache[normalizedEmail];
+    return res.status(400).json({ error: 'OTP has expired. Please request a new one.' });
   }
 
   try {
@@ -967,12 +1288,27 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
     const { data: existingUser, error: checkErr } = await supabase
       .from('users')
       .select('id')
-      .eq('email', email)
+      .eq('email', normalizedEmail)
       .maybeSingle();
 
     if (existingUser) {
+      delete signupOtpCache[normalizedEmail];
       return res.status(400).json({ error: 'User with this email already exists.' });
     }
+
+    if (phone) {
+      const { data: existingPhoneUser, error: phoneCheckErr } = await supabase
+        .from('users')
+        .select('id')
+        .eq('phone', phone.trim())
+        .maybeSingle();
+
+      if (existingPhoneUser) {
+        delete signupOtpCache[normalizedEmail];
+        return res.status(400).json({ error: 'User with this phone number already exists.' });
+      }
+    }
+
 
     // 2. Create the user
     const id = 'usr-' + generateId();
@@ -1031,6 +1367,8 @@ app.post('/api/auth/signup', async (req: Request, res: Response) => {
 
     // 4. Sign JWT
     const token = jwt.sign({ id, email, role: 'user' }, JWT_SECRET, { expiresIn: '7d' });
+
+    delete signupOtpCache[normalizedEmail];
 
     res.json({
       token,

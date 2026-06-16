@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
 import { 
@@ -10,7 +11,6 @@ import {
   addCategoryLocally,
   updateCategoryLocally,
   deleteCategoryLocally,
-  updateReviewLocally,
   approveReviewLocally,
   deleteReviewLocally 
 } from '../store/productsSlice';
@@ -28,7 +28,6 @@ import {
   Check, 
   X, 
   ShieldAlert, 
-  TrendingUp, 
   Printer,
   Upload,
   Link2,
@@ -52,33 +51,35 @@ export const AdminDashboard: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'orders' | 'reviews' | 'enquiries'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'orders' | 'reviews' | 'enquiries' | 'customers'>('overview');
   
   // Dashboard stats
   const [stats, setStats] = useState({
     totalSales: 45890,
     pendingOrders: 1,
     catalogSize: products.length,
-    unreadEnquiries: 1
+    unreadEnquiries: 1,
+    totalOrders: 0,
+    totalCategories: 0,
+    totalEnquiries: 0
   });
 
   // DB entities
   const [localOrders, setLocalOrders] = useState<any[]>([]);
   const [localEnquiries, setLocalEnquiries] = useState<any[]>([]);
   const [localReviews, setLocalReviews] = useState<any[]>([]);
+  const [customers, setCustomers] = useState<any[]>([]);
   
   // Editing and form modals
   const [showProductModal, setShowProductModal] = useState(false);
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
-  const [showReviewEditModal, setShowReviewEditModal] = useState(false);
   const [showOrderEditModal, setShowOrderEditModal] = useState(false);
 
   // Active items for modals
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [selectedOrder, setSelectedOrder] = useState<any | null>(null);
-  const [selectedReview, setSelectedReview] = useState<any | null>(null);
 
   // Category Form states
   const [catName, setCatName] = useState('');
@@ -97,6 +98,14 @@ export const AdminDashboard: React.FC = () => {
   const [uploadingProdImg, setUploadingProdImg] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [formVariants, setFormVariants] = useState<{ name: string; price: string; discountPrice: string; stock: string }[]>([]);
+  
+  // Custom stock options & custom specs
+  const [formStockStatus, setFormStockStatus] = useState('Stock Available');
+  const [formCustomStockStatus, setFormCustomStockStatus] = useState('');
+  const [formCustomSpecName, setFormCustomSpecName] = useState('');
+  const [formCustomSpecValue, setFormCustomSpecValue] = useState('');
+  const [formBenefits, setFormBenefits] = useState('');
+  const [formInstructions, setFormInstructions] = useState('');
 
   // Order Form states
   const [orderStatus, setOrderStatus] = useState('');
@@ -104,9 +113,7 @@ export const AdminDashboard: React.FC = () => {
   const [orderTrackingLink, setOrderTrackingLink] = useState('');
   const [orderStatusDesc, setOrderStatusDesc] = useState('');
 
-  // Review Form states
-  const [reviewComment, setReviewComment] = useState('');
-  const [reviewRating, setReviewRating] = useState(5);
+
 
   // Search and Filter states for admin tabs
   const [catSearch, setCatSearch] = useState('');
@@ -315,6 +322,33 @@ export const AdminDashboard: React.FC = () => {
           localStorage.setItem('uns_local_enquiries', JSON.stringify(defaultEnq));
         }
       }
+
+      // 4. Customers
+      try {
+        const res = await fetch(`${API_URL}/admin/users`);
+        if (res.ok) {
+          const data = await res.json();
+          setCustomers(data);
+          localStorage.setItem('uns_local_customers', JSON.stringify(data));
+        }
+      } catch {
+        const saved = localStorage.getItem('uns_local_customers');
+        if (saved) setCustomers(JSON.parse(saved));
+        else {
+          const defaultCust = [
+            {
+              id: "usr-ganesh",
+              name: "Ganesh Reddy",
+              email: "ganesh@example.com",
+              phone: "7396158011",
+              role: "user",
+              createdAt: "2026-06-12T10:00:00Z"
+            }
+          ];
+          setCustomers(defaultCust);
+          localStorage.setItem('uns_local_customers', JSON.stringify(defaultCust));
+        }
+      }
     };
 
     loadAdminData();
@@ -334,9 +368,12 @@ export const AdminDashboard: React.FC = () => {
       totalSales: Math.round(totalSales),
       pendingOrders: pending,
       catalogSize: products.length,
-      unreadEnquiries: unread
+      unreadEnquiries: unread,
+      totalOrders: localOrders.length,
+      totalCategories: categories.length,
+      totalEnquiries: localEnquiries.length
     });
-  }, [localOrders, localEnquiries, products]);
+  }, [localOrders, localEnquiries, products, categories]);
 
   // Handle Admin secure login submission
   const handleAdminSignIn = (e: React.FormEvent) => {
@@ -502,9 +539,15 @@ export const AdminDashboard: React.FC = () => {
     setFormDiscountPrice('99');
     setFormStock('100');
     setFormShortDesc('Premium chemical formulation.');
-    setFormImage('https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=600&q=80');
+    setFormImage('');
     setHasVariants(false);
     setFormVariants([]);
+    setFormStockStatus('Stock Available');
+    setFormCustomStockStatus('');
+    setFormCustomSpecName('');
+    setFormCustomSpecValue('');
+    setFormBenefits("Disinfects effectively\nPleasant fragrance");
+    setFormInstructions("Apply directly\nScrub and rinse");
     setShowProductModal(true);
   };
 
@@ -530,6 +573,27 @@ export const AdminDashboard: React.FC = () => {
       setHasVariants(false);
       setFormVariants([]);
     }
+
+    // Populate stock status fields from specifications
+    const stockStat = prod.specifications?.stockStatus || 'Stock Available';
+    setFormStockStatus(stockStat);
+    setFormCustomStockStatus(prod.specifications?.customStockStatus || '');
+
+    // Extract custom specification field
+    const standardKeys = ['Volume', 'Form', 'variants', 'stockStatus', 'customStockStatus'];
+    const customKey = Object.keys(prod.specifications || {}).find(key => !standardKeys.includes(key));
+    if (customKey) {
+      setFormCustomSpecName(customKey);
+      setFormCustomSpecValue(prod.specifications[customKey] || '');
+    } else {
+      setFormCustomSpecName('');
+      setFormCustomSpecValue('');
+    }
+
+    // Populate benefits and instructions
+    setFormBenefits(Array.isArray(prod.benefits) ? prod.benefits.join('\n') : '');
+    setFormInstructions(Array.isArray(prod.usageInstructions) ? prod.usageInstructions.join('\n') : '');
+
     setShowProductModal(true);
   };
 
@@ -543,8 +607,32 @@ export const AdminDashboard: React.FC = () => {
 
     let finalPrice = Number(formPrice);
     let finalDiscountPrice = Number(formDiscountPrice);
-    let finalStock = Number(formStock);
+    // Stock is derived from stockStatus: Out of Stock → 0, otherwise 999 (unlimited / available)
+    let finalStock = formStockStatus === 'Out of Stock' ? 0 : 999;
     let finalSpecifications: Record<string, any> = editingProduct ? { ...editingProduct.specifications } : { "Volume": "500ml", "Form": "Liquid" };
+
+
+    // Clean up old custom specs if editing
+    if (editingProduct && editingProduct.specifications) {
+      const standardKeys = ['Volume', 'Form', 'variants', 'stockStatus', 'customStockStatus'];
+      Object.keys(editingProduct.specifications).forEach(key => {
+        if (!standardKeys.includes(key)) {
+          delete finalSpecifications[key];
+        }
+      });
+    }
+
+    // Add stock status and custom specs
+    finalSpecifications.stockStatus = formStockStatus;
+    if (formStockStatus === 'Custom') {
+      finalSpecifications.customStockStatus = formCustomStockStatus;
+    } else {
+      delete finalSpecifications.customStockStatus;
+    }
+
+    if (formCustomSpecName.trim()) {
+      finalSpecifications[formCustomSpecName.trim()] = formCustomSpecValue.trim();
+    }
 
     if (hasVariants) {
       if (formVariants.length === 0) {
@@ -586,6 +674,8 @@ export const AdminDashboard: React.FC = () => {
     }
 
     const slug = formName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    const benefitsArray = formBenefits.split('\n').map(b => b.trim()).filter(b => b.length > 0);
+    const instructionsArray = formInstructions.split('\n').map(i => i.trim()).filter(i => i.length > 0);
 
     if (editingProduct) {
       // Update
@@ -599,7 +689,9 @@ export const AdminDashboard: React.FC = () => {
         stock: finalStock,
         shortDescription: formShortDesc,
         images: [formImage],
-        specifications: finalSpecifications
+        specifications: finalSpecifications,
+        benefits: benefitsArray,
+        usageInstructions: instructionsArray
       };
 
       try {
@@ -617,6 +709,7 @@ export const AdminDashboard: React.FC = () => {
       } catch {
         dispatch(updateProductLocally(updated));
       }
+      alert('Product updated successfully!');
     } else {
       // Create
       const created: Product = {
@@ -632,8 +725,8 @@ export const AdminDashboard: React.FC = () => {
         stock: finalStock,
         rating: 5.0,
         specifications: finalSpecifications,
-        benefits: ["Disinfects effectively", "Pleasant fragrance"],
-        usageInstructions: ["Apply directly", "Scrub and rinse"],
+        benefits: benefitsArray,
+        usageInstructions: instructionsArray,
         featured: false,
         seoTitle: `${formName} - UNS Products`,
         seoDescription: formShortDesc,
@@ -656,6 +749,9 @@ export const AdminDashboard: React.FC = () => {
       } catch {
         dispatch(addProductLocally(created));
       }
+      alert('Product added successfully!');
+      // Re-fetch from API to sync newly added product with Supabase data
+      setTimeout(() => dispatch(fetchProducts() as any), 800);
     }
     setShowProductModal(false);
   };
@@ -673,6 +769,69 @@ export const AdminDashboard: React.FC = () => {
         }
       } catch {
         dispatch(deleteProductLocally(id));
+      }
+    }
+  };
+
+  const handleOrderDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this order?")) {
+      try {
+        const res = await fetch(`${API_URL}/admin/orders/${id}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          const updated = localOrders.filter(o => o.id !== id);
+          setLocalOrders(updated);
+          localStorage.setItem('uns_local_orders', JSON.stringify(updated));
+        } else {
+          const updated = localOrders.filter(o => o.id !== id);
+          setLocalOrders(updated);
+          localStorage.setItem('uns_local_orders', JSON.stringify(updated));
+        }
+      } catch {
+        const updated = localOrders.filter(o => o.id !== id);
+        setLocalOrders(updated);
+        localStorage.setItem('uns_local_orders', JSON.stringify(updated));
+      }
+    }
+  };
+
+  const handleEnquiryDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this enquiry?")) {
+      try {
+        const res = await fetch(`${API_URL}/admin/enquiries/${id}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          const updated = localEnquiries.filter(e => e.id !== id);
+          setLocalEnquiries(updated);
+          localStorage.setItem('uns_local_enquiries', JSON.stringify(updated));
+        } else {
+          const updated = localEnquiries.filter(e => e.id !== id);
+          setLocalEnquiries(updated);
+          localStorage.setItem('uns_local_enquiries', JSON.stringify(updated));
+        }
+      } catch {
+        const updated = localEnquiries.filter(e => e.id !== id);
+        setLocalEnquiries(updated);
+        localStorage.setItem('uns_local_enquiries', JSON.stringify(updated));
+      }
+    }
+  };
+
+  const handleCustomerDelete = async (id: string) => {
+    if (confirm("Are you sure you want to delete this customer account?")) {
+      try {
+        const res = await fetch(`${API_URL}/admin/users/${id}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          setCustomers(customers.filter(c => c.id !== id));
+        } else {
+          setCustomers(customers.filter(c => c.id !== id));
+        }
+      } catch {
+        setCustomers(customers.filter(c => c.id !== id));
       }
     }
   };
@@ -759,57 +918,7 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const openReviewEdit = (rev: any) => {
-    setSelectedReview(rev);
-    setReviewComment(rev.comment);
-    setReviewRating(rev.rating);
-    setShowReviewEditModal(true);
-  };
 
-  const handleReviewEditSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!selectedReview) return;
-
-    const payload = {
-      comment: reviewComment,
-      rating: reviewRating
-    };
-
-    try {
-      const res = await fetch(`${API_URL}/admin/reviews/${selectedReview.id}`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const updatedList = localReviews.map(r => r.id === selectedReview.id ? data : r);
-        setLocalReviews(updatedList);
-        localStorage.setItem('uns_local_reviews', JSON.stringify(updatedList));
-        dispatch(updateReviewLocally({ 
-          productId: selectedReview.productId, 
-          reviewId: selectedReview.id, 
-          comment: reviewComment, 
-          rating: reviewRating 
-        }));
-      }
-    } catch {
-      // Fallback
-      const updated = { ...selectedReview, comment: reviewComment, rating: reviewRating };
-      const updatedList = localReviews.map(r => r.id === selectedReview.id ? updated : r);
-      setLocalReviews(updatedList);
-      localStorage.setItem('uns_local_reviews', JSON.stringify(updatedList));
-      dispatch(updateReviewLocally({ 
-        productId: selectedReview.productId, 
-        reviewId: selectedReview.id, 
-        comment: reviewComment, 
-        rating: reviewRating 
-      }));
-    }
-
-    setShowReviewEditModal(false);
-    alert('Review edited successfully!');
-  };
 
   const handleDeleteReview = async (rev: any) => {
     if (confirm("Are you sure you want to delete this review?")) {
@@ -985,12 +1094,27 @@ export const AdminDashboard: React.FC = () => {
               <span className="ml-auto w-2 h-2 rounded-full bg-accent" />
             )}
           </button>
+
+          <button
+            onClick={() => setActiveTab('customers')}
+            className={`w-full text-left py-2.5 px-4 rounded-lg font-semibold flex items-center gap-2.5 transition-all ${
+              activeTab === 'customers' ? 'bg-primary text-white font-bold shadow' : 'hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <Users size={16} /> Customers List
+          </button>
         </nav>
 
         <div className="p-4 border-t border-slate-800 flex flex-col gap-2">
           <div className="text-[10px] text-slate-500 truncate">
             Logged in: <span className="text-slate-400 block font-semibold">UNS Admin</span>
           </div>
+          <Link
+            to="/"
+            className="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-slate-350 hover:text-white font-bold py-2 px-3 rounded-lg text-[10.5px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer text-center"
+          >
+            <ShoppingBag size={12} /> Back to Store
+          </Link>
           <button
             onClick={handleAdminSignOut}
             className="w-full bg-red-600/20 hover:bg-red-600/35 border border-red-500/25 hover:border-red-500/40 text-red-400 hover:text-red-300 font-bold py-2 px-3 rounded-lg text-[10.5px] transition-colors flex items-center justify-center gap-1.5 cursor-pointer"
@@ -1015,27 +1139,7 @@ export const AdminDashboard: React.FC = () => {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
               <div className="bg-white p-5 rounded-xl border border-border shadow-soft flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Total Sales</span>
-                  <h3 className="font-heading text-xl font-bold text-primary mt-1">₹{stats.totalSales}</h3>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-teal-50 text-primary flex items-center justify-center">
-                  <TrendingUp size={20} />
-                </div>
-              </div>
-
-              <div className="bg-white p-5 rounded-xl border border-border shadow-soft flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Pending Orders</span>
-                  <h3 className="font-heading text-xl font-bold text-primary mt-1">{stats.pendingOrders}</h3>
-                </div>
-                <div className="w-10 h-10 rounded-lg bg-yellow-50 text-yellow-600 flex items-center justify-center">
-                  <ShoppingBag size={20} />
-                </div>
-              </div>
-
-              <div className="bg-white p-5 rounded-xl border border-border shadow-soft flex items-center justify-between">
-                <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Catalog Size</span>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Total Products</span>
                   <h3 className="font-heading text-xl font-bold text-primary mt-1">{stats.catalogSize}</h3>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
@@ -1045,8 +1149,28 @@ export const AdminDashboard: React.FC = () => {
 
               <div className="bg-white p-5 rounded-xl border border-border shadow-soft flex items-center justify-between">
                 <div>
-                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">New Enquiries</span>
-                  <h3 className="font-heading text-xl font-bold text-primary mt-1">{stats.unreadEnquiries}</h3>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Total Categories</span>
+                  <h3 className="font-heading text-xl font-bold text-primary mt-1">{stats.totalCategories}</h3>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-teal-50 text-primary flex items-center justify-center">
+                  <FolderHeart size={20} />
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-xl border border-border shadow-soft flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Total Orders</span>
+                  <h3 className="font-heading text-xl font-bold text-primary mt-1">{stats.totalOrders}</h3>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-yellow-50 text-yellow-600 flex items-center justify-center">
+                  <ShoppingBag size={20} />
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-xl border border-border shadow-soft flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Total Enquiries</span>
+                  <h3 className="font-heading text-xl font-bold text-primary mt-1">{stats.totalEnquiries}</h3>
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-green-50 text-green-600 flex items-center justify-center">
                   <MessageSquare size={20} />
@@ -1104,99 +1228,69 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
 
-            {/* 3. Live Page Previews Grid */}
-            <div className="bg-white p-6 rounded-2xl border border-border shadow-soft">
-              <div className="mb-4">
-                <h4 className="font-heading font-bold text-sm text-heading">Website Page Live Previews & Navigation</h4>
-                <p className="text-[11px] text-muted">Preview customer-facing pages directly to verify client layout, reviews, variants, or order tracking views.</p>
-              </div>
-              
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                
-                {/* Home Page */}
-                <div className="border border-border p-4 rounded-xl hover:shadow-sm transition-all flex flex-col justify-between space-y-3 bg-slate-50/30">
-                  <div>
-                    <h5 className="font-bold text-xs text-heading">Home Page</h5>
-                    <span className="text-[10px] font-mono text-primary bg-teal-50 px-1.5 py-0.5 rounded mt-1 inline-block">/</span>
-                    <p className="text-[10px] text-muted mt-2">Active tickers, hero sliders, categories browse, and FAQ sections.</p>
-                  </div>
-                  <a href="/" target="_blank" rel="noreferrer" className="w-full py-1.5 px-3 bg-primary hover:bg-primary-light text-white text-[10.5px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
-                    Open Preview ↗
-                  </a>
-                </div>
+          </div>
+        )}
 
-                {/* Categories Browse */}
-                <div className="border border-border p-4 rounded-xl hover:shadow-sm transition-all flex flex-col justify-between space-y-3 bg-slate-50/30">
-                  <div>
-                    <h5 className="font-bold text-xs text-heading">Categories Directory</h5>
-                    <span className="text-[10px] font-mono text-primary bg-teal-50 px-1.5 py-0.5 rounded mt-1 inline-block">/categories</span>
-                    <p className="text-[10px] text-muted mt-2">Customer catalog directory segmenting products by utility groups.</p>
-                  </div>
-                  <a href="/categories" target="_blank" rel="noreferrer" className="w-full py-1.5 px-3 bg-primary hover:bg-primary-light text-white text-[10.5px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
-                    Open Preview ↗
-                  </a>
-                </div>
+        {/* TAB: CUSTOMERS LIST */}
+        {activeTab === 'customers' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div>
+              <h2 className="text-2xl font-bold text-heading font-heading">Customers List</h2>
+              <p className="text-xs text-muted">All signed up and registered customers from Supabase.</p>
+            </div>
 
-                {/* Catalog View */}
-                <div className="border border-border p-4 rounded-xl hover:shadow-sm transition-all flex flex-col justify-between space-y-3 bg-slate-50/30">
-                  <div>
-                    <h5 className="font-bold text-xs text-heading">Product Catalog</h5>
-                    <span className="text-[10px] font-mono text-primary bg-teal-50 px-1.5 py-0.5 rounded mt-1 inline-block">/products</span>
-                    <p className="text-[10px] text-muted mt-2">Browse lists with price sorting, search queries, and variant cards.</p>
-                  </div>
-                  <a href="/products" target="_blank" rel="noreferrer" className="w-full py-1.5 px-3 bg-primary hover:bg-primary-light text-white text-[10.5px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
-                    Open Preview ↗
-                  </a>
-                </div>
-
-                {/* Shopping Cart */}
-                <div className="border border-border p-4 rounded-xl hover:shadow-sm transition-all flex flex-col justify-between space-y-3 bg-slate-50/30">
-                  <div>
-                    <h5 className="font-bold text-xs text-heading">Shopping Cart</h5>
-                    <span className="text-[10px] font-mono text-primary bg-teal-50 px-1.5 py-0.5 rounded mt-1 inline-block">/cart</span>
-                    <p className="text-[10px] text-muted mt-2">Direct WhatsApp checkout forms and delivery details builder.</p>
-                  </div>
-                  <a href="/cart" target="_blank" rel="noreferrer" className="w-full py-1.5 px-3 bg-primary hover:bg-primary-light text-white text-[10.5px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
-                    Open Preview ↗
-                  </a>
-                </div>
-
-                {/* Track Order */}
-                <div className="border border-border p-4 rounded-xl hover:shadow-sm transition-all flex flex-col justify-between space-y-3 bg-slate-50/30">
-                  <div>
-                    <h5 className="font-bold text-xs text-heading">Track Live Order</h5>
-                    <span className="text-[10px] font-mono text-primary bg-teal-50 px-1.5 py-0.5 rounded mt-1 inline-block">/track-order</span>
-                    <p className="text-[10px] text-muted mt-2">Client tracking status log, courier link, and downloadable invoices.</p>
-                  </div>
-                  <a href="/track-order" target="_blank" rel="noreferrer" className="w-full py-1.5 px-3 bg-primary hover:bg-primary-light text-white text-[10.5px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
-                    Open Preview ↗
-                  </a>
-                </div>
-
-                {/* About & Insights */}
-                <div className="border border-border p-4 rounded-xl hover:shadow-sm transition-all flex flex-col justify-between space-y-3 bg-slate-50/30">
-                  <div>
-                    <h5 className="font-bold text-xs text-heading">About & Guides</h5>
-                    <span className="text-[10px] font-mono text-primary bg-teal-50 px-1.5 py-0.5 rounded mt-1 inline-block">/about</span>
-                    <p className="text-[10px] text-muted mt-2">Factory blended history, certification reviews, and user guides.</p>
-                  </div>
-                  <a href="/about" target="_blank" rel="noreferrer" className="w-full py-1.5 px-3 bg-primary hover:bg-primary-light text-white text-[10.5px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
-                    Open Preview ↗
-                  </a>
-                </div>
-
-                {/* Contact Enquiries */}
-                <div className="border border-border p-4 rounded-xl hover:shadow-sm transition-all flex flex-col justify-between space-y-3 bg-slate-50/30">
-                  <div>
-                    <h5 className="font-bold text-xs text-heading">Contact & Inquiries</h5>
-                    <span className="text-[10px] font-mono text-primary bg-teal-50 px-1.5 py-0.5 rounded mt-1 inline-block">/contact</span>
-                    <p className="text-[10px] text-muted mt-2">Google Map links, phone lines, and dealership request inbox.</p>
-                  </div>
-                  <a href="/contact" target="_blank" rel="noreferrer" className="w-full py-1.5 px-3 bg-primary hover:bg-primary-light text-white text-[10.5px] font-bold rounded-lg transition-colors flex items-center justify-center gap-1">
-                    Open Preview ↗
-                  </a>
-                </div>
-
+            <div className="bg-white rounded-2xl border border-border shadow-soft overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left border-collapse text-xs">
+                  <thead>
+                    <tr className="bg-slate-50 border-b border-border text-slate-400 font-bold uppercase tracking-wider">
+                      <th className="p-4">Customer ID</th>
+                      <th className="p-4">Name</th>
+                      <th className="p-4">Email</th>
+                      <th className="p-4">Phone</th>
+                      <th className="p-4">Role</th>
+                      <th className="p-4">Created At</th>
+                      <th className="p-4 text-center">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100 font-medium text-body">
+                    {customers.length === 0 ? (
+                      <tr>
+                        <td colSpan={7} className="p-8 text-center text-muted italic">
+                          No customer accounts found.
+                        </td>
+                      </tr>
+                    ) : (
+                      customers.map(cust => (
+                        <tr key={cust.id} className="hover:bg-slate-50/50 transition-colors">
+                          <td className="p-4 font-mono text-slate-500">{cust.id}</td>
+                          <td className="p-4 font-bold text-heading">{cust.name}</td>
+                          <td className="p-4">{cust.email}</td>
+                          <td className="p-4">{cust.phone || 'N/A'}</td>
+                          <td className="p-4">
+                            <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                              cust.role === 'admin' ? 'bg-red-50 text-red-600' : 'bg-teal-50 text-primary'
+                            }`}>
+                              {cust.role}
+                            </span>
+                          </td>
+                          <td className="p-4 text-muted">
+                            {cust.createdAt ? new Date(cust.createdAt).toLocaleString() : 'N/A'}
+                          </td>
+                          <td className="p-4 text-center">
+                            <button
+                              onClick={() => handleCustomerDelete(cust.id)}
+                              className="text-red-650 hover:text-red-750 font-bold flex items-center justify-center gap-1 mx-auto"
+                              title="Delete Customer Account"
+                            >
+                              <Trash2 size={13} /> Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -1506,6 +1600,13 @@ export const AdminDashboard: React.FC = () => {
                           >
                             <Printer size={10} /> Invoice
                           </button>
+                          <button
+                            onClick={() => handleOrderDelete(order.id)}
+                            className="bg-red-50 text-red-500 hover:bg-red-100 hover:text-red-700 text-[10px] font-bold py-1.5 px-2.5 rounded-lg border border-red-200 inline-flex items-center gap-0.5"
+                            title="Delete Order"
+                          >
+                            <Trash2 size={10} /> Delete
+                          </button>
                         </td>
                       </tr>
                     ))}
@@ -1611,13 +1712,7 @@ export const AdminDashboard: React.FC = () => {
                                 <Check size={14} />
                               </button>
                             )}
-                            <button
-                              onClick={() => openReviewEdit(rev)}
-                              className="p-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded"
-                              title="Edit Review Content"
-                            >
-                              <Edit size={14} />
-                            </button>
+
                             <button
                               onClick={() => handleDeleteReview(rev)}
                               className="p-1 bg-red-50 text-red-500 hover:bg-red-100 rounded"
@@ -1731,6 +1826,13 @@ export const AdminDashboard: React.FC = () => {
                     >
                       <MessageSquare size={10} /> WhatsApp Reply
                     </a>
+                    <button
+                      onClick={() => handleEnquiryDelete(enq.id)}
+                      className="bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 text-[10px] font-bold py-1.5 px-3 rounded-lg border border-red-200 shadow-sm inline-flex items-center gap-1"
+                      title="Delete Enquiry"
+                    >
+                      <Trash2 size={10} /> Delete
+                    </button>
                   </div>
                 </div>
               ))}
@@ -1744,6 +1846,14 @@ export const AdminDashboard: React.FC = () => {
       {showCategoryModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-md w-full border border-border shadow-2xl p-6 relative animate-zoomIn">
+            <button
+              type="button"
+              onClick={() => setShowCategoryModal(false)}
+              className="absolute top-4 right-4 text-muted hover:text-heading transition-colors"
+              title="Close"
+            >
+              <X size={18} />
+            </button>
             <h3 className="font-heading font-bold text-lg text-heading mb-4">
               {editingCategory ? `Edit Category: ${editingCategory.name}` : "Add Product Category"}
             </h3>
@@ -1819,6 +1929,14 @@ export const AdminDashboard: React.FC = () => {
       {showProductModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
           <div className="bg-white rounded-2xl max-w-lg w-full border border-border shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto animate-zoomIn">
+            <button
+              type="button"
+              onClick={() => setShowProductModal(false)}
+              className="absolute top-4 right-4 text-muted hover:text-heading transition-colors"
+              title="Close"
+            >
+              <X size={18} />
+            </button>
             <h3 className="font-heading font-bold text-lg text-heading mb-4">
               {editingProduct ? `Edit Product: ${editingProduct.name}` : "Add New Cleaning Product"}
             </h3>
@@ -1947,7 +2065,7 @@ export const AdminDashboard: React.FC = () => {
                     </button>
                   </div>
                 ) : (
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">MRP Price (₹)</label>
                       <input
@@ -1968,18 +2086,9 @@ export const AdminDashboard: React.FC = () => {
                         onChange={(e) => setFormDiscountPrice(e.target.value)}
                       />
                     </div>
-                    <div>
-                      <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Stock Inventory</label>
-                      <input
-                        type="number"
-                        required={!hasVariants}
-                        className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary"
-                        value={formStock}
-                        onChange={(e) => setFormStock(e.target.value)}
-                      />
-                    </div>
                   </div>
                 )}
+
               </div>
 
               <div>
@@ -1990,6 +2099,85 @@ export const AdminDashboard: React.FC = () => {
                   className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary"
                   value={formShortDesc}
                   onChange={(e) => setFormShortDesc(e.target.value)}
+                />
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Stock Status Option</label>
+                  <select
+                    className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary font-semibold text-heading"
+                    value={formStockStatus}
+                    onChange={(e) => setFormStockStatus(e.target.value)}
+                  >
+                    <option value="Stock Available">Stock Available</option>
+                    <option value="Out of Stock">Out of Stock</option>
+                    <option value="New Post">New Post</option>
+                    <option value="Custom">Custom Label</option>
+                  </select>
+                </div>
+                {formStockStatus === 'Custom' ? (
+                  <div>
+                    <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Custom Stock Label</label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="e.g. Selling Fast!"
+                      className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary"
+                      value={formCustomStockStatus}
+                      onChange={(e) => setFormCustomStockStatus(e.target.value)}
+                    />
+                  </div>
+                ) : (
+                  <div className="hidden sm:block opacity-0 pointer-events-none" />
+                )}
+              </div>
+
+              <div className="border border-dashed border-slate-200 rounded-xl p-3 bg-slate-50/30 space-y-3">
+                <span className="block text-[10px] font-bold text-heading uppercase tracking-wider">Separate Custom Spec (Future Use)</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[9px] font-bold text-muted mb-1 uppercase tracking-wider">Field Label</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Fragrance"
+                      className="w-full bg-white border border-border rounded-md py-1.5 px-2.5 text-xs focus:outline-none focus:border-primary font-semibold"
+                      value={formCustomSpecName}
+                      onChange={(e) => setFormCustomSpecName(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[9px] font-bold text-muted mb-1 uppercase tracking-wider">Field Value</label>
+                    <input
+                      type="text"
+                      placeholder="e.g. Jasmine Fresh"
+                      className="w-full bg-white border border-border rounded-md py-1.5 px-2.5 text-xs focus:outline-none focus:border-primary"
+                      value={formCustomSpecValue}
+                      onChange={(e) => setFormCustomSpecValue(e.target.value)}
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Product Benefits (one per line)</label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Disinfects effectively&#10;Pleasant fragrance"
+                  className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary resize-none"
+                  value={formBenefits}
+                  onChange={(e) => setFormBenefits(e.target.value)}
+                />
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Usage Instructions (one per line)</label>
+                <textarea
+                  rows={3}
+                  placeholder="e.g. Apply directly&#10;Scrub and rinse"
+                  className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary resize-none"
+                  value={formInstructions}
+                  onChange={(e) => setFormInstructions(e.target.value)}
                 />
               </div>
 
@@ -2139,62 +2327,6 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
-      {/* MODAL 4: EDIT REVIEW */}
-      {showReviewEditModal && selectedReview && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
-          <div className="bg-white rounded-2xl max-w-md w-full border border-border shadow-2xl p-6 relative animate-zoomIn">
-            <h3 className="font-heading font-bold text-lg text-heading mb-4">
-              Edit Review: {selectedReview.customerName}
-            </h3>
-
-            <form onSubmit={handleReviewEditSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Rating Score</label>
-                <div className="flex gap-1.5 mt-1">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setReviewRating(star)}
-                      className={`text-2xl transition-colors ${star <= reviewRating ? 'text-amber-400' : 'text-slate-200 hover:text-amber-300'}`}
-                    >
-                      ★
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Review Comment</label>
-                <textarea
-                  rows={4}
-                  required
-                  placeholder="Write updated comment content..."
-                  className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary resize-none"
-                  value={reviewComment}
-                  onChange={(e) => setReviewComment(e.target.value)}
-                />
-              </div>
-
-              <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setShowReviewEditModal(false)}
-                  className="text-xs text-muted hover:text-heading font-semibold py-2 px-4"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-5 rounded-lg"
-                >
-                  Save Review
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
 
       {/* MODAL 5: PRINTABLE TAX INVOICE */}
       {showInvoiceModal && selectedOrder && (

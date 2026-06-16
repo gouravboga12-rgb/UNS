@@ -115,6 +115,9 @@ export const CompactCategoriesGrid: React.FC<CompactCategoriesGridProps> = ({
           };
           const isSelected = selectedCategory === cat.slug;
 
+          const isOriginalCategory = ['home-cleaning', 'kitchen-cleaning', 'personal-hygiene', 'laundry-care', 'vehicle-care', 'commercial-cleaning'].includes(cat.slug);
+          const finalImg = isOriginalCategory ? (config.images[0] || '') : (cat.imageUrl || (config.images.length > 0 ? config.images[0] : ''));
+
           return (
             <button
               key={cat.id}
@@ -131,9 +134,9 @@ export const CompactCategoriesGrid: React.FC<CompactCategoriesGridProps> = ({
                     : 'border-slate-100 hover:shadow-sm'
                 } transition-all duration-200 ease-out flex items-center justify-center p-1.5`}
               >
-                {config.images.length > 0 ? (
+                {finalImg ? (
                   <img
-                    src={config.images[0]}
+                    src={finalImg}
                     alt={cat.name}
                     className="h-full w-full object-contain drop-shadow-sm transition-transform duration-200 group-hover:scale-110"
                   />
