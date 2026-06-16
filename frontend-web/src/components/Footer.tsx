@@ -124,8 +124,15 @@ export const Footer: React.FC = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© {new Date().getFullYear()} UNS HOME CLEANING PRODUCTS PVT LTD. All Rights Reserved.</p>
           <p className="flex items-center gap-1.5">
-            Designed for 
-            <span className="text-teal-400 font-semibold">Premium Hygiene</span>
+            Developed by{' '}
+            <a 
+              href="https://www.codtechitsolutions.com/" 
+              target="_blank" 
+              rel="noopener noreferrer" 
+              className="text-teal-400 font-semibold hover:underline hover:text-teal-300 transition-colors"
+            >
+              CODTECH IT SOLUTION
+            </a>
           </p>
         </div>
       </div>
