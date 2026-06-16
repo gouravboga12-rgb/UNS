@@ -20,7 +20,7 @@ const PRODUCTS = [
 ];
 
 export const Contact: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'enquiry' | 'distributor'>('enquiry');
+  const [activeTab, setActiveTab] = useState<'enquiry' | 'distributor'>('distributor');
 
   /* ── General Enquiry Form State ── */
   const [name, setName] = useState('');
@@ -131,29 +131,6 @@ export const Contact: React.FC = () => {
           <p className="text-xs text-muted mt-2">
             Reach our customer support or apply to become an authorised UNS distributor. We respond within 24 hours.
           </p>
-        </div>
-
-        {/* ── Top Info Row ── */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10" data-aos="fade-up">
-          {[
-            { icon: <Phone size={18} />, label: 'Phone / WhatsApp', value: '+91 73961 58011', href: 'tel:+917396158011' },
-            { icon: <Mail size={18} />, label: 'Email', value: 'unshomecleaningproductspvtltd@gmail.com', href: 'mailto:unshomecleaningproductspvtltd@gmail.com' },
-            { icon: <MapPin size={18} />, label: 'Factory & Office', value: 'Siddipet, Telangana – 502103', href: '#map' },
-          ].map((item) => (
-            <a
-              key={item.label}
-              href={item.href}
-              className="flex items-start gap-3 bg-white p-4 rounded-2xl border border-border shadow-soft hover:shadow-soft-lg transition-all group"
-            >
-              <div className="w-9 h-9 rounded-lg bg-teal-50 flex items-center justify-center text-primary flex-shrink-0 group-hover:bg-teal-100 transition-colors">
-                {item.icon}
-              </div>
-              <div className="min-w-0">
-                <span className="text-[9px] font-bold text-muted uppercase tracking-wider block">{item.label}</span>
-                <span className="text-xs font-semibold text-heading break-all leading-snug">{item.value}</span>
-              </div>
-            </a>
-          ))}
         </div>
 
         {/* ── Tab Switcher ── */}

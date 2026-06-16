@@ -4,18 +4,7 @@ import { Phone, Mail, MapPin, Send, MessageSquare } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export const Footer: React.FC = () => {
-  const [email, setEmail] = useState('');
-  const [subscribed, setSubscribed] = useState(false);
 
-  const handleSubscribe = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (email.trim()) {
-      // Mock API call
-      setSubscribed(true);
-      setEmail('');
-      setTimeout(() => setSubscribed(false), 5000);
-    }
-  };
 
   return (
     <footer className="bg-heading text-slate-300 border-t-4 border-primary">
@@ -124,25 +113,7 @@ export const Footer: React.FC = () => {
               </li>
             </ul>
 
-            <div className="pt-2">
-              <h4 className="text-white text-xs font-semibold uppercase tracking-wider mb-2">Subscribe to Newsletter</h4>
-              <form onSubmit={handleSubscribe} className="flex relative">
-                <input
-                  type="email"
-                  placeholder="Your Email Address"
-                  className="bg-slate-800 border border-slate-700 rounded-lg py-2 pl-3 pr-10 text-xs w-full text-white placeholder-slate-500 focus:outline-none focus:border-primary"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                />
-                <button type="submit" className="absolute right-2 top-1/2 -translate-y-1/2 text-teal-400 hover:text-white transition-colors">
-                  <Send size={14} />
-                </button>
-              </form>
-              {subscribed && (
-                <p className="text-[11px] text-accent mt-1 animate-fadeIn">Thank you for subscribing!</p>
-              )}
-            </div>
+
           </div>
 
         </div>
