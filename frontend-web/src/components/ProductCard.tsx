@@ -8,9 +8,10 @@ import type { Product } from '../store/productsSlice';
 
 interface ProductCardProps {
   product: Product;
+  customBadge?: string;
 }
 
-export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
+export const ProductCard: React.FC<ProductCardProps> = ({ product, customBadge }) => {
   const dispatch = useDispatch();
   const isOutOfStock = product.specifications?.stockStatus === 'Out of Stock';
 
@@ -50,13 +51,22 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product }) => {
       
       {/* Product Image */}
       <Link to={`/products/${product.slug}`} className="relative block overflow-hidden aspect-square bg-slate-50">
-        {discountPercent > 0 && (
-          <span className="absolute top-3 left-3 z-10 bg-accent text-white text-[11px] font-bold px-2 py-1 rounded-md shadow-sm">
-            {discountPercent}% OFF
-          </span>
-        )}
+        {/* Left Badges Stack */}
+        <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1 items-start">
+          {discountPercent > 0 && (
+            <span className="bg-accent text-white text-[9px] sm:text-[11px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-sm whitespace-nowrap">
+              {discountPercent}% OFF
+            </span>
+          )}
+          {customBadge && (
+            <span className="bg-amber-500 text-white text-[8px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-sm max-w-[110px] sm:max-w-none truncate sm:whitespace-normal" title={customBadge}>
+              {customBadge}
+            </span>
+          )}
+        </div>
+
         {product.specifications?.stockStatus && (
-          <span className={`absolute top-3 right-3 z-10 px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider shadow-sm border ${
+          <span className={`absolute top-2.5 right-2.5 z-10 px-1.5 py-0.5 sm:px-2 rounded-md text-[8px] sm:text-[9px] font-bold uppercase tracking-wider shadow-sm border ${
             product.specifications.stockStatus === 'Out of Stock' 
               ? 'bg-red-50 border-red-100 text-red-600'
               : product.specifications.stockStatus === 'New Post'

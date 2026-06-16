@@ -342,13 +342,8 @@ export const Home: React.FC = () => {
                   data-aos-delay={index * 100}
                   className="relative group flex flex-col h-full bg-white rounded-2xl border border-border shadow-soft hover:shadow-soft-lg transition-all duration-300"
                 >
-                  {/* Custom Social Proof gold Badge */}
-                  <span className="absolute top-3 right-3 z-10 bg-amber-500 text-white text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-sm">
-                    {label}
-                  </span>
-                  
                   <div className="flex-1 flex flex-col">
-                    <ProductCard product={prod} />
+                    <ProductCard product={prod} customBadge={label} />
                   </div>
                 </div>
               );
