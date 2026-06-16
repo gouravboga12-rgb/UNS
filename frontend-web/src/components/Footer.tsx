@@ -7,7 +7,7 @@ export const Footer: React.FC = () => {
 
 
   return (
-    <footer className="bg-heading text-slate-300 border-t-4 border-primary">
+    <footer className="bg-heading text-slate-300 border-t-4 border-primary pb-20 lg:pb-0">
       
       {/* Upper Footer: Branding & Grid Links */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
