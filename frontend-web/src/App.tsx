@@ -47,7 +47,7 @@ const AppContent: React.FC = () => {
   return (
     <>
       <ScrollToTop />
-      <div className="flex flex-col min-h-screen bg-background w-full max-w-full overflow-x-hidden">
+      <div className="flex flex-col min-h-screen bg-background w-full max-w-full">
         {!isAdminRoute && <Navbar />}
         <ToastNotification />
         
