@@ -51,38 +51,42 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, customBadge }
       
       {/* Product Image */}
       <Link to={`/products/${product.slug}`} className="relative block overflow-hidden aspect-square bg-slate-50">
-        {/* Left Badges Stack */}
-        <div className="absolute top-2.5 left-2.5 z-10 flex flex-col gap-1 items-start">
-          {discountPercent > 0 && (
-            <span className="bg-accent text-white text-[9px] sm:text-[11px] font-bold px-1.5 py-0.5 sm:px-2 sm:py-1 rounded-md shadow-sm whitespace-nowrap">
+        <div className="absolute top-3 left-3 right-3 z-10 flex flex-wrap gap-1.5 items-start justify-between pointer-events-none">
+          {discountPercent > 0 ? (
+            <span className="bg-accent text-white text-[11px] font-bold px-2 py-1 rounded-md shadow-sm pointer-events-auto">
               {discountPercent}% OFF
             </span>
+          ) : (
+            <div />
           )}
-          {customBadge && (
-            <span className="bg-amber-500 text-white text-[8px] sm:text-[10px] font-extrabold px-1.5 py-0.5 sm:px-2.5 sm:py-1 rounded-full shadow-sm max-w-[110px] sm:max-w-none truncate sm:whitespace-normal" title={customBadge}>
-              {customBadge}
-            </span>
+          {(customBadge || product.specifications?.stockStatus) && (
+            <div className="flex flex-col items-start sm:items-end gap-1 pointer-events-none">
+              {customBadge && (
+                <span className="bg-amber-500 text-white text-[9px] sm:text-[10px] font-extrabold px-2.5 py-1 rounded-full shadow-sm pointer-events-auto whitespace-nowrap">
+                  {customBadge}
+                </span>
+              )}
+              {product.specifications?.stockStatus && (
+                <span className={`px-2 py-0.5 rounded-md text-[9px] font-bold uppercase tracking-wider shadow-sm border pointer-events-auto whitespace-nowrap ${
+                  product.specifications.stockStatus === 'Out of Stock' 
+                    ? 'bg-red-50 border-red-100 text-red-600'
+                    : product.specifications.stockStatus === 'New Post'
+                    ? 'bg-purple-50 border-purple-100 text-purple-600'
+                    : product.specifications.stockStatus === 'Custom'
+                    ? 'bg-amber-50 border-amber-100 text-amber-600'
+                    : 'bg-emerald-50 border-emerald-100 text-emerald-600'
+                }`}>
+                  {product.specifications.stockStatus === 'Custom' 
+                    ? (product.specifications.customStockStatus || 'Stock')
+                    : product.specifications.stockStatus === 'New Post'
+                    ? 'New'
+                    : product.specifications.stockStatus
+                  }
+                </span>
+              )}
+            </div>
           )}
         </div>
-
-        {product.specifications?.stockStatus && (
-          <span className={`absolute top-2.5 right-2.5 z-10 px-1.5 py-0.5 sm:px-2 rounded-md text-[8px] sm:text-[9px] font-bold uppercase tracking-wider shadow-sm border ${
-            product.specifications.stockStatus === 'Out of Stock' 
-              ? 'bg-red-50 border-red-100 text-red-600'
-              : product.specifications.stockStatus === 'New Post'
-              ? 'bg-purple-50 border-purple-100 text-purple-600'
-              : product.specifications.stockStatus === 'Custom'
-              ? 'bg-amber-50 border-amber-100 text-amber-600'
-              : 'bg-emerald-50 border-emerald-100 text-emerald-600'
-          }`}>
-            {product.specifications.stockStatus === 'Custom' 
-              ? (product.specifications.customStockStatus || 'Stock')
-              : product.specifications.stockStatus === 'New Post'
-              ? 'New'
-              : product.specifications.stockStatus
-            }
-          </span>
-        )}
         <img
           src={product.images[0]}
           alt={product.name}
