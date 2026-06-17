@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, Send, MessageSquare } from 'lucide-react';
+import { Phone, Mail, MapPin, Send, MessageSquare, Facebook, Instagram } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export const Footer: React.FC = () => {
@@ -66,6 +66,24 @@ export const Footer: React.FC = () => {
                 title="Call Us"
               >
                 <Phone size={18} />
+              </a>
+              <a
+                href="https://www.facebook.com/share/1KtLC58igp/"
+                target="_blank"
+                rel="noreferrer"
+                className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center hover:bg-primary hover:text-white transition-all text-teal-400"
+                title="Facebook"
+              >
+                <Facebook size={18} />
+              </a>
+              <a
+                href="https://www.instagram.com/unscleaningproducts?utm_source=qr&igsh=MWF1bmMyNDF2b2ExdA=="
+                target="_blank"
+                rel="noreferrer"
+                className="w-10 h-10 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center hover:bg-primary hover:text-white transition-all text-teal-400"
+                title="Instagram"
+              >
+                <Instagram size={18} />
               </a>
             </div>
           </div>
