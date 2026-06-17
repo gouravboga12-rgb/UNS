@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { ProductCard } from '../components/ProductCard';
@@ -24,6 +24,10 @@ export const TrackOrder: React.FC = () => {
   const [orderData, setOrderData] = useState<any | null>(null);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
 
+  // User orders history state
+  const [userOrders, setUserOrders] = useState<any[]>([]);
+  const [loadingOrders, setLoadingOrders] = useState(false);
+
   // Selector for bestseller/recommended shelf products
   const products = useSelector((state: RootState) => state.products.items);
   const bestSellers = products.filter(p => p.featured).slice(0, 5);
@@ -41,6 +45,65 @@ export const TrackOrder: React.FC = () => {
       handleTrack(defaultOrder, userPhone);
     }
   }, [searchParams, userPhone]);
+
+  useEffect(() => {
+    const fetchUserOrders = async () => {
+      if (!currentUser) return;
+      setLoadingOrders(true);
+      
+      let fetched: any[] = [];
+      try {
+        const queryParams = new URLSearchParams();
+        if (currentUser.phone) queryParams.append('phone', currentUser.phone);
+        if (currentUser.email) queryParams.append('email', currentUser.email);
+
+        const response = await fetch(`http://localhost:5000/api/orders/my-orders?${queryParams.toString()}`);
+        if (response.ok) {
+          fetched = await response.json();
+        }
+      } catch (err) {
+        console.error('Error fetching user orders:', err);
+      }
+
+      // Merge with uns_local_orders
+      const localOrdersRaw = localStorage.getItem('uns_local_orders');
+      if (localOrdersRaw) {
+        try {
+          const localOrders = JSON.parse(localOrdersRaw);
+          const userLocalOrders = localOrders.filter((order: any) => {
+            const matchesPhone = currentUser.phone 
+              ? order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(currentUser.phone.replace(/[^0-9]/g, '').slice(-10))
+              : false;
+            const matchesEmail = currentUser.email
+              ? order.customerEmail && order.customerEmail.toLowerCase() === currentUser.email.toLowerCase()
+              : false;
+            return matchesPhone || matchesEmail;
+          });
+
+          // Combine and deduplicate
+          const combined = [...fetched];
+          userLocalOrders.forEach((lo: any) => {
+            const exists = combined.some(o => o.id === lo.id || o.orderNumber === lo.orderNumber);
+            if (!exists) {
+              combined.push(lo);
+            }
+          });
+          
+          // Sort by date/createdAt descending
+          combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          
+          fetched = combined;
+        } catch (e) {
+          console.error('Error parsing local orders:', e);
+        }
+      }
+
+      setUserOrders(fetched);
+      setLoadingOrders(false);
+    };
+
+    fetchUserOrders();
+  }, [currentUser?.phone, currentUser?.email]);
 
   const handleTrack = async (id: string, ph: string) => {
     const targetPhone = userPhone || ph;
@@ -125,6 +188,21 @@ export const TrackOrder: React.FC = () => {
         return <CheckCircle2 size={18} />;
       default:
         return <MapPin size={18} />;
+    }
+  };
+
+  const getStatusBadgeClass = (status: string) => {
+    switch(status.toLowerCase()) {
+      case 'delivered':
+        return 'bg-emerald-50 border-emerald-100 text-emerald-600';
+      case 'shipped':
+        return 'bg-blue-50 border-blue-100 text-blue-600';
+      case 'processing':
+        return 'bg-amber-55 border-amber-150 text-amber-700';
+      case 'cancelled':
+        return 'bg-red-50 border-red-100 text-red-600';
+      default:
+        return 'bg-slate-50 border-slate-100 text-slate-600';
     }
   };
 
@@ -343,6 +421,106 @@ export const TrackOrder: React.FC = () => {
 
           </div>
         )}
+
+        {/* User's Order History */}
+        <div className="max-w-3xl mx-auto mb-16 space-y-6" data-aos="fade-up">
+          <div className="border-t border-slate-200/60 pt-10">
+            <h2 className="text-xl font-bold text-heading">Your Recent Orders</h2>
+            <p className="text-xs text-muted mt-1">
+              {currentUser 
+                ? "Click any order below to track its live shipment timeline or view the invoice."
+                : "Sign in to view your order history automatically."}
+            </p>
+          </div>
+
+          {!currentUser ? (
+            <div className="bg-slate-50 border border-border rounded-2xl p-6 text-center space-y-3">
+              <p className="text-xs text-muted font-medium">You are not signed in. Log in to view your previous order history and statuses.</p>
+              <Link 
+                to="/signin"
+                className="inline-block bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-6 rounded-xl shadow-sm transition-colors font-semibold"
+              >
+                Sign In
+              </Link>
+            </div>
+          ) : loadingOrders ? (
+            <div className="flex justify-center items-center py-12">
+              <Loader2 className="animate-spin text-primary" size={24} />
+              <span className="text-xs text-muted ml-2 font-medium">Loading your orders...</span>
+            </div>
+          ) : userOrders.length === 0 ? (
+            <div className="bg-white border border-border rounded-2xl p-8 text-center text-xs text-muted">
+              You haven't placed any orders yet. Once you order, they will appear here.
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              {userOrders.map((order) => (
+                <div 
+                  key={order.id} 
+                  className={`bg-white rounded-2xl border p-5 hover:shadow-soft transition-all duration-300 flex flex-col justify-between ${
+                    orderData?.orderNumber === order.orderNumber ? 'border-primary ring-2 ring-primary/10' : 'border-border'
+                  }`}
+                >
+                  <div>
+                    {/* Header */}
+                    <div className="flex justify-between items-start mb-2.5">
+                      <div>
+                        <span className="text-[10px] font-bold text-muted uppercase tracking-wider block">Order ID</span>
+                        <span className="font-heading font-black text-sm text-heading">UNS-#{order.orderNumber}</span>
+                      </div>
+                      <span className={`px-2.5 py-0.5 border rounded-full text-[9px] font-bold uppercase tracking-wider shadow-xs ${getStatusBadgeClass(order.status)}`}>
+                        {order.status}
+                      </span>
+                    </div>
+
+                    {/* Date and Total */}
+                    <div className="flex justify-between text-xs text-slate-500 mb-3 font-medium pb-2 border-b border-slate-100">
+                      <span>{new Date(order.createdAt).toLocaleDateString()}</span>
+                      <span className="font-bold text-heading">₹{parseFloat(order.totalAmount).toFixed(2)}</span>
+                    </div>
+
+                    {/* Items */}
+                    <div className="space-y-1 mb-4">
+                      {order.items.slice(0, 3).map((item: any, idx: number) => (
+                        <div key={idx} className="text-[11px] text-slate-650 flex justify-between">
+                          <span className="truncate max-w-[170px]">{item.name}</span>
+                          <span className="font-semibold text-heading whitespace-nowrap">x{item.quantity}</span>
+                        </div>
+                      ))}
+                      {order.items.length > 3 && (
+                        <p className="text-[10px] text-muted italic">+ {order.items.length - 3} more item(s)</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center justify-between pt-3 border-t border-slate-100 mt-auto gap-2">
+                    <button
+                      onClick={() => {
+                        setOrderId(order.orderNumber.toString());
+                        setOrderData(order);
+                        setError(null);
+                        window.scrollTo({ top: 150, behavior: 'smooth' });
+                      }}
+                      className="flex-1 bg-slate-50 border border-border hover:bg-slate-100 hover:border-slate-300 text-heading text-[10px] font-bold py-1.5 px-3 rounded-lg transition-colors text-center"
+                    >
+                      Track Order
+                    </button>
+                    <button
+                      onClick={() => {
+                        setOrderData(order);
+                        setShowInvoiceModal(true);
+                      }}
+                      className="flex-1 bg-primary hover:bg-primary-light text-white text-[10px] font-bold py-1.5 px-3 rounded-lg transition-colors text-center shadow-xs"
+                    >
+                      View Invoice
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
 
         {/* Recommended Products Shelf (Bestsellers Shelf styled to match Koparo Clean tracking footer) */}
         <div className="space-y-6 pt-12 border-t border-slate-200/60" data-aos="fade-up">

@@ -863,6 +863,46 @@ app.get('/api/orders/track', async (req: Request, res: Response) => {
   }
 });
 
+app.get('/api/orders/my-orders', async (req: Request, res: Response) => {
+  const { phone, email } = req.query;
+
+  if (!phone && !email) {
+    return res.status(400).json({ error: 'Phone number or email is required to fetch orders.' });
+  }
+
+  try {
+    const { data, error } = await supabase
+      .from('orders')
+      .select('*')
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+
+    const filtered = data.filter(o => {
+      const matchesPhone = phone 
+        ? o.customerPhone.replace(/[^0-9]/g, '').endsWith((phone as string).replace(/[^0-9]/g, '').slice(-10))
+        : false;
+      const matchesEmail = email
+        ? o.customerEmail && o.customerEmail.toLowerCase() === (email as string).toLowerCase()
+        : false;
+      return matchesPhone || matchesEmail;
+    });
+
+    res.json(filtered);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET my-orders:', err.message);
+    const filtered = ordersState.filter(o => {
+      const matchesPhone = phone 
+        ? o.customerPhone.replace(/[^0-9]/g, '').endsWith((phone as string).replace(/[^0-9]/g, '').slice(-10))
+        : false;
+      const matchesEmail = email
+        ? o.customerEmail && o.customerEmail.toLowerCase() === (email as string).toLowerCase()
+        : false;
+      return matchesPhone || matchesEmail;
+    });
+    res.json(filtered);
+  }
+});
+
 app.get('/api/admin/orders', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('orders').select('*').order('createdAt', { ascending: false });
