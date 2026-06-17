@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import {
-  Phone, Mail, MapPin, MessageSquare, Send, CheckCircle2,
+  Phone, MapPin, MessageSquare, Send, CheckCircle2,
   Building2, User, Hash, ClipboardList, Upload,
   Package, ChevronRight
 } from 'lucide-react';

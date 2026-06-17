@@ -92,7 +92,6 @@ export const AdminDashboard: React.FC = () => {
   const [formCategory, setFormCategory] = useState('');
   const [formPrice, setFormPrice] = useState('');
   const [formDiscountPrice, setFormDiscountPrice] = useState('');
-  const [formStock, setFormStock] = useState('');
   const [formShortDesc, setFormShortDesc] = useState('');
   const [formImage, setFormImage] = useState('');
   const [uploadingProdImg, setUploadingProdImg] = useState(false);
@@ -537,7 +536,6 @@ export const AdminDashboard: React.FC = () => {
     setFormCategory(categories[0]?.name || 'Home Cleaning Products');
     setFormPrice('120');
     setFormDiscountPrice('99');
-    setFormStock('100');
     setFormShortDesc('Premium chemical formulation.');
     setFormImage('');
     setHasVariants(false);
@@ -557,7 +555,6 @@ export const AdminDashboard: React.FC = () => {
     setFormCategory(prod.category);
     setFormPrice(prod.price.toString());
     setFormDiscountPrice(prod.discountPrice.toString());
-    setFormStock(prod.stock.toString());
     setFormShortDesc(prod.shortDescription);
     setFormImage(prod.images[0]);
     const dbVars = prod.specifications?.variants || [];

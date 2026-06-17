@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
-import { Phone, Mail, MapPin, Send, MessageSquare, Facebook, Instagram } from 'lucide-react';
+import { Phone, Mail, MapPin, MessageSquare, Facebook, Instagram } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export const Footer: React.FC = () => {
