@@ -537,10 +537,11 @@ export const TrackOrder: React.FC = () => {
           </div>
         </div>
 
-        {showInvoiceModal && orderData && (
-          <InvoiceModal orderData={orderData} onClose={() => setShowInvoiceModal(false)} />
-        )}
       </div>
+
+      {showInvoiceModal && orderData && (
+        <InvoiceModal orderData={orderData} onClose={() => setShowInvoiceModal(false)} />
+      )}
     </div>
   );
 };
@@ -551,7 +552,7 @@ const InvoiceModal: React.FC<{ orderData: any; onClose: () => void }> = ({ order
   const shipping = orderData.totalAmount > 500 ? 0 : 50;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm print:bg-white print:p-0 print:block">
+    <div className="fixed inset-0 z-[9999] overflow-y-auto bg-slate-900/60 backdrop-blur-sm p-4 sm:p-6 md:p-10 flex justify-center items-start print:bg-white print:p-0 print:block">
       <style>{`
         @media print {
           body * {
@@ -577,7 +578,7 @@ const InvoiceModal: React.FC<{ orderData: any; onClose: () => void }> = ({ order
       `}</style>
       <div 
         id="printable-invoice"
-        className="bg-white rounded-2xl max-w-2xl w-full border border-border shadow-2xl p-6 sm:p-8 relative max-h-[90vh] overflow-y-auto print:max-h-full print:border-none print:shadow-none print:p-0 animate-zoomIn"
+        className="bg-white rounded-2xl max-w-2xl w-full border border-border shadow-2xl p-6 sm:p-8 relative my-8 print:my-0 print:border-none print:shadow-none print:p-0 animate-zoomIn"
       >
         {/* Close trigger */}
         <button 
