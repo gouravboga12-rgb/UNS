@@ -14,7 +14,8 @@ import {
   Plus, 
   Minus,
   Sparkles,
-  Edit
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 export const ProductDetail: React.FC = () => {
@@ -109,6 +110,31 @@ export const ProductDetail: React.FC = () => {
       alert(err.message || 'Review edit failed.');
     } finally {
       setSavingEdit(false);
+    }
+  };
+
+  const handleDeleteReview = async (rev: any) => {
+    if (confirm("Are you sure you want to delete this review?")) {
+      try {
+        const res = await fetch(`http://localhost:5000/api/admin/reviews/${rev.id}`, {
+          method: 'DELETE',
+        });
+        if (res.ok) {
+          // Remove from local state
+          setReviewsList(prev => prev.filter(r => r.id !== rev.id));
+          // Update localStorage
+          const extraRaw = localStorage.getItem('uns_local_reviews');
+          if (extraRaw) {
+            const extra = JSON.parse(extraRaw);
+            const filtered = extra.filter((r: any) => r.id !== rev.id);
+            localStorage.setItem('uns_local_reviews', JSON.stringify(filtered));
+          }
+          // Refresh products slice state to sync rating averages
+          dispatch(fetchProducts() as any);
+        }
+      } catch (err) {
+        console.error("Error deleting review:", err);
+      }
     }
   };
 
@@ -719,13 +745,23 @@ export const ProductDetail: React.FC = () => {
                     <div className="flex items-center gap-2">
                       <h4 className="font-heading font-semibold text-sm text-heading">{rev.customerName}</h4>
                       {currentUser?.role === 'admin' && (
-                        <button
-                          onClick={() => handleOpenEditReviewModal(rev)}
-                          className="text-[10px] text-primary hover:text-primary-light font-bold flex items-center gap-0.5 hover:underline"
-                          title="Edit Review Rating and Comment"
-                        >
-                          <Edit size={10} /> Edit Review
-                        </button>
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditReviewModal(rev)}
+                            className="text-[10px] text-primary hover:text-primary-light font-bold flex items-center gap-0.5 hover:underline"
+                            title="Edit Review Rating and Comment"
+                          >
+                            <Edit size={10} /> Edit
+                          </button>
+                          <span className="text-[10px] text-slate-300">|</span>
+                          <button
+                            onClick={() => handleDeleteReview(rev)}
+                            className="text-[10px] text-red-500 hover:text-red-650 font-bold flex items-center gap-0.5 hover:underline"
+                            title="Delete Review"
+                          >
+                            <Trash2 size={10} /> Delete
+                          </button>
+                        </div>
                       )}
                     </div>
                     <span className="text-[10px] text-muted">{new Date(rev.createdAt).toLocaleDateString()}</span>

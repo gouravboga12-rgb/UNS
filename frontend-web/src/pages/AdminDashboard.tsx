@@ -12,7 +12,8 @@ import {
   updateCategoryLocally,
   deleteCategoryLocally,
   approveReviewLocally,
-  deleteReviewLocally 
+  deleteReviewLocally,
+  updateReviewLocally
 } from '../store/productsSlice';
 import type { Product, Category } from '../store/productsSlice';
 import { 
@@ -75,6 +76,11 @@ export const AdminDashboard: React.FC = () => {
   const [showCategoryModal, setShowCategoryModal] = useState(false);
   const [showInvoiceModal, setShowInvoiceModal] = useState(false);
   const [showOrderEditModal, setShowOrderEditModal] = useState(false);
+  const [showReviewEditModal, setShowReviewEditModal] = useState(false);
+  const [editingReview, setEditingReview] = useState<any | null>(null);
+  const [editReviewRating, setEditReviewRating] = useState(5);
+  const [editReviewComment, setEditReviewComment] = useState('');
+  const [editReviewLoading, setEditReviewLoading] = useState(false);
 
   // Active items for modals
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -938,6 +944,43 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
+  const handleOpenReviewEditModal = (rev: any) => {
+    setEditingReview(rev);
+    setEditReviewRating(rev.rating);
+    setEditReviewComment(rev.comment);
+    setShowReviewEditModal(true);
+  };
+
+  const handleReviewEditSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingReview) return;
+    setEditReviewLoading(true);
+
+    try {
+      const res = await fetch(`${API_URL}/admin/reviews/${editingReview.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rating: editReviewRating, comment: editReviewComment }),
+      });
+      if (res.ok) {
+        const updatedList = localReviews.map(r => r.id === editingReview.id ? { ...r, rating: editReviewRating, comment: editReviewComment } : r);
+        setLocalReviews(updatedList);
+        localStorage.setItem('uns_local_reviews', JSON.stringify(updatedList));
+        dispatch(updateReviewLocally({ productId: editingReview.productId, reviewId: editingReview.id, comment: editReviewComment, rating: editReviewRating }));
+      }
+    } catch {
+      // Fallback
+      const updatedList = localReviews.map(r => r.id === editingReview.id ? { ...r, rating: editReviewRating, comment: editReviewComment } : r);
+      setLocalReviews(updatedList);
+      localStorage.setItem('uns_local_reviews', JSON.stringify(updatedList));
+      dispatch(updateReviewLocally({ productId: editingReview.productId, reviewId: editingReview.id, comment: editReviewComment, rating: editReviewRating }));
+    } finally {
+      setEditReviewLoading(false);
+      setShowReviewEditModal(false);
+      alert('Review updated successfully!');
+    }
+  };
+
   // Enquiry Actions
   const handleMarkEnquiryRead = async (enqId: string) => {
     try {
@@ -1711,6 +1754,14 @@ export const AdminDashboard: React.FC = () => {
                             )}
 
                             <button
+                              onClick={() => handleOpenReviewEditModal(rev)}
+                              className="p-1 bg-blue-50 text-blue-600 hover:bg-blue-100 rounded"
+                              title="Edit Review"
+                            >
+                              <Edit size={14} />
+                            </button>
+
+                            <button
                               onClick={() => handleDeleteReview(rev)}
                               className="p-1 bg-red-50 text-red-500 hover:bg-red-100 rounded"
                               title="Delete Review"
@@ -2460,6 +2511,73 @@ export const AdminDashboard: React.FC = () => {
                 Close
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 5: EDIT REVIEW */}
+      {showReviewEditModal && editingReview && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl max-w-md w-full border border-border shadow-2xl p-6 relative animate-zoomIn">
+            <button
+              onClick={() => setShowReviewEditModal(false)}
+              className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:bg-slate-100 hover:text-heading transition-colors"
+            >
+              <X size={16} />
+            </button>
+            
+            <h3 className="font-heading font-bold text-lg text-heading mb-1">
+              Edit Review
+            </h3>
+            <p className="text-[10px] text-muted mb-4 uppercase tracking-widest font-semibold">
+              Product: {editingReview.productName || 'Cleaning Product'}
+            </p>
+
+            <form onSubmit={handleReviewEditSubmit} className="space-y-4 text-xs">
+              <div>
+                <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Rating (Stars)</label>
+                <select
+                  className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary font-semibold text-heading"
+                  value={editReviewRating}
+                  onChange={(e) => setEditReviewRating(Number(e.target.value))}
+                >
+                  <option value={5}>5 Stars</option>
+                  <option value={4}>4 Stars</option>
+                  <option value={3}>3 Stars</option>
+                  <option value={2}>2 Stars</option>
+                  <option value={1}>1 Star</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Comment</label>
+                <textarea
+                  rows={4}
+                  required
+                  placeholder="Review comment content..."
+                  className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary resize-none text-body"
+                  value={editReviewComment}
+                  onChange={(e) => setEditReviewComment(e.target.value)}
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowReviewEditModal(false)}
+                  className="px-4 py-2 bg-slate-100 text-muted font-bold rounded-lg hover:bg-slate-200 transition-colors text-xs"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={editReviewLoading}
+                  className="px-5 py-2 bg-primary text-white font-bold rounded-lg hover:bg-primary-light transition-colors text-xs"
+                >
+                  {editReviewLoading ? 'Saving...' : 'Save Changes'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
