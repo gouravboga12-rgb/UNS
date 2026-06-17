@@ -317,6 +317,13 @@ export const ProductDetail: React.FC = () => {
   const { price: currentPrice, discountPrice: currentDiscountPrice } = getCalculatedPrices();
 
   const handleAddToCart = () => {
+    const user = localStorage.getItem('uns_current_user');
+    if (!user) {
+      alert("Please login or sign up to add items to your cart.");
+      navigate('/signin');
+      return false;
+    }
+
     const itemId = hasDbVariants 
       ? `${product.id}-${selectedSize}` 
       : isLiquid 
@@ -343,11 +350,14 @@ export const ProductDetail: React.FC = () => {
       productName: itemName,
       imageUrl: product.images[0]
     }));
+    return true;
   };
 
   const handleBuyNow = () => {
-    handleAddToCart();
-    navigate('/cart');
+    const success = handleAddToCart();
+    if (success) {
+      navigate('/cart');
+    }
   };
 
   const handleWhatsAppEnquiry = () => {

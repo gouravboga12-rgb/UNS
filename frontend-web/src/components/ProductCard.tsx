@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addItem } from '../store/cartSlice';
 import { showToast } from '../store/toastSlice';
@@ -13,10 +13,18 @@ interface ProductCardProps {
 
 export const ProductCard: React.FC<ProductCardProps> = ({ product, customBadge }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const isOutOfStock = product.specifications?.stockStatus === 'Out of Stock';
 
   const handleAddToCart = (e: React.MouseEvent) => {
     e.preventDefault(); // Prevent navigating to detail page when clicking button
+    
+    const user = localStorage.getItem('uns_current_user');
+    if (!user) {
+      alert("Please login or sign up to add items to your cart.");
+      navigate('/signin');
+      return;
+    }
     
     const volume = product.specifications?.["Volume"] || "";
     const isLiquid = !!volume && 
