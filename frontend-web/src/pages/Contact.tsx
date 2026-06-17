@@ -1,4 +1,5 @@
 import React, { useState, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Phone, MapPin, MessageSquare, Send, CheckCircle2,
   Building2, User, Hash, ClipboardList, Upload,
@@ -20,6 +21,7 @@ const PRODUCTS = [
 ];
 
 export const Contact: React.FC = () => {
+  const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState<'enquiry' | 'distributor'>('distributor');
 
   /* ── General Enquiry Form State ── */
@@ -52,6 +54,14 @@ export const Contact: React.FC = () => {
   /* ── Handlers ── */
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const user = localStorage.getItem('uns_current_user');
+    if (!user) {
+      alert("Please login or sign up to submit an enquiry.");
+      navigate('/signin');
+      return;
+    }
+
     if (!name || !email || !phone || !message) return;
     setLoading(true);
     try {
@@ -75,6 +85,14 @@ export const Contact: React.FC = () => {
 
   const handleDistributorSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const user = localStorage.getItem('uns_current_user');
+    if (!user) {
+      alert("Please login or sign up to submit a distributor application.");
+      navigate('/signin');
+      return;
+    }
+
     setDLoading(true);
     const payload = {
       applicantName: dApplicantName,
