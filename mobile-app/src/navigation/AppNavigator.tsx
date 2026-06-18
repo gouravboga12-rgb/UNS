@@ -1,7 +1,15 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
+import { useSelector, useDispatch } from 'react-redux';
+import { Text, View, ActivityIndicator } from 'react-native';
+import * as SecureStore from 'expo-secure-store';
+
+import { RootState } from '../store';
+import { setAuth } from '../store/authSlice';
+
+// Main App Screens
 import { HomeScreen } from '../screens/HomeScreen';
 import { ProductsScreen } from '../screens/ProductsScreen';
 import { ProductDetailsScreen } from '../screens/ProductDetailsScreen';
@@ -9,19 +17,23 @@ import { CartScreen } from '../screens/CartScreen';
 import { TrackOrderScreen } from '../screens/TrackOrderScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { FloatingWhatsApp } from '../components/FloatingWhatsApp';
-import { Text, View } from 'react-native';
+
+// Auth Screens
+import { LoginScreen } from '../screens/auth/LoginScreen';
+import { SignUpScreen } from '../screens/auth/SignUpScreen';
+import { ForgotPasswordScreen } from '../screens/auth/ForgotPasswordScreen';
 
 const Tab = createBottomTabNavigator();
 const Stack = createNativeStackNavigator();
+const AuthStack = createNativeStackNavigator();
 
-// Tab labels with emoji icons for fallback reliability
+// ─── Tab Bar Icon ─────────────────────────────────────────────────────────────
 function TabBarIcon({ label, color }: any) {
-  let emoji = "🏠";
-  if (label === 'Products') emoji = "🛍️";
-  if (label === 'Cart') emoji = "🛒";
-  if (label === 'Track') emoji = "🚚";
-  if (label === 'Profile') emoji = "👤";
-
+  let emoji = '🏠';
+  if (label === 'Products') emoji = '🛍️';
+  if (label === 'Cart') emoji = '🛒';
+  if (label === 'Track') emoji = '🚚';
+  if (label === 'Profile') emoji = '👤';
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ fontSize: 16, color }}>{emoji}</Text>
@@ -29,7 +41,7 @@ function TabBarIcon({ label, color }: any) {
   );
 }
 
-// Stack Navigator for detail screens nested
+// ─── Catalog Stack ────────────────────────────────────────────────────────────
 function CatalogStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
@@ -39,13 +51,14 @@ function CatalogStack() {
   );
 }
 
+// ─── Bottom Tab Navigator ─────────────────────────────────────────────────────
 function TabNavigator() {
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
         headerShown: false,
-        tabBarActiveTintColor: '#0F766E', // Deep Teal
-        tabBarInactiveTintColor: '#94A3B8', // Slate Gray
+        tabBarActiveTintColor: '#0F766E',
+        tabBarInactiveTintColor: '#94A3B8',
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
@@ -65,45 +78,76 @@ function TabNavigator() {
           if (route.name === 'TrackOrderTab') label = 'Track';
           if (route.name === 'ProfileTab') label = 'Profile';
           return <TabBarIcon label={label} color={color} />;
-        }
+        },
       })}
     >
-      <Tab.Screen 
-        name="HomeTab" 
-        component={HomeScreen} 
-        options={{ tabBarLabel: 'Home' }}
-      />
-      <Tab.Screen 
-        name="ProductsCatalog" 
-        component={CatalogStack} 
-        options={{ tabBarLabel: 'Products' }}
-      />
-      <Tab.Screen 
-        name="CartTab" 
-        component={CartScreen} 
-        options={{ tabBarLabel: 'Cart' }}
-      />
-      <Tab.Screen 
-        name="TrackOrderTab" 
-        component={TrackOrderScreen} 
-        options={{ tabBarLabel: 'Track' }}
-      />
-      <Tab.Screen 
-        name="ProfileTab" 
-        component={ProfileScreen} 
-        options={{ tabBarLabel: 'Profile' }}
-      />
+      <Tab.Screen name="HomeTab" component={HomeScreen} options={{ tabBarLabel: 'Home' }} />
+      <Tab.Screen name="ProductsCatalog" component={CatalogStack} options={{ tabBarLabel: 'Products' }} />
+      <Tab.Screen name="CartTab" component={CartScreen} options={{ tabBarLabel: 'Cart' }} />
+      <Tab.Screen name="TrackOrderTab" component={TrackOrderScreen} options={{ tabBarLabel: 'Track' }} />
+      <Tab.Screen name="ProfileTab" component={ProfileScreen} options={{ tabBarLabel: 'Profile' }} />
     </Tab.Navigator>
   );
 }
 
+// ─── Auth Stack Navigator ─────────────────────────────────────────────────────
+function AuthNavigator() {
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login" component={LoginScreen} />
+      <AuthStack.Screen name="SignUp" component={SignUpScreen} />
+      <AuthStack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
+    </AuthStack.Navigator>
+  );
+}
+
+// ─── Root App Navigator (Auth Gate) ──────────────────────────────────────────
 export const AppNavigator = () => {
+  const dispatch = useDispatch();
+  const { isAuthenticated } = useSelector((state: RootState) => state.auth);
+  const [isRestoring, setIsRestoring] = React.useState(true);
+
+  // Restore session from SecureStore on app start
+  useEffect(() => {
+    const restoreSession = async () => {
+      try {
+        const token = await SecureStore.getItemAsync('uns_token');
+        const userStr = await SecureStore.getItemAsync('uns_user');
+        if (token && userStr) {
+          const user = JSON.parse(userStr);
+          dispatch(setAuth({ user, token }));
+        }
+      } catch {
+        // Session expired or corrupted — stay logged out
+      } finally {
+        setIsRestoring(false);
+      }
+    };
+    restoreSession();
+  }, []);
+
+  // Show a splash-like loader while restoring session
+  if (isRestoring) {
+    return (
+      <View style={{ flex: 1, backgroundColor: '#F0FDF4', alignItems: 'center', justifyContent: 'center' }}>
+        <ActivityIndicator size="large" color="#0F766E" />
+        <Text style={{ marginTop: 12, color: '#0F766E', fontWeight: '600', fontSize: 12 }}>
+          Loading UNS...
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
-      <View style={{ flex: 1 }}>
-        <TabNavigator />
-        <FloatingWhatsApp />
-      </View>
+      {isAuthenticated ? (
+        <View style={{ flex: 1 }}>
+          <TabNavigator />
+          <FloatingWhatsApp />
+        </View>
+      ) : (
+        <AuthNavigator />
+      )}
     </NavigationContainer>
   );
 };

@@ -1,28 +1,36 @@
 {
   "expo": {
-    "name": "mobile-app",
-    "slug": "mobile-app",
-    "owner": "gouravboga64",
+    "name": "UNS Home Cleaning Products",
+    "slug": "uns-home-cleaning",
+    "owner": "gourav56",
     "version": "1.0.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F0FDF4"
+    },
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.unshomecleaning.app"
     },
     "android": {
       "package": "com.unshomecleaning.app",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
         "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#FFFFFF"
       },
       "predictiveBackGestureEnabled": false
     },
     "web": {
       "favicon": "./assets/favicon.png"
     },
+    "plugins": [
+      "expo-secure-store",
+      "expo-web-browser"
+    ],
     "extra": {
       "eas": {
         "projectId": "f0069a6d-b7a8-438e-bc42-4aac36d353fb"
