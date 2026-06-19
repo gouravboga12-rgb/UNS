@@ -755,14 +755,40 @@ const fallbackProducts: Product[] = [
 
 const API_URL = 'http://localhost:5000/api';
 
+// LocalStorage persistence helpers
+const LS_PRODUCTS_KEY = 'uns_admin_products';
+const LS_CATEGORIES_KEY = 'uns_admin_categories';
+
+const saveProductsToLS = (products: Product[]) => {
+  try { localStorage.setItem(LS_PRODUCTS_KEY, JSON.stringify(products)); } catch {}
+};
+const saveCatsToLS = (categories: Category[]) => {
+  try { localStorage.setItem(LS_CATEGORIES_KEY, JSON.stringify(categories)); } catch {}
+};
+const loadProductsFromLS = (): Product[] | null => {
+  try {
+    const raw = localStorage.getItem(LS_PRODUCTS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+const loadCatsFromLS = (): Category[] | null => {
+  try {
+    const raw = localStorage.getItem(LS_CATEGORIES_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch { return null; }
+};
+
 export const fetchProducts = createAsyncThunk('products/fetchProducts', async () => {
   try {
     const response = await fetch(`${API_URL}/products`);
     if (!response.ok) throw new Error('API Error');
-    return (await response.json()) as Product[];
+    const data = (await response.json()) as Product[];
+    saveProductsToLS(data); // keep LS in sync with backend
+    return data;
   } catch {
-    // Return mock fallback on error (like if API isn't running)
-    return fallbackProducts;
+    // Check localStorage for admin-added products before using hardcoded fallback
+    const saved = loadProductsFromLS();
+    return saved && saved.length > 0 ? saved : fallbackProducts;
   }
 });
 
@@ -770,17 +796,21 @@ export const fetchCategories = createAsyncThunk('products/fetchCategories', asyn
   try {
     const response = await fetch(`${API_URL}/categories`);
     if (!response.ok) throw new Error('API Error');
-    return (await response.json()) as Category[];
+    const data = (await response.json()) as Category[];
+    saveCatsToLS(data); // keep LS in sync with backend
+    return data;
   } catch {
-    return fallbackCategories;
+    // Check localStorage for admin-added categories before using hardcoded fallback
+    const saved = loadCatsFromLS();
+    return saved && saved.length > 0 ? saved : fallbackCategories;
   }
 });
 
 const productsSlice = createSlice({
   name: 'products',
   initialState: {
-    items: fallbackProducts as Product[],
-    categories: fallbackCategories as Category[],
+    items: (loadProductsFromLS() ?? fallbackProducts) as Product[],
+    categories: (loadCatsFromLS() ?? fallbackCategories) as Category[],
     status: 'idle',
     error: null,
   } as ProductsState,
@@ -790,27 +820,33 @@ const productsSlice = createSlice({
     },
     addProductLocally: (state, action: PayloadAction<Product>) => {
       state.items.unshift(action.payload);
+      saveProductsToLS(state.items);
     },
     updateProductLocally: (state, action: PayloadAction<Product>) => {
       const idx = state.items.findIndex(p => p.id === action.payload.id);
       if (idx !== -1) {
         state.items[idx] = action.payload;
+        saveProductsToLS(state.items);
       }
     },
     deleteProductLocally: (state, action: PayloadAction<string>) => {
       state.items = state.items.filter(p => p.id !== action.payload);
+      saveProductsToLS(state.items);
     },
     addCategoryLocally: (state, action: PayloadAction<Category>) => {
       state.categories.push(action.payload);
+      saveCatsToLS(state.categories);
     },
     updateCategoryLocally: (state, action: PayloadAction<Category>) => {
       const idx = state.categories.findIndex(c => c.id === action.payload.id);
       if (idx !== -1) {
         state.categories[idx] = action.payload;
+        saveCatsToLS(state.categories);
       }
     },
     deleteCategoryLocally: (state, action: PayloadAction<string>) => {
       state.categories = state.categories.filter(c => c.id !== action.payload);
+      saveCatsToLS(state.categories);
     },
     updateReviewLocally: (state, action: PayloadAction<{ productId: string; reviewId: string; comment: string; rating: number; approved?: boolean }>) => {
       const prod = state.items.find(p => p.id === action.payload.productId);
