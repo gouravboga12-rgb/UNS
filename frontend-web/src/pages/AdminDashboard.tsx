@@ -39,6 +39,8 @@ import {
 } from 'lucide-react';
 
 const API_URL = 'http://localhost:5000/api';
+const CLOUDINARY_CLOUD_NAME = 'du6rffizp';
+const CLOUDINARY_UPLOAD_PRESET = 'uns_uploads'; // unsigned preset
 const generateId = () => Math.random().toString(36).substring(2, 9);
 
 export const AdminDashboard: React.FC = () => {
@@ -406,32 +408,56 @@ export const AdminDashboard: React.FC = () => {
     window.location.href = '/';
   };
 
-  // Upload file to Cloudinary helper
+  // Upload file directly to Cloudinary (unsigned preset - works on production/Vercel)
   const handleImageUpload = async (file: File, type: 'product' | 'category') => {
     if (type === 'product') setUploadingProdImg(true);
     else setUploadingCatImg(true);
 
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('file', file);
+    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+    formData.append('folder', type === 'product' ? 'uns/products' : 'uns/categories');
 
     try {
-      const response = await fetch(`${API_URL}/upload`, {
-        method: 'POST',
-        body: formData
-      });
+      const response = await fetch(
+        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+        { method: 'POST', body: formData }
+      );
+      if (response.ok) {
+        const result = await response.json();
+        if (type === 'product') setFormImage(result.secure_url);
+        else setCatImg(result.secure_url);
+      } else {
+        const errData = await response.json().catch(() => ({}));
+        console.error('Cloudinary error:', errData);
+        // Fallback: try local backend if available
+        await handleImageUploadFallback(file, type);
+      }
+    } catch (err) {
+      console.error('Direct Cloudinary upload error:', err);
+      // Fallback: try local backend
+      await handleImageUploadFallback(file, type);
+    } finally {
+      if (type === 'product') setUploadingProdImg(false);
+      else setUploadingCatImg(false);
+    }
+  };
+
+  // Fallback: upload via local backend (dev environment only)
+  const handleImageUploadFallback = async (file: File, type: 'product' | 'category') => {
+    const formData = new FormData();
+    formData.append('image', file);
+    try {
+      const response = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
       if (response.ok) {
         const result = await response.json();
         if (type === 'product') setFormImage(result.url);
         else setCatImg(result.url);
       } else {
-        alert('Cloudinary upload failed. Using fallback URL.');
+        alert('Image upload failed. Please paste a direct image URL instead.');
       }
-    } catch (err) {
-      console.error('Upload error:', err);
-      alert('Could not connect to media server. Please check connection.');
-    } finally {
-      if (type === 'product') setUploadingProdImg(false);
-      else setUploadingCatImg(false);
+    } catch {
+      alert('Image upload failed. Please paste a direct image URL in the text field instead.');
     }
   };
 
