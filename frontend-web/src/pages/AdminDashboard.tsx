@@ -276,8 +276,14 @@ export const AdminDashboard: React.FC = () => {
         const res = await fetch(`${API_URL}/admin/reviews`);
         if (res.ok) {
           const data = await res.json();
-          setLocalReviews(data);
-          localStorage.setItem('uns_local_reviews', JSON.stringify(data));
+          const mappedData = data.map((r: any) => {
+            const p = products.find(prod => prod.id === r.productId);
+            return { ...r, productName: p ? p.name : 'Cleaning Product' };
+          });
+          setLocalReviews(mappedData);
+          localStorage.setItem('uns_local_reviews', JSON.stringify(mappedData));
+        } else {
+          throw new Error('API error');
         }
       } catch {
         // Aggregate reviews from Redux products state and append any localStorage reviews

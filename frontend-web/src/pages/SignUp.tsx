@@ -32,6 +32,7 @@ export const SignUp: React.FC = () => {
         google.accounts.id.initialize({
           client_id: GOOGLE_CLIENT_ID,
           callback: handleGoogleCredentialResponse,
+          context: 'signup',
         });
 
         google.accounts.id.renderButton(
