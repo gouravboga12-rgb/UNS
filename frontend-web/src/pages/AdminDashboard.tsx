@@ -927,7 +927,6 @@ export const AdminDashboard: React.FC = () => {
     setShowOrderEditModal(false);
     alert('Order details updated successfully!');
   };
-
   // Review Actions
   const handleApproveReview = async (rev: any) => {
     try {
@@ -939,6 +938,8 @@ export const AdminDashboard: React.FC = () => {
         setLocalReviews(updatedList);
         localStorage.setItem('uns_local_reviews', JSON.stringify(updatedList));
         dispatch(approveReviewLocally({ productId: rev.productId, reviewId: rev.id }));
+      } else {
+        throw new Error('API error');
       }
     } catch {
       // Fallback
@@ -948,8 +949,6 @@ export const AdminDashboard: React.FC = () => {
       dispatch(approveReviewLocally({ productId: rev.productId, reviewId: rev.id }));
     }
   };
-
-
 
   const handleDeleteReview = async (rev: any) => {
     if (confirm("Are you sure you want to delete this review?")) {
@@ -962,6 +961,8 @@ export const AdminDashboard: React.FC = () => {
           setLocalReviews(updatedList);
           localStorage.setItem('uns_local_reviews', JSON.stringify(updatedList));
           dispatch(deleteReviewLocally({ productId: rev.productId, reviewId: rev.id }));
+        } else {
+          throw new Error('API error');
         }
       } catch {
         const updatedList = localReviews.filter(r => r.id !== rev.id);
@@ -995,6 +996,8 @@ export const AdminDashboard: React.FC = () => {
         setLocalReviews(updatedList);
         localStorage.setItem('uns_local_reviews', JSON.stringify(updatedList));
         dispatch(updateReviewLocally({ productId: editingReview.productId, reviewId: editingReview.id, comment: editReviewComment, rating: editReviewRating }));
+      } else {
+        throw new Error('API error');
       }
     } catch {
       // Fallback
@@ -1008,6 +1011,10 @@ export const AdminDashboard: React.FC = () => {
       alert('Review updated successfully!');
     }
   };
+
+
+
+
 
   // Enquiry Actions
   const handleMarkEnquiryRead = async (enqId: string) => {

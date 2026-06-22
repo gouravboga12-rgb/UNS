@@ -36,7 +36,7 @@ export const SignUp: React.FC = () => {
 
         google.accounts.id.renderButton(
           document.getElementById('google-signup-btn'),
-          { theme: 'outline', size: 'large', width: '100%' }
+          { theme: 'outline', size: 'large', width: '100%', text: 'signup_with' }
         );
       }
     };
