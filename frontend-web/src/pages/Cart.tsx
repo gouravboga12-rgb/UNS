@@ -4,6 +4,8 @@ import type { RootState } from '../store';
 import { updateQuantity, removeItem, clearCart } from '../store/cartSlice';
 import { Trash2, MessageSquare, ShieldCheck, ShoppingBag, Plus, Minus } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { API_URL } from '../config';
+
 
 export const Cart: React.FC = () => {
   const dispatch = useDispatch();
@@ -74,7 +76,7 @@ export const Cart: React.FC = () => {
     let registeredOrder: any = null;
     // Keep state clean and dispatch order to backend so tracking exists for it
     try {
-      const response = await fetch('http://localhost:5000/api/orders', {
+      const response = await fetch(`${API_URL}/orders`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ ...orderPayload, status: 'Pending' })

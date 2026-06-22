@@ -1,5 +1,7 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import type { PayloadAction } from '@reduxjs/toolkit';
+import { API_URL } from '../config';
+
 
 export interface Review {
   id: string;
@@ -753,7 +755,7 @@ const fallbackProducts: Product[] = [
   }
 ];
 
-const API_URL = 'http://localhost:5000/api';
+
 
 // LocalStorage persistence helpers
 const LS_PRODUCTS_KEY = 'uns_admin_products';

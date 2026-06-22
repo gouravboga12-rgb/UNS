@@ -1,5 +1,7 @@
 import React, { useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { API_URL } from '../config';
+
 import {
   Phone, MapPin, MessageSquare, Send, CheckCircle2,
   Building2, User, Hash, ClipboardList, Upload,
@@ -65,7 +67,7 @@ export const Contact: React.FC = () => {
     if (!name || !email || !phone || !message) return;
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/enquiries', {
+      const res = await fetch(`${API_URL}/enquiries`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, phone, subject, message }),
@@ -109,7 +111,7 @@ export const Contact: React.FC = () => {
       date: dDate,
     };
     try {
-      const res = await fetch('http://localhost:5000/api/distributor-applications', {
+      const res = await fetch(`${API_URL}/distributor-applications`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),

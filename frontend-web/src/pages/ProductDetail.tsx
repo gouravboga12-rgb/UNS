@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { API_URL } from '../config';
+
 import type { RootState } from '../store';
 import { addItem } from '../store/cartSlice';
 import { showToast } from '../store/toastSlice';
@@ -86,7 +88,7 @@ export const ProductDetail: React.FC = () => {
     setSavingEdit(true);
 
     try {
-      const res = await fetch(`http://localhost:5000/api/admin/reviews/${editingReview.id}`, {
+      const res = await fetch(`${API_URL}/admin/reviews/${editingReview.id}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rating: editRating, comment: editComment }),
@@ -116,7 +118,7 @@ export const ProductDetail: React.FC = () => {
   const handleDeleteReview = async (rev: any) => {
     if (confirm("Are you sure you want to delete this review?")) {
       try {
-        const res = await fetch(`http://localhost:5000/api/admin/reviews/${rev.id}`, {
+        const res = await fetch(`${API_URL}/admin/reviews/${rev.id}`, {
           method: 'DELETE',
         });
         if (res.ok) {
@@ -156,7 +158,7 @@ export const ProductDetail: React.FC = () => {
       
       const loadReviews = async () => {
         try {
-          const res = await fetch(`http://localhost:5000/api/products/${product.slug}`);
+          const res = await fetch(`${API_URL}/products/${product.slug}`);
           if (res.ok) {
             const data = await res.json();
             setReviewsList(data.reviews || []);
@@ -226,7 +228,7 @@ export const ProductDetail: React.FC = () => {
 
       let matched = false;
       try {
-        const response = await fetch('http://localhost:5000/api/admin/orders');
+        const response = await fetch(`${API_URL}/admin/orders`);
         if (response.ok) {
           const orders = await response.json();
           matched = orders.some((order: any) => {
@@ -377,7 +379,7 @@ export const ProductDetail: React.FC = () => {
       };
 
       try {
-        await fetch(`http://localhost:5000/api/products/${product.id}/reviews`, {
+        await fetch(`${API_URL}/products/${product.id}/reviews`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(reviewPayload)

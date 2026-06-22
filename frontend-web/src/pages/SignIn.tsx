@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Mail, ArrowRight } from 'lucide-react';
 import logoImg from '../assets/logo.png';
+import { API_URL } from '../config';
 
 // Place your Google Client ID here.
 const GOOGLE_CLIENT_ID = "870895006042-pb5em17nmrgs2tikpg09uvdhn9ps0q4p.apps.googleusercontent.com"; 
@@ -47,7 +48,7 @@ export const SignIn: React.FC = () => {
 
   const handleGoogleCredentialResponse = async (response: any) => {
     try {
-      const res = await fetch('http://localhost:5000/api/auth/google', {
+      const res = await fetch(`${API_URL}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -73,7 +74,7 @@ export const SignIn: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch('http://localhost:5000/api/auth/signin', {
+      const res = await fetch(`${API_URL}/auth/signin`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -97,7 +98,7 @@ export const SignIn: React.FC = () => {
     e.preventDefault();
     setForgotLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/send-reset-otp', {
+      const res = await fetch(`${API_URL}/auth/send-reset-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email: forgotEmail }),
@@ -121,7 +122,7 @@ export const SignIn: React.FC = () => {
     e.preventDefault();
     setForgotLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/reset-password', {
+      const res = await fetch(`${API_URL}/auth/reset-password`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -148,6 +149,7 @@ export const SignIn: React.FC = () => {
       setForgotLoading(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">

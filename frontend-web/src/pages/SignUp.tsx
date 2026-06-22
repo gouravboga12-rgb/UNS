@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock, Mail, User, Phone, ArrowRight } from 'lucide-react';
 import logoImg from '../assets/logo.png';
+import { API_URL } from '../config';
 
 // Place your Google Client ID here.
 const GOOGLE_CLIENT_ID = "870895006042-pb5em17nmrgs2tikpg09uvdhn9ps0q4p.apps.googleusercontent.com"; 
@@ -47,7 +48,7 @@ export const SignUp: React.FC = () => {
 
   const handleGoogleCredentialResponse = async (response: any) => {
     try {
-      const res = await fetch('http://localhost:5000/api/auth/google', {
+      const res = await fetch(`${API_URL}/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -75,7 +76,7 @@ export const SignUp: React.FC = () => {
     e.preventDefault();
     setSendingOtp(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/send-signup-otp', {
+      const res = await fetch(`${API_URL}/auth/send-signup-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, phone }),
@@ -99,7 +100,7 @@ export const SignUp: React.FC = () => {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/signup', {
+      const res = await fetch(`${API_URL}/auth/signup`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name, email, phone, password, otp }),
@@ -127,7 +128,7 @@ export const SignUp: React.FC = () => {
   const handleResendOtp = async () => {
     setSendingOtp(true);
     try {
-      const res = await fetch('http://localhost:5000/api/auth/send-signup-otp', {
+      const res = await fetch(`${API_URL}/auth/send-signup-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, phone }),
@@ -145,6 +146,7 @@ export const SignUp: React.FC = () => {
       setSendingOtp(false);
     }
   };
+
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col justify-center py-12 sm:px-6 lg:px-8">

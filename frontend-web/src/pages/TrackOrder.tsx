@@ -4,6 +4,8 @@ import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { ProductCard } from '../components/ProductCard';
 import { Loader2, ClipboardList, MapPin, Truck, CheckCircle2, X } from 'lucide-react';
+import { API_URL } from '../config';
+
 
 export const TrackOrder: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -57,7 +59,7 @@ export const TrackOrder: React.FC = () => {
         if (currentUser.phone) queryParams.append('phone', currentUser.phone);
         if (currentUser.email) queryParams.append('email', currentUser.email);
 
-        const response = await fetch(`http://localhost:5000/api/orders/my-orders?${queryParams.toString()}`);
+        const response = await fetch(`${API_URL}/orders/my-orders?${queryParams.toString()}`);
         if (response.ok) {
           fetched = await response.json();
         }
@@ -114,7 +116,7 @@ export const TrackOrder: React.FC = () => {
     setOrderData(null);
 
     try {
-      const response = await fetch(`http://localhost:5000/api/orders/track?orderId=${encodeURIComponent(id)}&phone=${encodeURIComponent(targetPhone)}`);
+      const response = await fetch(`${API_URL}/orders/track?orderId=${encodeURIComponent(id)}&phone=${encodeURIComponent(targetPhone)}`);
       if (response.ok) {
         const data = await response.json();
         setOrderData(data);

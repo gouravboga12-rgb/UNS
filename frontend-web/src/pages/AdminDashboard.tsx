@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
+import { API_URL } from '../config';
+
 import type { RootState } from '../store';
 import { 
   fetchProducts, 
@@ -38,7 +40,7 @@ import {
   LogOut
 } from 'lucide-react';
 
-const API_URL = 'http://localhost:5000/api';
+
 const CLOUDINARY_CLOUD_NAME = 'du6rffizp';
 const CLOUDINARY_UPLOAD_PRESET = 'uns_uploads'; // unsigned preset
 const generateId = () => Math.random().toString(36).substring(2, 9);
