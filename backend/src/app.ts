@@ -1583,6 +1583,10 @@ app.post('/api/auth/google', async (req: Request, res: Response) => {
 });
 
 // Start Server
-app.listen(PORT, () => {
-  console.log(`[UNS Backend] Server is running on port ${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`[UNS Backend] Server is running on port ${PORT}`);
+  });
+}
+
+export default app;
