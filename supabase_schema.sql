@@ -57,7 +57,11 @@ CREATE TABLE IF NOT EXISTS public.orders (
     items JSONB DEFAULT '[]'::jsonb,
     "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL,
     "trackingId" TEXT,
-    "trackingLink" TEXT
+    "trackingLink" TEXT,
+    "razorpayOrderId" TEXT,
+    "razorpayPaymentId" TEXT,
+    "razorpaySignature" TEXT,
+    "paymentStatus" TEXT DEFAULT 'Unpaid'
 );
 
 -- 5. Create enquiries table

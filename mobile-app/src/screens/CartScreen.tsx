@@ -8,11 +8,13 @@ import {
   TouchableOpacity, 
   TextInput, 
   Linking, 
-  ScrollView 
+  ScrollView,
+  ActivityIndicator
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
 import { RootState } from '../store';
 import { updateQuantity, removeItem, clearCart } from '../store/cartSlice';
+import { API_BASE_URL } from '../config/api';
 
 export const CartScreen = ({ navigation }: any) => {
   const dispatch = useDispatch();
@@ -22,8 +24,9 @@ export const CartScreen = ({ navigation }: any) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
-  const [method, setMethod] = useState<'cod' | 'whatsapp'>('whatsapp');
+  const [method, setMethod] = useState<'cod' | 'whatsapp' | 'online'>('online');
   const [success, setSuccess] = useState<any | null>(null);
+  const [loading, setLoading] = useState(false);
 
   const subtotal = cartItems.reduce((acc, item) => acc + (item.discountPrice || item.price) * item.quantity, 0);
   const shipping = subtotal > 500 ? 0 : 50;
@@ -37,7 +40,7 @@ export const CartScreen = ({ navigation }: any) => {
     dispatch(removeItem(id));
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (!name.trim() || !phone.trim() || !address.trim()) return;
 
     if (method === 'cod') {
@@ -48,7 +51,7 @@ export const CartScreen = ({ navigation }: any) => {
       };
       dispatch(clearCart());
       setSuccess(mockResult);
-    } else {
+    } else if (method === 'whatsapp') {
       // WhatsApp order
       const phoneNo = "917396158011";
       let itemsList = "";
@@ -73,15 +76,106 @@ export const CartScreen = ({ navigation }: any) => {
       Linking.openURL(url).catch(() => {
         Linking.openURL(`https://wa.me/${phoneNo}?text=${encodeURIComponent(message)}`);
       });
+    } else if (method === 'online') {
+      setLoading(true);
+      const orderItems = cartItems.map(item => ({
+        productId: item.id,
+        name: item.name,
+        quantity: item.quantity,
+        price: item.discountPrice || item.price
+      }));
+
+      const orderPayload = {
+        customerName: name,
+        customerPhone: phone,
+        customerEmail: '',
+        shippingAddress: address,
+        items: orderItems,
+        totalAmount: total,
+        paymentMethod: 'online'
+      };
+
+      try {
+        const response = await fetch(`${API_BASE_URL}/api/orders`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(orderPayload)
+        });
+
+        if (response.ok) {
+          const registeredOrder = await response.json();
+
+          const linkResponse = await fetch(`${API_BASE_URL}/api/payments/payment-link`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ orderId: registeredOrder.id })
+          });
+
+          if (linkResponse.ok) {
+            const linkData = await linkResponse.json();
+            dispatch(clearCart());
+            
+            setSuccess({
+              online: true,
+              paymentLink: linkData.paymentLink,
+              orderNumber: registeredOrder.orderNumber,
+              customerPhone: phone,
+              totalAmount: total
+            });
+
+            Linking.openURL(linkData.paymentLink).catch(() => {
+              alert("Could not open browser. Link: " + linkData.paymentLink);
+            });
+          } else {
+            alert("Failed to generate online payment link. Please try WhatsApp checkout.");
+          }
+        } else {
+          alert("Failed to submit order. Please try again.");
+        }
+      } catch (err) {
+        alert("Server connection failed. Could not initiate online checkout.");
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   if (success) {
     return (
       <View style={styles.successContainer}>
-        <Text style={styles.successEmoji}>{success.whatsapp ? "💬" : "✅"}</Text>
+        <Text style={styles.successEmoji}>{success.online ? "💳" : (success.whatsapp ? "💬" : "✅")}</Text>
         
-        {success.whatsapp ? (
+        {success.online ? (
+          <>
+            <Text style={styles.successTitle}>Order Paid & Placed!</Text>
+            <Text style={styles.successSub}>
+              We opened the Razorpay page to complete your payment. If you have finished, you can track your order live. If it didn't open, tap below:
+            </Text>
+            <TouchableOpacity 
+              style={styles.retryBtn}
+              onPress={() => {
+                Linking.openURL(success.paymentLink).catch(() => {
+                  alert("Failed to open browser.");
+                });
+              }}
+            >
+              <Text style={styles.retryText}>Pay Online Again</Text>
+            </TouchableOpacity>
+            <View style={styles.orderBox}>
+              <Text style={styles.orderLabel}>Order Tracking ID:</Text>
+              <Text style={styles.orderValue}>{success.orderNumber}</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.trackBtn} 
+              onPress={() => {
+                setSuccess(null);
+                navigation.navigate('TrackOrderTab', { orderId: success.orderNumber.toString(), phone: success.customerPhone });
+              }}
+            >
+              <Text style={styles.trackText}>Track Shipment Progress</Text>
+            </TouchableOpacity>
+          </>
+        ) : success.whatsapp ? (
           <>
             <Text style={styles.successTitle}>WhatsApp Enquiry Sent!</Text>
             <Text style={styles.successSub}>
@@ -228,26 +322,40 @@ export const CartScreen = ({ navigation }: any) => {
             <Text style={styles.label}>Select Checkout Option</Text>
             <View style={styles.methodsRow}>
               <TouchableOpacity
+                style={[styles.methodBtn, method === 'online' && styles.methodBtnActive]}
+                onPress={() => setMethod('online')}
+              >
+                <Text style={[styles.methodBtnText, method === 'online' && styles.methodBtnTextActive]}>Pay Online</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
                 style={[styles.methodBtn, method === 'whatsapp' && styles.methodBtnActive]}
                 onPress={() => setMethod('whatsapp')}
               >
-                <Text style={[styles.methodBtnText, method === 'whatsapp' && styles.methodBtnTextActive]}>WhatsApp Checkout</Text>
+                <Text style={[styles.methodBtnText, method === 'whatsapp' && styles.methodBtnTextActive]}>WhatsApp</Text>
               </TouchableOpacity>
               <TouchableOpacity
                 style={[styles.methodBtn, method === 'cod' && styles.methodBtnActive]}
                 onPress={() => setMethod('cod')}
               >
-                <Text style={[styles.methodBtnText, method === 'cod' && styles.methodBtnTextActive]}>Cash on Delivery</Text>
+                <Text style={[styles.methodBtnText, method === 'cod' && styles.methodBtnTextActive]}>COD</Text>
               </TouchableOpacity>
             </View>
 
             <TouchableOpacity 
-              style={[styles.checkoutBtn, method === 'whatsapp' ? styles.checkoutWa : styles.checkoutCod]} 
+              style={[
+                styles.checkoutBtn, 
+                method === 'online' ? styles.checkoutOnline : (method === 'whatsapp' ? styles.checkoutWa : styles.checkoutCod)
+              ]} 
               onPress={handleCheckout}
+              disabled={loading}
             >
-              <Text style={styles.checkoutText}>
-                {method === 'whatsapp' ? "Order via WhatsApp Chat" : "Confirm COD Purchase Order"}
-              </Text>
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.checkoutText}>
+                  {method === 'online' ? "Pay & Complete Order" : (method === 'whatsapp' ? "Order via WhatsApp Chat" : "Confirm COD Purchase Order")}
+                </Text>
+              )}
             </TouchableOpacity>
           </View>
 
@@ -446,6 +554,9 @@ const styles = StyleSheet.create({
   },
   checkoutCod: {
     backgroundColor: '#0F766E',
+  },
+  checkoutOnline: {
+    backgroundColor: '#0D9488',
   },
   checkoutText: {
     color: '#fff',

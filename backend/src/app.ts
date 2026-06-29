@@ -9,6 +9,8 @@ import { OAuth2Client } from 'google-auth-library';
 import multer from 'multer';
 import { v2 as cloudinary } from 'cloudinary';
 import { createClient } from '@supabase/supabase-js';
+import Razorpay from 'razorpay';
+import crypto from 'crypto';
 import { 
   mockProducts, 
   mockCategories, 
@@ -36,6 +38,12 @@ const supabase = createClient(supabaseUrl, supabaseKey);
 // Auth configurations
 const JWT_SECRET = process.env.JWT_SECRET || 'dev_jwt_secret_fallback';
 const googleOAuthClient = new OAuth2Client();
+
+// Initialize Razorpay Client
+const razorpay = new Razorpay({
+  key_id: process.env.RAZORPAY_KEY_ID || '',
+  key_secret: process.env.RAZORPAY_KEY_SECRET || ''
+});
 
 // Configure SMTP nodemailer transporter
 const transporter = nodemailer.createTransport({
@@ -782,7 +790,7 @@ app.delete('/api/admin/enquiries/:id', async (req: Request, res: Response) => {
 // Orders & Tracking API
 // -------------------------------------------------------------
 app.post('/api/orders', async (req: Request, res: Response) => {
-  const { customerName, customerPhone, customerEmail, shippingAddress, items, totalAmount } = req.body;
+  const { customerName, customerPhone, customerEmail, shippingAddress, items, totalAmount, paymentMethod } = req.body;
 
   if (!customerName || !customerPhone || !shippingAddress || !items || !items.length) {
     return res.status(400).json({ error: 'Missing required order details' });
@@ -799,6 +807,27 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     orderNumber = 1000 + ordersState.length + 1;
   }
 
+  let razorpayOrder: any = null;
+  let paymentStatus = 'Unpaid';
+
+  if (paymentMethod === 'online') {
+    try {
+      razorpayOrder = await razorpay.orders.create({
+        amount: Math.round(Number(totalAmount) * 100), // in paise
+        currency: 'INR',
+        receipt: `receipt_${orderNumber}`
+      });
+      paymentStatus = 'Unpaid';
+    } catch (err: any) {
+      console.error('Razorpay order creation failed:', err);
+      return res.status(500).json({ error: 'Failed to create payment order with Razorpay' });
+    }
+  } else if (paymentMethod === 'cod') {
+    paymentStatus = 'COD';
+  } else {
+    paymentStatus = 'WhatsApp';
+  }
+
   const newOrder: Order = {
     id: `ord-${generateId()}`,
     orderNumber,
@@ -809,12 +838,14 @@ app.post('/api/orders', async (req: Request, res: Response) => {
     totalAmount: Number(totalAmount),
     status: 'Pending',
     trackingTimeline: [
-      { status: 'Order Placed', time: new Date().toISOString(), description: 'Order successfully received.' }
+      { status: 'Order Placed', time: new Date().toISOString(), description: paymentMethod === 'online' ? 'Order initiated, pending online payment.' : 'Order successfully received.' }
     ],
     items,
     createdAt: new Date().toISOString(),
     trackingId: '',
-    trackingLink: ''
+    trackingLink: '',
+    razorpayOrderId: razorpayOrder ? razorpayOrder.id : undefined,
+    paymentStatus
   };
 
   try {
@@ -828,6 +859,224 @@ app.post('/api/orders', async (req: Request, res: Response) => {
   }
 });
 
+// Helper: Auto-verify payment status if Unpaid but has Razorpay Order ID
+async function syncPaymentStatusIfUnpaid(order: any) {
+  if (order && order.paymentStatus === 'Unpaid' && order.razorpayOrderId) {
+    try {
+      let isPaid = false;
+      let paymentId = '';
+
+      if (order.razorpayOrderId.startsWith('plink_')) {
+        const linkDetails: any = await razorpay.paymentLink.fetch(order.razorpayOrderId);
+        if (linkDetails.status === 'paid') {
+          isPaid = true;
+          const payments = linkDetails.payments || [];
+          if (payments.length > 0) {
+            paymentId = payments[payments.length - 1].payment_id;
+          }
+        }
+      } else {
+        const orderDetails: any = await razorpay.orders.fetch(order.razorpayOrderId);
+        if (orderDetails.status === 'paid') {
+          isPaid = true;
+          const paymentsInfo: any = await razorpay.orders.fetchPayments(order.razorpayOrderId);
+          if (paymentsInfo && paymentsInfo.items && paymentsInfo.items.length > 0) {
+            paymentId = paymentsInfo.items[0].id;
+          }
+        }
+      }
+
+      if (isPaid) {
+        const timeline = order.trackingTimeline || [];
+        if (!timeline.some((t: any) => t.status === 'Paid')) {
+          timeline.push({
+            status: 'Paid',
+            time: new Date().toISOString(),
+            description: `Payment auto-verified. Status: Paid. Transaction ID: ${paymentId || 'N/A'}`
+          });
+        }
+
+        const updatePayload = {
+          status: 'Processing',
+          paymentStatus: 'Paid',
+          razorpayPaymentId: paymentId || undefined,
+          trackingTimeline: timeline
+        };
+
+        try {
+          await supabase.from('orders').update(updatePayload).eq('id', order.id);
+        } catch {
+          // ignore db errors
+        }
+
+        order.status = 'Processing';
+        order.paymentStatus = 'Paid';
+        if (paymentId) order.razorpayPaymentId = paymentId;
+        order.trackingTimeline = timeline;
+
+        const localOrder = ordersState.find(o => o.id === order.id);
+        if (localOrder) {
+          Object.assign(localOrder, updatePayload);
+        }
+      }
+    } catch (err) {
+      console.warn('Auto-healing payment verification failed:', err);
+    }
+  }
+}
+
+// Signature verification route
+app.post('/api/payments/verify', async (req: Request, res: Response) => {
+  const { razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId } = req.body;
+
+  if (!razorpayOrderId || !razorpayPaymentId || !razorpaySignature || !orderId) {
+    return res.status(400).json({ error: 'Missing payment verification details' });
+  }
+
+  const body = razorpayOrderId + "|" + razorpayPaymentId;
+  const expectedSignature = crypto
+    .createHmac('sha256', process.env.RAZORPAY_KEY_SECRET || 'cUqENBHX9QnxYKPJDFD3p9sA')
+    .update(body.toString())
+    .digest('hex');
+
+  const isSignatureValid = expectedSignature === razorpaySignature;
+
+  if (isSignatureValid) {
+    try {
+      let currentOrder: any = null;
+      try {
+        const { data } = await supabase.from('orders').select('*').eq('id', orderId).single();
+        currentOrder = data;
+      } catch {
+        currentOrder = ordersState.find(o => o.id === orderId);
+      }
+
+      if (!currentOrder) {
+        return res.status(404).json({ error: 'Order not found' });
+      }
+
+      if (currentOrder.paymentStatus === 'Paid') {
+        return res.json({ success: true, message: 'Payment already verified', order: currentOrder });
+      }
+
+      const timeline = currentOrder.trackingTimeline || [];
+      timeline.push({
+        status: 'Paid',
+        time: new Date().toISOString(),
+        description: `Payment of ₹${currentOrder.totalAmount} received via Razorpay. Transaction ID: ${razorpayPaymentId}.`
+      });
+
+      const updateData = {
+        status: 'Processing',
+        paymentStatus: 'Paid',
+        razorpayPaymentId,
+        razorpaySignature,
+        trackingTimeline: timeline
+      };
+
+      let updatedOrder = null;
+      try {
+        const { data, error } = await supabase
+          .from('orders')
+          .update(updateData)
+          .eq('id', orderId)
+          .select()
+          .single();
+        if (error) throw error;
+        updatedOrder = data;
+      } catch (err: any) {
+        console.warn('[Supabase Fallback] verify signature update:', err.message);
+        const idx = ordersState.findIndex(o => o.id === orderId);
+        if (idx !== -1) {
+          ordersState[idx] = {
+            ...ordersState[idx],
+            ...updateData
+          };
+          updatedOrder = ordersState[idx];
+        }
+      }
+
+      res.json({ success: true, message: 'Payment verified successfully', order: updatedOrder });
+    } catch (err: any) {
+      console.error('Failed to update order after verification:', err);
+      res.status(500).json({ error: 'Payment verified but order update failed' });
+    }
+  } else {
+    res.status(400).json({ error: 'Invalid signature. Payment verification failed.' });
+  }
+});
+
+// Create Hosted Payment Link Route (for React Native/Mobile checkouts)
+app.post('/api/payments/payment-link', async (req: Request, res: Response) => {
+  const { orderId } = req.body;
+  if (!orderId) {
+    return res.status(400).json({ error: 'Order ID is required' });
+  }
+
+  try {
+    let order: any = null;
+    try {
+      const { data } = await supabase.from('orders').select('*').eq('id', orderId).single();
+      order = data;
+    } catch {
+      order = ordersState.find(o => o.id === orderId);
+    }
+
+    if (!order) {
+      return res.status(404).json({ error: 'Order not found' });
+    }
+
+    const callbackUrl = `http://localhost:5173/track-order?orderId=${order.orderNumber}&phone=${order.customerPhone}&payment=success`;
+
+    const response = await razorpay.paymentLink.create({
+      amount: Math.round(order.totalAmount * 100),
+      currency: 'INR',
+      accept_partial: false,
+      first_min_partial_amount: 0,
+      description: `Payment for Order #${order.orderNumber} - UNS Cleaning Products`,
+      customer: {
+        name: order.customerName,
+        email: order.customerEmail || 'customer@example.com',
+        contact: order.customerPhone
+      },
+      notify: {
+        sms: true,
+        email: true
+      },
+      reminder_enable: true,
+      notes: {
+        orderId: order.id,
+        orderNumber: order.orderNumber.toString()
+      },
+      callback_url: callbackUrl,
+      callback_method: 'get'
+    });
+
+    const updatePayload = {
+      razorpayOrderId: response.id,
+      trackingTimeline: [
+        ...(order.trackingTimeline || []),
+        { status: 'Payment Link Created', time: new Date().toISOString(), description: 'Online payment link generated.' }
+      ]
+    };
+
+    try {
+      await supabase.from('orders').update(updatePayload).eq('id', orderId);
+    } catch {
+      const idx = ordersState.findIndex(o => o.id === orderId);
+      if (idx !== -1) {
+        ordersState[idx] = { ...ordersState[idx], ...updatePayload };
+      }
+    }
+
+    res.json({ paymentLink: response.short_url, razorpayOrderId: response.id });
+  } catch (err: any) {
+    console.error('Failed to create payment link:', err);
+    res.status(500).json({ error: 'Failed to create payment link' });
+  }
+});
+
+// GET order track route
 app.get('/api/orders/track', async (req: Request, res: Response) => {
   const { orderId, phone } = req.query;
 
@@ -841,7 +1090,6 @@ app.get('/api/orders/track', async (req: Request, res: Response) => {
       .select('*');
     if (error) throw error;
     
-    // Find order
     const order = data.find(o => 
       (o.id === orderId || o.orderNumber.toString() === orderId) && 
       o.customerPhone.replace(/[^0-9]/g, '').endsWith((phone as string).replace(/[^0-9]/g, '').slice(-10))
@@ -849,6 +1097,10 @@ app.get('/api/orders/track', async (req: Request, res: Response) => {
     if (!order) {
       return res.status(404).json({ error: 'No order found matching the provided details.' });
     }
+
+    // Run auto-healing
+    await syncPaymentStatusIfUnpaid(order);
+    
     res.json(order);
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET track order:', err.message);
@@ -859,6 +1111,10 @@ app.get('/api/orders/track', async (req: Request, res: Response) => {
     if (!order) {
       return res.status(404).json({ error: 'No order found matching the provided details.' });
     }
+
+    // Run auto-healing on local memory fallback
+    await syncPaymentStatusIfUnpaid(order);
+
     res.json(order);
   }
 });

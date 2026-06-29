@@ -797,6 +797,10 @@ export interface Order {
   createdAt: string;
   trackingId?: string;
   trackingLink?: string;
+  razorpayOrderId?: string;
+  razorpayPaymentId?: string;
+  razorpaySignature?: string;
+  paymentStatus?: string;
 }
 
 export const mockOrders: Order[] = [
