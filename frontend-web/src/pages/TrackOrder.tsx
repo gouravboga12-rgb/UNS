@@ -101,6 +101,10 @@ export const TrackOrder: React.FC = () => {
       }
 
       setUserOrders(fetched);
+      if (fetched.length > 0 && !orderData) {
+        setOrderId(fetched[0].orderNumber.toString());
+        setOrderData(fetched[0]);
+      }
       setLoadingOrders(false);
     };
 
@@ -172,9 +176,42 @@ export const TrackOrder: React.FC = () => {
     }
   };
 
+  const handleTrackByPhoneOnly = async (ph: string) => {
+    if (!ph.trim()) return;
+    
+    setSearching(true);
+    setError(null);
+    setOrderData(null);
+    setUserOrders([]);
+
+    try {
+      const response = await fetch(`${API_URL}/orders/my-orders?phone=${encodeURIComponent(ph)}`);
+      if (response.ok) {
+        const orders = await response.json();
+        setUserOrders(orders);
+        if (orders.length > 0) {
+          setOrderData(orders[0]); // Auto-display the most recent one
+          setOrderId(orders[0].orderNumber.toString());
+        } else {
+          setError("No orders found matching this phone number.");
+        }
+      } else {
+        setError("Failed to find orders for this phone number.");
+      }
+    } catch (err) {
+      setError("Connection failed. Could not verify orders.");
+    } finally {
+      setSearching(false);
+    }
+  };
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    handleTrack(orderId, phone);
+    if (orderId.trim()) {
+      handleTrack(orderId, phone);
+    } else {
+      handleTrackByPhoneOnly(phone);
+    }
   };
 
   // Helper to determine status step color
@@ -270,8 +307,7 @@ export const TrackOrder: React.FC = () => {
               </span>
               <input
                 type="text"
-                required
-                placeholder={trackMode === 'order' ? "Enter Order Number (e.g. 1001)" : "Enter AWB / Tracking ID"}
+                placeholder={trackMode === 'order' ? "Enter Order ID (optional)" : "Enter AWB / Tracking ID (optional)"}
                 className="w-full bg-transparent border-none py-1.5 px-2 text-xs focus:outline-none text-heading font-medium"
                 value={orderId}
                 onChange={(e) => setOrderId(e.target.value)}
