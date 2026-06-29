@@ -34,7 +34,7 @@
     },
     {
       "src": "/(.*)",
-      "dest": "frontend-web/index.html"
+      "dest": "/index.html"
     }
   ]
 }
