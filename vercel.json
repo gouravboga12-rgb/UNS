@@ -1,0 +1,37 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "frontend-web/package.json",
+      "use": "@vercel/static-build",
+      "config": {
+        "distDir": "dist"
+      }
+    },
+    {
+      "src": "backend/src/app.ts",
+      "use": "@vercel/node",
+      "config": {
+        "tsconfig": "backend/tsconfig.json"
+      }
+    }
+  ],
+  "routes": [
+    {
+      "src": "/api/(.*)",
+      "dest": "backend/src/app.ts"
+    },
+    {
+      "src": "/products/(.*)",
+      "dest": "backend/src/app.ts"
+    },
+    {
+      "src": "/banners/(.*)",
+      "dest": "backend/src/app.ts"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "frontend-web/$1"
+    }
+  ]
+}
