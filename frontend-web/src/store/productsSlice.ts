@@ -780,17 +780,32 @@ const loadCatsFromLS = (): Category[] | null => {
   } catch { return null; }
 };
 
+const mapProductImages = (products: Product[]): Product[] => {
+  const base = API_URL.replace(/\/api$/, '');
+  return products.map(product => {
+    if (!product.images) return product;
+    const mappedImages = product.images.map(img => {
+      if (img && img.startsWith('http://localhost:5000')) {
+        return img.replace('http://localhost:5000', base);
+      }
+      return img;
+    });
+    return { ...product, images: mappedImages };
+  });
+};
+
 export const fetchProducts = createAsyncThunk('products/fetchProducts', async () => {
   try {
     const response = await fetch(`${API_URL}/products`);
     if (!response.ok) throw new Error('API Error');
     const data = (await response.json()) as Product[];
-    saveProductsToLS(data); // keep LS in sync with backend
-    return data;
+    const mapped = mapProductImages(data);
+    saveProductsToLS(mapped); // keep LS in sync with backend
+    return mapped;
   } catch {
     // Check localStorage for admin-added products before using hardcoded fallback
     const saved = loadProductsFromLS();
-    return saved && saved.length > 0 ? saved : fallbackProducts;
+    return saved && saved.length > 0 ? mapProductImages(saved) : fallbackProducts;
   }
 });
 

@@ -1076,6 +1076,17 @@ app.post('/api/payments/payment-link', async (req: Request, res: Response) => {
   }
 });
 
+function parseOrderFields(order: any) {
+  if (!order) return order;
+  if (typeof order.items === 'string') {
+    try { order.items = JSON.parse(order.items); } catch {}
+  }
+  if (typeof order.trackingTimeline === 'string') {
+    try { order.trackingTimeline = JSON.parse(order.trackingTimeline); } catch {}
+  }
+  return order;
+}
+
 // GET order track route
 app.get('/api/orders/track', async (req: Request, res: Response) => {
   const { orderId, phone } = req.query;
@@ -1090,7 +1101,7 @@ app.get('/api/orders/track', async (req: Request, res: Response) => {
       .select('*');
     if (error) throw error;
     
-    const order = data.find(o => 
+    let order = data.find(o => 
       (o.id === orderId || o.orderNumber.toString() === orderId) && 
       o.customerPhone.replace(/[^0-9]/g, '').endsWith((phone as string).replace(/[^0-9]/g, '').slice(-10))
     );
@@ -1101,7 +1112,7 @@ app.get('/api/orders/track', async (req: Request, res: Response) => {
     // Run auto-healing
     await syncPaymentStatusIfUnpaid(order);
     
-    res.json(order);
+    res.json(parseOrderFields(order));
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET track order:', err.message);
     const order = ordersState.find(o => 
@@ -1115,7 +1126,7 @@ app.get('/api/orders/track', async (req: Request, res: Response) => {
     // Run auto-healing on local memory fallback
     await syncPaymentStatusIfUnpaid(order);
 
-    res.json(order);
+    res.json(parseOrderFields(order));
   }
 });
 
@@ -1143,7 +1154,8 @@ app.get('/api/orders/my-orders', async (req: Request, res: Response) => {
       return matchesPhone || matchesEmail;
     });
 
-    res.json(filtered);
+    const parsed = filtered.map(parseOrderFields);
+    res.json(parsed);
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET my-orders:', err.message);
     const filtered = ordersState.filter(o => {
@@ -1155,7 +1167,8 @@ app.get('/api/orders/my-orders', async (req: Request, res: Response) => {
         : false;
       return matchesPhone || matchesEmail;
     });
-    res.json(filtered);
+    const parsed = filtered.map(parseOrderFields);
+    res.json(parsed);
   }
 });
 
@@ -1163,10 +1176,12 @@ app.get('/api/admin/orders', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('orders').select('*').order('createdAt', { ascending: false });
     if (error) throw error;
-    res.json(data);
+    const parsed = data.map(parseOrderFields);
+    res.json(parsed);
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET admin orders:', err.message);
-    res.json(ordersState);
+    const parsed = ordersState.map(parseOrderFields);
+    res.json(parsed);
   }
 });
 
