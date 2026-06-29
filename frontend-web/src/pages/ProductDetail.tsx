@@ -50,21 +50,6 @@ export const ProductDetail: React.FC = () => {
   const visibleSpecs = Object.keys(product?.specifications || {}).filter(key => !['variants', 'stockStatus', 'customStockStatus'].includes(key));
   const showSpecs = visibleSpecs.length > 0;
 
-  const vol = product?.specifications?.["Volume"] || "";
-  const isLiquid = !!vol && 
-    !vol.toLowerCase().includes("kg") && 
-    !vol.toLowerCase().includes("g") &&
-    !product?.name.toLowerCase().includes("powder") &&
-    !product?.name.toLowerCase().includes("soap");
-
-  const LIQUID_SIZES = ['250ml', '500ml', '1 Litre', '2 Litre', '5 Litre'];
-  const SIZE_VALUES: Record<string, number> = {
-    '250ml': 1.0,
-    '500ml': 1.6,
-    '1 Litre': 2.8,
-    '2 Litre': 5.0,
-    '5 Litre': 11.0
-  };
 
   const [selectedSize, setSelectedSize] = useState<string>('');
   const [currentUser, setCurrentUser] = useState<any | null>(null);
@@ -215,25 +200,11 @@ export const ProductDetail: React.FC = () => {
         setActiveTab('specs');
       }
 
-      const pVol = product.specifications?.["Volume"] || "";
-      const pIsLiquid = !!pVol && 
-        !pVol.toLowerCase().includes("kg") && 
-        !pVol.toLowerCase().includes("g") &&
-        !product.name.toLowerCase().includes("powder") &&
-        !product.name.toLowerCase().includes("soap");
+      // Removed unused pIsLiquid logic
 
       const dbVars = product.specifications?.variants || [];
       if (dbVars.length > 0) {
         setSelectedSize(dbVars[0].name);
-      } else if (pIsLiquid) {
-        const trimmed = pVol.trim();
-        let initSize = '500ml';
-        if (trimmed.toLowerCase().startsWith('250') || trimmed.toLowerCase().startsWith('300')) initSize = '250ml';
-        else if (trimmed.toLowerCase().startsWith('500')) initSize = '500ml';
-        else if (trimmed.toLowerCase().startsWith('1')) initSize = '1 Litre';
-        else if (trimmed.toLowerCase().startsWith('2')) initSize = '2 Litre';
-        else if (trimmed.toLowerCase().startsWith('5')) initSize = '5 Litre';
-        setSelectedSize(initSize);
       } else {
         setSelectedSize('');
       }
@@ -320,26 +291,7 @@ export const ProductDetail: React.FC = () => {
       return { price: product.price, discountPrice: product.discountPrice };
     }
 
-    if (!isLiquid || !selectedSize) {
-      return { price: product.price, discountPrice: product.discountPrice };
-    }
-    
-    const baseVolume = vol.trim();
-    let normalizedBase = baseVolume;
-    if (normalizedBase.toLowerCase().startsWith('250') || normalizedBase.toLowerCase().startsWith('300')) normalizedBase = '250ml';
-    else if (normalizedBase.toLowerCase().startsWith('500')) normalizedBase = '500ml';
-    else if (normalizedBase.toLowerCase().startsWith('1')) normalizedBase = '1 Litre';
-    else if (normalizedBase.toLowerCase().startsWith('2')) normalizedBase = '2 Litre';
-    else if (normalizedBase.toLowerCase().startsWith('5')) normalizedBase = '5 Litre';
-    
-    const baseVal = SIZE_VALUES[normalizedBase] || 1.6;
-    const targetVal = SIZE_VALUES[selectedSize] || 1.6;
-    const multiplier = targetVal / baseVal;
-    
-    return {
-      price: Math.round(product.price * multiplier),
-      discountPrice: Math.round(product.discountPrice * multiplier)
-    };
+    return { price: product.price, discountPrice: product.discountPrice };
   };
 
   const { price: currentPrice, discountPrice: currentDiscountPrice } = getCalculatedPrices();
@@ -354,13 +306,9 @@ export const ProductDetail: React.FC = () => {
 
     const itemId = hasDbVariants 
       ? `${product.id}-${selectedSize}` 
-      : isLiquid 
-      ? `${product.id}-${selectedSize}` 
       : product.id;
     const itemName = hasDbVariants
       ? `${product.name} (${selectedSize})`
-      : isLiquid 
-      ? `${product.name} (${selectedSize})` 
       : product.name;
 
     // Add multiple quantities
@@ -390,7 +338,7 @@ export const ProductDetail: React.FC = () => {
 
   const handleWhatsAppEnquiry = () => {
     const whatsappNumber = "917396158011";
-    const sizeStr = isLiquid ? ` (${selectedSize})` : "";
+    const sizeStr = hasDbVariants ? ` (${selectedSize})` : "";
     const message = encodeURIComponent(`Hello UNS! I am interested in inquiring about "${product.name}${sizeStr}". Please share product pricing, package choices, and shipping details.`);
     window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${message}`, '_blank');
   };
@@ -560,13 +508,13 @@ export const ProductDetail: React.FC = () => {
               </div>
 
               {/* Volume Variants Row Selector */}
-              {(hasDbVariants || isLiquid) && (
+              {hasDbVariants && (
                 <div className="space-y-2.5">
                   <span className="block text-xs font-bold uppercase tracking-wider text-muted">
                     Select Option:
                   </span>
                   <div className="flex flex-wrap gap-2">
-                    {(hasDbVariants ? dbVariants.map(v => v.name) : LIQUID_SIZES).map((size) => {
+                    {dbVariants.map(v => v.name).map((size) => {
                       const active = selectedSize === size;
                       return (
                         <button

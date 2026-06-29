@@ -26,15 +26,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, customBadge }
       return;
     }
     
-    const volume = product.specifications?.["Volume"] || "";
-    const isLiquid = !!volume && 
-      !volume.toLowerCase().includes("kg") && 
-      !volume.toLowerCase().includes("g") &&
-      !product.name.toLowerCase().includes("powder") &&
-      !product.name.toLowerCase().includes("soap");
+    const dbVars = product.specifications?.variants || [];
+    const hasDbVariants = dbVars.length > 0;
 
-    const itemId = isLiquid ? `${product.id}-${volume.trim()}` : product.id;
-    const itemName = isLiquid ? `${product.name} (${volume.trim()})` : product.name;
+    const itemId = hasDbVariants ? `${product.id}-${dbVars[0].name}` : product.id;
+    const itemName = hasDbVariants ? `${product.name} (${dbVars[0].name})` : product.name;
 
     dispatch(addItem({
       id: itemId,
