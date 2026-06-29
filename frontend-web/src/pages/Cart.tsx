@@ -30,10 +30,14 @@ export const Cart: React.FC = () => {
   const dispatch = useDispatch();
   const cartItems = useSelector((state: RootState) => state.cart.items);
 
+  // Authenticated user pre-fill
+  const u = localStorage.getItem('uns_current_user');
+  const currentUser = u ? JSON.parse(u) : null;
+
   // Form states
-  const [name, setName] = useState('');
-  const [phone, setPhone] = useState('');
-  const [email, setEmail] = useState('');
+  const [name, setName] = useState(currentUser?.name || '');
+  const [phone, setPhone] = useState(currentUser?.phone || '');
+  const [email, setEmail] = useState(currentUser?.email || '');
   const [address, setAddress] = useState('');
   const [checkoutSuccess, setCheckoutSuccess] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
@@ -135,6 +139,7 @@ export const Cart: React.FC = () => {
           if (verifyResponse.ok) {
             const verifiedData = await verifyResponse.json();
             dispatch(clearCart());
+            localStorage.setItem('uns_tracking_phone', phone);
             setCheckoutSuccess({
               whatsappRedirect: false,
               orderNumber: verifiedData.order?.orderNumber || registeredOrder.orderNumber,

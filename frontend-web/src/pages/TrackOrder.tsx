@@ -20,7 +20,7 @@ export const TrackOrder: React.FC = () => {
 
   // Form input states
   const [orderId, setOrderId] = useState(searchParams.get('orderId') || '');
-  const [phone, setPhone] = useState(userPhone);
+  const [phone, setPhone] = useState(searchParams.get('phone') || localStorage.getItem('uns_tracking_phone') || userPhone);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<any | null>(null);
@@ -36,28 +36,33 @@ export const TrackOrder: React.FC = () => {
   const displayProducts = bestSellers.length ? bestSellers : products.slice(0, 5);
 
   useEffect(() => {
-    if (userPhone) {
-      setPhone(userPhone);
+    const defaultPhone = searchParams.get('phone') || localStorage.getItem('uns_tracking_phone') || userPhone;
+    if (defaultPhone) {
+      setPhone(defaultPhone);
     }
-  }, [userPhone]);
+  }, [userPhone, searchParams]);
 
   useEffect(() => {
     const defaultOrder = searchParams.get('orderId');
-    if (defaultOrder && userPhone) {
-      handleTrack(defaultOrder, userPhone);
+    const defaultPhone = searchParams.get('phone') || localStorage.getItem('uns_tracking_phone') || userPhone;
+    if (defaultOrder && defaultPhone) {
+      handleTrack(defaultOrder, defaultPhone);
     }
   }, [searchParams, userPhone]);
 
   useEffect(() => {
     const fetchUserOrders = async () => {
-      if (!currentUser) return;
+      const trackingPhone = localStorage.getItem('uns_tracking_phone') || currentUser?.phone || '';
+      const trackingEmail = currentUser?.email || '';
+
+      if (!trackingPhone && !trackingEmail) return;
       setLoadingOrders(true);
       
       let fetched: any[] = [];
       try {
         const queryParams = new URLSearchParams();
-        if (currentUser.phone) queryParams.append('phone', currentUser.phone);
-        if (currentUser.email) queryParams.append('email', currentUser.email);
+        if (trackingPhone) queryParams.append('phone', trackingPhone);
+        if (trackingEmail) queryParams.append('email', trackingEmail);
 
         const response = await fetch(`${API_URL}/orders/my-orders?${queryParams.toString()}`);
         if (response.ok) {
@@ -73,11 +78,11 @@ export const TrackOrder: React.FC = () => {
         try {
           const localOrders = JSON.parse(localOrdersRaw);
           const userLocalOrders = localOrders.filter((order: any) => {
-            const matchesPhone = currentUser.phone 
-              ? order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(currentUser.phone.replace(/[^0-9]/g, '').slice(-10))
+            const matchesPhone = trackingPhone 
+              ? order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(trackingPhone.replace(/[^0-9]/g, '').slice(-10))
               : false;
-            const matchesEmail = currentUser.email
-              ? order.customerEmail && order.customerEmail.toLowerCase() === currentUser.email.toLowerCase()
+            const matchesEmail = trackingEmail
+              ? order.customerEmail && order.customerEmail.toLowerCase() === trackingEmail.toLowerCase()
               : false;
             return matchesPhone || matchesEmail;
           });
@@ -109,12 +114,13 @@ export const TrackOrder: React.FC = () => {
     };
 
     fetchUserOrders();
-  }, [currentUser?.phone, currentUser?.email]);
+  }, [currentUser?.phone, currentUser?.email, phone]);
 
   const handleTrack = async (id: string, ph: string) => {
-    const targetPhone = userPhone || ph;
+    const targetPhone = ph || userPhone;
     if (!id.trim() || !targetPhone.trim()) return;
     
+    localStorage.setItem('uns_tracking_phone', targetPhone);
     setSearching(true);
     setError(null);
     setOrderData(null);
@@ -179,6 +185,7 @@ export const TrackOrder: React.FC = () => {
   const handleTrackByPhoneOnly = async (ph: string) => {
     if (!ph.trim()) return;
     
+    localStorage.setItem('uns_tracking_phone', ph);
     setSearching(true);
     setError(null);
     setOrderData(null);
@@ -471,26 +478,12 @@ export const TrackOrder: React.FC = () => {
             </p>
           </div>
 
-          {!currentUser ? (
-            <div className="bg-slate-50 border border-border rounded-2xl p-6 text-center space-y-3">
-              <p className="text-xs text-muted font-medium">You are not signed in. Log in to view your previous order history and statuses.</p>
-              <Link 
-                to="/signin"
-                className="inline-block bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-6 rounded-xl shadow-sm transition-colors font-semibold"
-              >
-                Sign In
-              </Link>
-            </div>
-          ) : loadingOrders ? (
+          {loadingOrders ? (
             <div className="flex justify-center items-center py-12">
               <Loader2 className="animate-spin text-primary" size={24} />
               <span className="text-xs text-muted ml-2 font-medium">Loading your orders...</span>
             </div>
-          ) : userOrders.length === 0 ? (
-            <div className="bg-white border border-border rounded-2xl p-8 text-center text-xs text-muted">
-              You haven't placed any orders yet. Once you order, they will appear here.
-            </div>
-          ) : (
+          ) : userOrders.length > 0 ? (
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {userOrders.map((order) => (
                 <div 
@@ -556,6 +549,20 @@ export const TrackOrder: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          ) : !currentUser ? (
+            <div className="bg-slate-50 border border-border rounded-2xl p-6 text-center space-y-3">
+              <p className="text-xs text-muted font-medium">You are not signed in. Log in to view your previous order history and statuses.</p>
+              <Link 
+                to="/signin"
+                className="inline-block bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-6 rounded-xl shadow-sm transition-colors font-semibold"
+              >
+                Sign In
+              </Link>
+            </div>
+          ) : (
+            <div className="bg-white border border-border rounded-2xl p-8 text-center text-xs text-muted">
+              You haven't placed any orders yet. Once you order, they will appear here.
             </div>
           )}
         </div>
