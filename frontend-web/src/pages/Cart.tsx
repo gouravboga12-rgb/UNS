@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import type { RootState } from '../store';
 import { updateQuantity, removeItem, clearCart } from '../store/cartSlice';
-import { Trash2, MessageSquare, ShieldCheck, ShoppingBag, Plus, Minus } from 'lucide-react';
+import { Trash2, ShieldCheck, ShoppingBag, Plus, Minus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
 
@@ -35,7 +35,6 @@ export const Cart: React.FC = () => {
   const [phone, setPhone] = useState('');
   const [email, setEmail] = useState('');
   const [address, setAddress] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState<'online' | 'whatsapp'>('online');
   const [checkoutSuccess, setCheckoutSuccess] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -71,156 +70,108 @@ export const Cart: React.FC = () => {
       shippingAddress: address,
       items: orderItems,
       totalAmount: total,
-      paymentMethod
+      paymentMethod: 'online'
     };
 
-    if (paymentMethod === 'whatsapp') {
-      const whatsappNumber = "917396158011";
-      
-      let itemsListText = "";
-      cartItems.forEach((item, index) => {
-        itemsListText += `${index + 1}. ${item.name} (${item.quantity} units) x ₹${(item.discountPrice || item.price).toFixed(2)}\n`;
-      });
-
-      const messageText = `*NEW ORDER INQUIRY - UNS HOME CLEANING PRODUCTS*\n\n` +
-                          `*Customer Name:* ${name}\n` +
-                          `*Phone Number:* ${phone}\n` +
-                          `*Delivery Address:* ${address}\n\n` +
-                          `*Items Ordered:*\n${itemsListText}\n` +
-                          `*Subtotal:* ₹${subtotal.toFixed(2)}\n` +
-                          `*Shipping:* ₹${shipping === 0 ? "FREE" : "₹" + shipping}\n` +
-                          `*Estimated Total:* ₹${total.toFixed(2)}\n\n` +
-                          `Please confirm order delivery terms and bank options.`;
-
-      const encodedMsg = encodeURIComponent(messageText);
-      
-      let registeredOrder: any = null;
-      try {
-        const response = await fetch(`${API_URL}/orders`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ ...orderPayload, status: 'Pending' })
-        });
-        if (response.ok) {
-          registeredOrder = await response.json();
-        }
-      } catch {
-        // Silently catch server errors in mock mode
-      }
-
-      dispatch(clearCart());
-      setCheckoutSuccess({
-        whatsappRedirect: true,
-        messageText,
-        orderNumber: registeredOrder?.orderNumber || registeredOrder?.id || `WA-${Math.floor(1000 + Math.random() * 9000)}`,
-        phone: phone,
-        total: total
-      });
+    // Razorpay Checkout flow
+    const isScriptLoaded = await loadRazorpayScript();
+    if (!isScriptLoaded) {
+      alert("Failed to load Razorpay payment gateway. Please check your internet connection.");
       setLoading(false);
-
-      // Open WhatsApp Web/API
-      window.open(`https://api.whatsapp.com/send?phone=${whatsappNumber}&text=${encodedMsg}`, '_blank');
-    } else {
-      // Razorpay Checkout flow
-      const isScriptLoaded = await loadRazorpayScript();
-      if (!isScriptLoaded) {
-        alert("Failed to load Razorpay payment gateway. Please check your internet connection.");
-        setLoading(false);
-        return;
-      }
-
-      let registeredOrder: any = null;
-      try {
-        const response = await fetch(`${API_URL}/orders`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload)
-        });
-        if (response.ok) {
-          registeredOrder = await response.json();
-        } else {
-          const errData = await response.json();
-          alert(errData.error || "Failed to create order on the server.");
-          setLoading(false);
-          return;
-        }
-      } catch (err) {
-        alert("Server connection failed. Could not place order.");
-        setLoading(false);
-        return;
-      }
-
-      if (!registeredOrder || !registeredOrder.razorpayOrderId) {
-        alert("Failed to initialize Razorpay payment session.");
-        setLoading(false);
-        return;
-      }
-
-      const options = {
-        key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_T7T6MVvx0hvF4f',
-        amount: Math.round(total * 100), // in paise
-        currency: 'INR',
-        name: 'UNS Home Cleaning Products',
-        description: `Order #${registeredOrder.orderNumber}`,
-        image: 'https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=120&h=120&q=80',
-        order_id: registeredOrder.razorpayOrderId,
-        handler: async (response: any) => {
-          setLoading(true);
-          try {
-            const verificationPayload = {
-              razorpayOrderId: response.razorpay_order_id,
-              razorpayPaymentId: response.razorpay_payment_id,
-              razorpaySignature: response.razorpay_signature,
-              orderId: registeredOrder.id
-            };
-
-            const verifyResponse = await fetch(`${API_URL}/payments/verify`, {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify(verificationPayload)
-            });
-
-            if (verifyResponse.ok) {
-              const verifiedData = await verifyResponse.json();
-              dispatch(clearCart());
-              setCheckoutSuccess({
-                whatsappRedirect: false,
-                orderNumber: verifiedData.order?.orderNumber || registeredOrder.orderNumber,
-                phone: phone,
-                total: total,
-                paymentId: response.razorpay_payment_id
-              });
-            } else {
-              const verifyErr = await verifyResponse.json();
-              alert(verifyErr.error || "Payment verification failed. Please contact support.");
-            }
-          } catch (err) {
-            alert("Verification connection failed. Please check your tracking dashboard.");
-          } finally {
-            setLoading(false);
-          }
-        },
-        prefill: {
-          name: name,
-          email: email || 'customer@example.com',
-          contact: phone
-        },
-        notes: {
-          address: address
-        },
-        theme: {
-          color: '#0d9488'
-        },
-        modal: {
-          ondismiss: () => {
-            setLoading(false);
-          }
-        }
-      };
-
-      const rzp = new (window as any).Razorpay(options);
-      rzp.open();
+      return;
     }
+
+    let registeredOrder: any = null;
+    try {
+      const response = await fetch(`${API_URL}/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
+      });
+      if (response.ok) {
+        registeredOrder = await response.json();
+      } else {
+        const errData = await response.json();
+        alert(errData.error || "Failed to create order on the server.");
+        setLoading(false);
+        return;
+      }
+    } catch (err) {
+      alert("Server connection failed. Could not place order.");
+      setLoading(false);
+      return;
+    }
+
+    if (!registeredOrder || !registeredOrder.razorpayOrderId) {
+      alert("Failed to initialize Razorpay payment session.");
+      setLoading(false);
+      return;
+    }
+
+    const options = {
+      key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_T7T6MVvx0hvF4f',
+      amount: Math.round(total * 100), // in paise
+      currency: 'INR',
+      name: 'UNS Home Cleaning Products',
+      description: `Order #${registeredOrder.orderNumber}`,
+      image: 'https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=120&h=120&q=80',
+      order_id: registeredOrder.razorpayOrderId,
+      handler: async (response: any) => {
+        setLoading(true);
+        try {
+          const verificationPayload = {
+            razorpayOrderId: response.razorpay_order_id,
+            razorpayPaymentId: response.razorpay_payment_id,
+            razorpaySignature: response.razorpay_signature,
+            orderId: registeredOrder.id
+          };
+
+          const verifyResponse = await fetch(`${API_URL}/payments/verify`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(verificationPayload)
+          });
+
+          if (verifyResponse.ok) {
+            const verifiedData = await verifyResponse.json();
+            dispatch(clearCart());
+            setCheckoutSuccess({
+              whatsappRedirect: false,
+              orderNumber: verifiedData.order?.orderNumber || registeredOrder.orderNumber,
+              phone: phone,
+              total: total,
+              paymentId: response.razorpay_payment_id
+            });
+          } else {
+            const verifyErr = await verifyResponse.json();
+            alert(verifyErr.error || "Payment verification failed. Please contact support.");
+          }
+        } catch (err) {
+          alert("Verification connection failed. Please check your tracking dashboard.");
+        } finally {
+          setLoading(false);
+        }
+      },
+      prefill: {
+        name: name,
+        email: email || 'customer@example.com',
+        contact: phone
+      },
+      notes: {
+        address: address
+      },
+      theme: {
+        color: '#0d9488'
+      },
+      modal: {
+        ondismiss: () => {
+          setLoading(false);
+        }
+      }
+    };
+
+    const rzp = new (window as any).Razorpay(options);
+    rzp.open();
   };
 
   if (checkoutSuccess) {
@@ -231,45 +182,24 @@ export const Cart: React.FC = () => {
         </div>
         
         <h2 className="text-2xl font-bold font-heading text-heading">
-          {checkoutSuccess.whatsappRedirect ? "Enquiry Placed Successfully!" : "Order Placed & Paid Successfully!"}
+          Order Placed & Paid Successfully!
         </h2>
         <p className="text-xs text-muted leading-relaxed">
-          {checkoutSuccess.whatsappRedirect 
-            ? "Your order has been received. We will contact you shortly on WhatsApp to confirm delivery details and payment options. If the chat window didn't open, click the button below."
-            : "Your payment has been successfully processed and verified. We are preparing your order items for dispatch. You can track its live status below."}
+          Your payment has been successfully processed and verified. We are preparing your order items for dispatch. You can track its live status below.
         </p>
         <div className="bg-teal-50 border border-teal-100 rounded-xl p-4 inline-block text-left text-xs space-y-1 w-full max-w-md mx-auto">
           <div><strong className="text-heading">Order Tracking ID:</strong> <span className="font-mono text-primary select-all">{checkoutSuccess.orderNumber}</span></div>
           <div><strong className="text-heading">Registered Phone:</strong> {checkoutSuccess.phone}</div>
           <div><strong className="text-heading">Total Amount:</strong> ₹{checkoutSuccess.total}</div>
-          {!checkoutSuccess.whatsappRedirect && (
-            <div><strong className="text-heading">Transaction ID:</strong> <span className="font-mono text-slate-600">{checkoutSuccess.paymentId}</span></div>
-          )}
+          <div><strong className="text-heading">Transaction ID:</strong> <span className="font-mono text-slate-600">{checkoutSuccess.paymentId}</span></div>
         </div>
-        {checkoutSuccess.whatsappRedirect && (
-          <div className="p-4 bg-slate-50 border border-slate-200 rounded-xl text-left text-xs font-mono whitespace-pre-line max-h-40 overflow-y-auto mb-4">
-            {checkoutSuccess.messageText}
-          </div>
-        )}
         <div className="flex flex-col sm:flex-row justify-center gap-3 pt-2">
-          {checkoutSuccess.whatsappRedirect ? (
-            <button
-              onClick={() => {
-                const url = `https://api.whatsapp.com/send?phone=917396158011&text=${encodeURIComponent(checkoutSuccess.messageText)}`;
-                window.open(url, '_blank');
-              }}
-              className="bg-green-500 hover:bg-green-600 text-white font-bold py-2.5 px-6 rounded-lg text-xs transition-colors inline-flex items-center justify-center gap-1.5 shadow-sm"
-            >
-              <MessageSquare size={16} /> Open WhatsApp Chat Again
-            </button>
-          ) : (
-            <Link
-              to="/products"
-              className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-6 rounded-lg text-xs transition-colors inline-flex items-center justify-center gap-1.5 shadow-sm"
-            >
-              Continue Shopping
-            </Link>
-          )}
+          <Link
+            to="/products"
+            className="bg-teal-600 hover:bg-teal-700 text-white font-bold py-2.5 px-6 rounded-lg text-xs transition-colors inline-flex items-center justify-center gap-1.5 shadow-sm"
+          >
+            Continue Shopping
+          </Link>
           <Link
             to={`/track-order?orderId=${checkoutSuccess.orderNumber}&phone=${checkoutSuccess.phone}`}
             className="bg-primary hover:bg-primary-light text-white text-xs font-bold py-2.5 px-6 rounded-lg transition-colors shadow-sm flex items-center justify-center"
@@ -445,52 +375,17 @@ export const Cart: React.FC = () => {
                   />
                 </div>
 
-                {/* Payment Method Selector */}
-                <div className="space-y-2 pt-2">
-                  <label className="block text-[10px] font-bold text-muted uppercase tracking-wider">Payment Method *</label>
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('online')}
-                      className={`py-2.5 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                        paymentMethod === 'online'
-                          ? 'border-primary bg-teal-50/50 text-primary font-bold'
-                          : 'border-border bg-slate-50 text-muted hover:bg-slate-100/50'
-                      }`}
-                    >
-                      <ShieldCheck size={14} /> Pay Online
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('whatsapp')}
-                      className={`py-2.5 px-3 rounded-lg border text-xs font-semibold flex items-center justify-center gap-1.5 transition-all ${
-                        paymentMethod === 'whatsapp'
-                          ? 'border-primary bg-teal-50/50 text-primary font-bold'
-                          : 'border-border bg-slate-50 text-muted hover:bg-slate-100/50'
-                      }`}
-                    >
-                      <MessageSquare size={14} /> WhatsApp
-                    </button>
-                  </div>
-                </div>
-
                 {/* Submit button */}
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full text-white font-bold py-3 px-6 rounded-lg text-xs shadow transition-all flex items-center justify-center gap-2 mt-4 ${
-                    paymentMethod === 'online' ? 'bg-primary hover:bg-primary-light' : 'bg-green-500 hover:bg-green-600'
-                  }`}
+                  className="w-full text-white font-bold py-3 px-6 rounded-lg text-xs shadow transition-all flex items-center justify-center gap-2 mt-4 bg-primary hover:bg-primary-light"
                 >
                   {loading ? (
                     "Processing..."
-                  ) : paymentMethod === 'online' ? (
-                    <>
-                      <ShieldCheck size={16} /> Pay & Complete Order
-                    </>
                   ) : (
                     <>
-                      <MessageSquare size={16} /> Checkout via WhatsApp
+                      <ShieldCheck size={16} /> Pay & Complete Order
                     </>
                   )}
                 </button>
