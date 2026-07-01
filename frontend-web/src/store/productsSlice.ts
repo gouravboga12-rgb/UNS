@@ -794,6 +794,16 @@ const mapProductImages = (products: Product[]): Product[] => {
   });
 };
 
+const mapCategoryImages = (categories: Category[]): Category[] => {
+  const base = API_URL.replace(/\/api$/, '');
+  return categories.map(cat => {
+    if (cat.imageUrl && cat.imageUrl.startsWith('http://localhost:5000')) {
+      return { ...cat, imageUrl: cat.imageUrl.replace('http://localhost:5000', base) };
+    }
+    return cat;
+  });
+};
+
 export const fetchProducts = createAsyncThunk('products/fetchProducts', async () => {
   try {
     const response = await fetch(`${API_URL}/products`);
@@ -805,7 +815,7 @@ export const fetchProducts = createAsyncThunk('products/fetchProducts', async ()
   } catch {
     // Check localStorage for admin-added products before using hardcoded fallback
     const saved = loadProductsFromLS();
-    return saved && saved.length > 0 ? mapProductImages(saved) : fallbackProducts;
+    return saved && saved.length > 0 ? mapProductImages(saved) : mapProductImages(fallbackProducts);
   }
 });
 
@@ -814,20 +824,21 @@ export const fetchCategories = createAsyncThunk('products/fetchCategories', asyn
     const response = await fetch(`${API_URL}/categories`);
     if (!response.ok) throw new Error('API Error');
     const data = (await response.json()) as Category[];
-    saveCatsToLS(data); // keep LS in sync with backend
-    return data;
+    const mapped = mapCategoryImages(data);
+    saveCatsToLS(mapped); // keep LS in sync with backend
+    return mapped;
   } catch {
     // Check localStorage for admin-added categories before using hardcoded fallback
     const saved = loadCatsFromLS();
-    return saved && saved.length > 0 ? saved : fallbackCategories;
+    return saved && saved.length > 0 ? mapCategoryImages(saved) : mapCategoryImages(fallbackCategories);
   }
 });
 
 const productsSlice = createSlice({
   name: 'products',
   initialState: {
-    items: (loadProductsFromLS() ?? fallbackProducts) as Product[],
-    categories: (loadCatsFromLS() ?? fallbackCategories) as Category[],
+    items: mapProductImages(loadProductsFromLS() ?? fallbackProducts) as Product[],
+    categories: mapCategoryImages(loadCatsFromLS() ?? fallbackCategories) as Category[],
     status: 'idle',
     error: null,
   } as ProductsState,

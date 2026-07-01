@@ -3,7 +3,7 @@
 // For local testing on a phone, use your PC's WiFi IP:  http://192.168.x.x:5000
 // ─────────────────────────────────────────────────────────────────────────────
 
-export const API_BASE_URL = 'http://192.168.1.100:5000'; // ← REPLACE with your actual URL
+export const API_BASE_URL = 'https://uns-five.vercel.app';
 
 export const API_ENDPOINTS = {
   // Auth

@@ -1,4 +1,13 @@
 import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
+import { API_BASE_URL } from '../config/api';
+
+const mapImages = (url: string) => {
+  if (url && url.startsWith('http://localhost:5000')) {
+    return url.replace('http://localhost:5000', API_BASE_URL);
+  }
+  return url;
+};
+
 
 export interface Review {
   id: string;
@@ -678,8 +687,14 @@ const mockProducts: Product[] = [
 const productsSlice = createSlice({
   name: 'products',
   initialState: {
-    items: mockProducts as Product[],
-    categories: mockCategories as Category[],
+    items: mockProducts.map(prod => ({
+      ...prod,
+      images: prod.images ? prod.images.map(mapImages) : []
+    })) as Product[],
+    categories: mockCategories.map(cat => ({
+      ...cat,
+      imageUrl: mapImages(cat.imageUrl)
+    })) as Category[],
     status: 'succeeded',
   } as ProductsState,
   reducers: {
