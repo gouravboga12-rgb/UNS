@@ -46,3 +46,9 @@ Desktop.ini
 *~
 *.tmp
 *.bak
+
+# UNS Custom Ignores
+*WhatsApp*
+image copy *.png
+backend/scratch_*
+scratch_*
