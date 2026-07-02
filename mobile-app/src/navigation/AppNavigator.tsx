@@ -38,7 +38,13 @@ function TabBarIcon({ label, color }: any) {
   return (
     <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
       <Text style={{ fontSize: 18 }}>{emoji}</Text>
-      <Text style={{ fontSize: 9, color, fontWeight: '700', marginTop: 2 }}>{label}</Text>
+      <Text 
+        numberOfLines={1} 
+        adjustsFontSizeToFit 
+        style={{ fontSize: 8.5, color, fontWeight: '700', marginTop: 2, width: 70, textAlign: 'center' }}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
@@ -66,8 +72,8 @@ function TabNavigator() {
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
           backgroundColor: '#FFFFFF',
-          height: Platform.OS === 'ios' ? 90 : 88,
-          paddingBottom: Platform.OS === 'ios' ? 30 : 28,
+          height: Platform.OS === 'ios' ? 95 : 95,
+          paddingBottom: Platform.OS === 'ios' ? 32 : 32,
           paddingTop: 8,
         },
         tabBarIcon: ({ color }) => {
