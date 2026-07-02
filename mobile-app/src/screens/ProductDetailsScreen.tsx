@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -7,9 +7,11 @@ import {
   Image, 
   TouchableOpacity, 
   Linking, 
-  Dimensions 
+  Dimensions,
+  Animated
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import { Check } from 'lucide-react-native';
 import { RootState } from '../store';
 import { addItem } from '../store/cartSlice';
 
@@ -26,6 +28,9 @@ export const ProductDetailsScreen = ({ route, navigation }: any) => {
   const [activeImg, setActiveImg] = useState<string>('');
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'benefits' | 'instructions' | 'specs'>('benefits');
+  const [toast, setToast] = useState<{ visible: boolean; name: string; image: string } | null>(null);
+
+  const slideAnim = useRef(new Animated.Value(-120)).current;
 
   React.useEffect(() => {
     if (product) {
@@ -41,6 +46,23 @@ export const ProductDetailsScreen = ({ route, navigation }: any) => {
     );
   }
 
+  const triggerToast = (name: string, image: string) => {
+    setToast({ visible: true, name, image });
+    Animated.timing(slideAnim, {
+      toValue: 20,
+      duration: 350,
+      useNativeDriver: true,
+    }).start();
+
+    setTimeout(() => {
+      Animated.timing(slideAnim, {
+        toValue: -150,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setToast(null));
+    }, 4000);
+  };
+
   const handleAddToCart = () => {
     for (let i = 0; i < quantity; i++) {
       dispatch(addItem({
@@ -52,6 +74,7 @@ export const ProductDetailsScreen = ({ route, navigation }: any) => {
         imageUrl: product.images[0]
       }));
     }
+    triggerToast(product.name, product.images[0]);
   };
 
   const handleBuyNow = () => {
@@ -212,6 +235,31 @@ export const ProductDetailsScreen = ({ route, navigation }: any) => {
         </View>
       </View>
 
+      {/* ─── Web-Style Toast Notification (Slide Down Overlay) ─── */}
+      {toast && (
+        <Animated.View style={[styles.toastContainer, { transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.toastCard}>
+            <Image source={{ uri: toast.image }} style={styles.toastImg} />
+            <View style={styles.toastBody}>
+              <View style={styles.toastHeaderRow}>
+                <Check size={12} color="#0F766E" style={{ marginRight: 4 }} />
+                <Text style={styles.toastSuccessText}>SUCCESS</Text>
+              </View>
+              <Text style={styles.toastProdName} numberOfLines={1}>{toast.name}</Text>
+              <Text style={styles.toastSub}>ADDED TO CART</Text>
+            </View>
+            <TouchableOpacity 
+              style={styles.toastViewCartBtn}
+              onPress={() => {
+                setToast(null);
+                navigation.navigate('CartTab');
+              }}
+            >
+              <Text style={styles.toastViewCartText}>VIEW CART</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -501,6 +549,71 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 11,
     fontWeight: 'bold',
+  },
+  // Toast Styles
+  toastContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
+    zIndex: 9999,
+  },
+  toastCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  toastImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    marginRight: 10,
+  },
+  toastBody: {
+    flex: 1,
+    marginRight: 10,
+  },
+  toastHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  toastSuccessText: {
+    color: '#0F766E',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  toastProdName: {
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  toastSub: {
+    color: '#64748B',
+    fontSize: 8,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  toastViewCartBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#0F766E',
+  },
+  toastViewCartText: {
+    color: '#0F766E',
+    fontSize: 10,
+    fontWeight: '900',
   }
 });
 

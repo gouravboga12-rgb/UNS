@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
-import * as SecureStore from 'expo-secure-store';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { RootState } from '../store';
 import { clearAuth } from '../store/authSlice';
 
@@ -30,8 +30,8 @@ export const ProfileScreen = () => {
           text: 'Sign Out',
           style: 'destructive',
           onPress: async () => {
-            await SecureStore.deleteItemAsync('uns_token');
-            await SecureStore.deleteItemAsync('uns_user');
+            await AsyncStorage.removeItem('uns_token');
+            await AsyncStorage.removeItem('uns_user');
             dispatch(clearAuth());
           },
         },

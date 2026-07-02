@@ -12,6 +12,7 @@ import {
   ActivityIndicator
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import * as WebBrowser from 'expo-web-browser';
 import { RootState } from '../store';
 import { updateQuantity, removeItem, clearCart } from '../store/cartSlice';
 import { API_BASE_URL } from '../config/api';
@@ -24,7 +25,6 @@ export const CartScreen = ({ navigation }: any) => {
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
-  const [method, setMethod] = useState<'cod' | 'whatsapp' | 'online'>('online');
   const [success, setSuccess] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -41,178 +41,145 @@ export const CartScreen = ({ navigation }: any) => {
   };
 
   const handleCheckout = async () => {
-    if (!name.trim() || !phone.trim() || !address.trim()) return;
+    if (!name.trim() || !phone.trim() || !address.trim()) {
+      alert("Please fill out all Delivery Coordinates.");
+      return;
+    }
+    
+    setLoading(true);
+    const orderItems = cartItems.map(item => ({
+      productId: item.id,
+      name: item.name,
+      quantity: item.quantity,
+      price: item.discountPrice || item.price
+    }));
 
-    if (method === 'cod') {
-      const mockResult = {
-        orderNumber: 1000 + Math.floor(Math.random() * 900) + 1,
-        customerPhone: phone,
-        totalAmount: total
-      };
-      dispatch(clearCart());
-      setSuccess(mockResult);
-    } else if (method === 'whatsapp') {
-      // WhatsApp order
-      const phoneNo = "917396158011";
-      let itemsList = "";
-      cartItems.forEach((item, index) => {
-        itemsList += `${index + 1}. ${item.name} (${item.quantity} units) x ₹${item.discountPrice}\n`;
+    const orderPayload = {
+      customerName: name,
+      customerPhone: phone,
+      customerEmail: '',
+      shippingAddress: address,
+      items: orderItems,
+      totalAmount: total,
+      paymentMethod: 'online'
+    };
+
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(orderPayload)
       });
 
-      const message = `*MOBILE ORDER INQUIRY - UNS PRODUCTS*\n\n` +
-                      `*Name:* ${name}\n` +
-                      `*Phone:* ${phone}\n` +
-                      `*Address:* ${address}\n\n` +
-                      `*Items Ordered:*\n${itemsList}\n` +
-                      `*Subtotal:* ₹${subtotal}\n` +
-                      `*Shipping:* ₹${shipping === 0 ? "FREE" : "₹" + shipping}\n` +
-                      `*Total Amount:* ₹${total}\n\n` +
-                      `Please process shipping and packaging options.`;
+      if (response.ok) {
+        const registeredOrder = await response.json();
 
-      dispatch(clearCart());
-      setSuccess({ whatsapp: true, message });
-      
-      const url = `whatsapp://send?phone=${phoneNo}&text=${encodeURIComponent(message)}`;
-      Linking.openURL(url).catch(() => {
-        Linking.openURL(`https://wa.me/${phoneNo}?text=${encodeURIComponent(message)}`);
-      });
-    } else if (method === 'online') {
-      setLoading(true);
-      const orderItems = cartItems.map(item => ({
-        productId: item.id,
-        name: item.name,
-        quantity: item.quantity,
-        price: item.discountPrice || item.price
-      }));
-
-      const orderPayload = {
-        customerName: name,
-        customerPhone: phone,
-        customerEmail: '',
-        shippingAddress: address,
-        items: orderItems,
-        totalAmount: total,
-        paymentMethod: 'online'
-      };
-
-      try {
-        const response = await fetch(`${API_BASE_URL}/api/orders`, {
+        const linkResponse = await fetch(`${API_BASE_URL}/api/payments/payment-link`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(orderPayload)
+          body: JSON.stringify({ orderId: registeredOrder.id, source: 'mobile' })
         });
 
-        if (response.ok) {
-          const registeredOrder = await response.json();
-
-          const linkResponse = await fetch(`${API_BASE_URL}/api/payments/payment-link`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ orderId: registeredOrder.id })
+        if (linkResponse.ok) {
+          const linkData = await linkResponse.json();
+          dispatch(clearCart());
+          
+          setSuccess({
+            online: true,
+            paymentLink: linkData.paymentLink,
+            orderNumber: registeredOrder.orderNumber,
+            customerPhone: phone,
+            totalAmount: total,
+            verifiedPaid: false
           });
 
-          if (linkResponse.ok) {
-            const linkData = await linkResponse.json();
-            dispatch(clearCart());
-            
-            setSuccess({
-              online: true,
-              paymentLink: linkData.paymentLink,
-              orderNumber: registeredOrder.orderNumber,
-              customerPhone: phone,
-              totalAmount: total
-            });
-
-            Linking.openURL(linkData.paymentLink).catch(() => {
-              alert("Could not open browser. Link: " + linkData.paymentLink);
-            });
-          } else {
-            alert("Failed to generate online payment link. Please try WhatsApp checkout.");
-          }
+          // Open the payment page inside the app
+          WebBrowser.openBrowserAsync(linkData.paymentLink).then(async () => {
+            // Check status in DB on modal dismiss
+            try {
+              const checkRes = await fetch(`${API_BASE_URL}/api/orders/track?orderId=${registeredOrder.orderNumber}&phone=${phone}`);
+              if (checkRes.ok) {
+                const checkData = await checkRes.json();
+                if (checkData.paymentStatus === 'Paid') {
+                  setSuccess((prev: any) => prev ? { ...prev, verifiedPaid: true } : null);
+                }
+              }
+            } catch (err) {
+              console.log('Post-checkout verification failed:', err);
+            }
+          }).catch(() => {
+            alert("Could not open in-app browser. Link: " + linkData.paymentLink);
+          });
         } else {
-          alert("Failed to submit order. Please try again.");
+          alert("Failed to generate payment link. Please try again.");
         }
-      } catch (err) {
-        alert("Server connection failed. Could not initiate online checkout.");
-      } finally {
-        setLoading(false);
+      } else {
+        alert("Failed to submit order. Please try again.");
       }
+    } catch (err) {
+      alert("Server connection failed. Could not initiate online checkout.");
+    } finally {
+      setLoading(false);
     }
   };
 
   if (success) {
     return (
       <View style={styles.successContainer}>
-        <Text style={styles.successEmoji}>{success.online ? "💳" : (success.whatsapp ? "💬" : "✅")}</Text>
+        <Text style={styles.successEmoji}>
+          {success.verifiedPaid ? "🎉" : "💳"}
+        </Text>
         
-        {success.online ? (
+        {success.verifiedPaid ? (
           <>
-            <Text style={styles.successTitle}>Order Paid & Placed!</Text>
+            <Text style={styles.successTitle}>Payment Successful!</Text>
             <Text style={styles.successSub}>
-              We opened the Razorpay page to complete your payment. If you have finished, you can track your order live. If it didn't open, tap below:
+              We verified your payment of ₹{success.totalAmount} successfully. Your order is now being processed!
             </Text>
-            <TouchableOpacity 
-              style={styles.retryBtn}
-              onPress={() => {
-                Linking.openURL(success.paymentLink).catch(() => {
-                  alert("Failed to open browser.");
-                });
-              }}
-            >
-              <Text style={styles.retryText}>Pay Online Again</Text>
-            </TouchableOpacity>
-            <View style={styles.orderBox}>
-              <Text style={styles.orderLabel}>Order Tracking ID:</Text>
-              <Text style={styles.orderValue}>{success.orderNumber}</Text>
-            </View>
-            <TouchableOpacity 
-              style={styles.trackBtn} 
-              onPress={() => {
-                setSuccess(null);
-                navigation.navigate('TrackOrderTab', { orderId: success.orderNumber.toString(), phone: success.customerPhone });
-              }}
-            >
-              <Text style={styles.trackText}>Track Shipment Progress</Text>
-            </TouchableOpacity>
-          </>
-        ) : success.whatsapp ? (
-          <>
-            <Text style={styles.successTitle}>WhatsApp Enquiry Sent!</Text>
-            <Text style={styles.successSub}>
-              We redirected you to WhatsApp to complete your shipment verification details. If the app failed to open, you can review details below or try opening again.
-            </Text>
-            <TouchableOpacity 
-              style={styles.retryBtn}
-              onPress={() => {
-                Linking.openURL(`whatsapp://send?phone=917396158011&text=${encodeURIComponent(success.message)}`).catch(() => {
-                  Linking.openURL(`https://wa.me/917396158011?text=${encodeURIComponent(success.message)}`);
-                });
-              }}
-            >
-              <Text style={styles.retryText}>Open WhatsApp Chat Again</Text>
-            </TouchableOpacity>
           </>
         ) : (
           <>
-            <Text style={styles.successTitle}>Order Placed Successfully!</Text>
+            <Text style={styles.successTitle}>Order Registered</Text>
             <Text style={styles.successSub}>
-              Your Cash on Delivery order has been registered in the system.
+              We opened the Razorpay page within the app to complete your payment. If you have finished, tap below to track or verify your status.
             </Text>
-            <View style={styles.orderBox}>
-              <Text style={styles.orderLabel}>Order Tracking ID:</Text>
-              <Text style={styles.orderValue}>{success.orderNumber}</Text>
-            </View>
             <TouchableOpacity 
-              style={styles.trackBtn}
+              style={styles.retryBtn}
               onPress={() => {
-                setSuccess(null);
-                navigation.navigate('TrackOrderTab', { orderId: success.orderNumber.toString(), phone: success.customerPhone });
+                WebBrowser.openBrowserAsync(success.paymentLink).then(async () => {
+                  try {
+                    const checkRes = await fetch(`${API_BASE_URL}/api/orders/track?orderId=${success.orderNumber}&phone=${success.customerPhone}`);
+                    if (checkRes.ok) {
+                      const checkData = await checkRes.json();
+                      if (checkData.paymentStatus === 'Paid') {
+                        setSuccess((prev: any) => prev ? { ...prev, verifiedPaid: true } : null);
+                      }
+                    }
+                  } catch (err) {
+                    console.log('Retry sync failed:', err);
+                  }
+                });
               }}
             >
-              <Text style={styles.trackText}>Track Shipment Progress</Text>
+              <Text style={styles.retryText}>Open Razorpay Payment Page</Text>
             </TouchableOpacity>
           </>
         )}
+
+        <View style={styles.orderBox}>
+          <Text style={styles.orderLabel}>Order Tracking ID:</Text>
+          <Text style={styles.orderValue}>{success.orderNumber}</Text>
+        </View>
+
+        <TouchableOpacity 
+          style={styles.trackBtn} 
+          onPress={() => {
+            setSuccess(null);
+            navigation.navigate('TrackOrderTab', { orderId: success.orderNumber.toString(), phone: success.customerPhone });
+          }}
+        >
+          <Text style={styles.trackText}>Track Shipment Progress</Text>
+        </TouchableOpacity>
 
         <TouchableOpacity style={styles.returnBtn} onPress={() => setSuccess(null)}>
           <Text style={styles.returnBtnText}>Return to Catalog</Text>
@@ -319,42 +286,22 @@ export const CartScreen = ({ navigation }: any) => {
             />
 
             {/* Selector */}
-            <Text style={styles.label}>Select Checkout Option</Text>
+            <Text style={styles.label}>Payment Method</Text>
             <View style={styles.methodsRow}>
-              <TouchableOpacity
-                style={[styles.methodBtn, method === 'online' && styles.methodBtnActive]}
-                onPress={() => setMethod('online')}
-              >
-                <Text style={[styles.methodBtnText, method === 'online' && styles.methodBtnTextActive]}>Pay Online</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.methodBtn, method === 'whatsapp' && styles.methodBtnActive]}
-                onPress={() => setMethod('whatsapp')}
-              >
-                <Text style={[styles.methodBtnText, method === 'whatsapp' && styles.methodBtnTextActive]}>WhatsApp</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.methodBtn, method === 'cod' && styles.methodBtnActive]}
-                onPress={() => setMethod('cod')}
-              >
-                <Text style={[styles.methodBtnText, method === 'cod' && styles.methodBtnTextActive]}>COD</Text>
-              </TouchableOpacity>
+              <View style={[styles.methodBtn, styles.methodBtnActive, { flex: 1 }]}>
+                <Text style={[styles.methodBtnText, styles.methodBtnTextActive, { textAlign: 'center' }]}>💳 Razorpay (Online Pay)</Text>
+              </View>
             </View>
 
             <TouchableOpacity 
-              style={[
-                styles.checkoutBtn, 
-                method === 'online' ? styles.checkoutOnline : (method === 'whatsapp' ? styles.checkoutWa : styles.checkoutCod)
-              ]} 
+              style={[styles.checkoutBtn, styles.checkoutOnline]} 
               onPress={handleCheckout}
               disabled={loading}
             >
               {loading ? (
                 <ActivityIndicator color="#fff" size="small" />
               ) : (
-                <Text style={styles.checkoutText}>
-                  {method === 'online' ? "Pay & Complete Order" : (method === 'whatsapp' ? "Order via WhatsApp Chat" : "Confirm COD Purchase Order")}
-                </Text>
+                <Text style={styles.checkoutText}>Pay & Complete Order</Text>
               )}
             </TouchableOpacity>
           </View>

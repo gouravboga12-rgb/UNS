@@ -3,8 +3,8 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { NavigationContainer } from '@react-navigation/native';
 import { useSelector, useDispatch } from 'react-redux';
-import { Text, View, ActivityIndicator } from 'react-native';
-import * as SecureStore from 'expo-secure-store';
+import { Text, View, ActivityIndicator, Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 import { RootState } from '../store';
 import { setAuth } from '../store/authSlice';
@@ -17,6 +17,7 @@ import { CartScreen } from '../screens/CartScreen';
 import { TrackOrderScreen } from '../screens/TrackOrderScreen';
 import { ProfileScreen } from '../screens/ProfileScreen';
 import { FloatingWhatsApp } from '../components/FloatingWhatsApp';
+import { registerForPushNotificationsAsync, scheduleMarketingReminders } from '../services/NotificationService';
 
 // Auth Screens
 import { LoginScreen } from '../screens/auth/LoginScreen';
@@ -35,8 +36,9 @@ function TabBarIcon({ label, color }: any) {
   if (label === 'Track') emoji = '🚚';
   if (label === 'Profile') emoji = '👤';
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center' }}>
-      <Text style={{ fontSize: 16, color }}>{emoji}</Text>
+    <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
+      <Text style={{ fontSize: 18 }}>{emoji}</Text>
+      <Text style={{ fontSize: 9, color, fontWeight: '700', marginTop: 2 }}>{label}</Text>
     </View>
   );
 }
@@ -59,17 +61,14 @@ function TabNavigator() {
         headerShown: false,
         tabBarActiveTintColor: '#0F766E',
         tabBarInactiveTintColor: '#94A3B8',
+        tabBarShowLabel: false,
         tabBarStyle: {
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
           backgroundColor: '#FFFFFF',
-          height: 60,
-          paddingBottom: 8,
-          paddingTop: 6,
-        },
-        tabBarLabelStyle: {
-          fontSize: 10,
-          fontWeight: 'bold',
+          height: Platform.OS === 'ios' ? 90 : 88,
+          paddingBottom: Platform.OS === 'ios' ? 30 : 28,
+          paddingTop: 8,
         },
         tabBarIcon: ({ color }) => {
           let label = 'Home';
@@ -110,9 +109,17 @@ export const AppNavigator = () => {
   // Restore session from SecureStore on app start
   useEffect(() => {
     const restoreSession = async () => {
+      // Initialize Push Notification permissions & marketing alerts
       try {
-        const token = await SecureStore.getItemAsync('uns_token');
-        const userStr = await SecureStore.getItemAsync('uns_user');
+        await registerForPushNotificationsAsync();
+        await scheduleMarketingReminders();
+      } catch (err) {
+        console.log('Notification registration suppressed:', err);
+      }
+
+      try {
+        const token = await AsyncStorage.getItem('uns_token');
+        const userStr = await AsyncStorage.getItem('uns_user');
         if (token && userStr) {
           const user = JSON.parse(userStr);
           dispatch(setAuth({ user, token }));
@@ -138,8 +145,21 @@ export const AppNavigator = () => {
     );
   }
 
+  const linking = {
+    prefixes: ['unshomecleaning://'],
+    config: {
+      screens: {
+        HomeTab: 'home',
+        ProductsCatalog: 'products',
+        CartTab: 'cart',
+        TrackOrderTab: 'track-order',
+        ProfileTab: 'profile',
+      }
+    }
+  };
+
   return (
-    <NavigationContainer>
+    <NavigationContainer linking={linking}>
       {isAuthenticated ? (
         <View style={{ flex: 1 }}>
           <TabNavigator />

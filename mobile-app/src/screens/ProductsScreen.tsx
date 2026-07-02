@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -7,11 +7,18 @@ import {
   FlatList, 
   Image, 
   TouchableOpacity, 
-  Dimensions 
+  Dimensions,
+  ScrollView,
+  Animated,
+  RefreshControl,
+  ActivityIndicator
 } from 'react-native';
 import { useSelector, useDispatch } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
+import { Check, RotateCw } from 'lucide-react-native';
 import { RootState } from '../store';
 import { addItem } from '../store/cartSlice';
+import { fetchProductsAndCategories } from '../store/productsSlice';
 
 const { width } = Dimensions.get('window');
 
@@ -23,6 +30,23 @@ export const ProductsScreen = ({ route, navigation }: any) => {
   // States
   const [search, setSearch] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
+  const [toast, setToast] = useState<{ visible: boolean; name: string; image: string } | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
+  
+  const slideAnim = useRef(new Animated.Value(-120)).current;
+
+  // Auto-refresh when tab is focused
+  useFocusEffect(
+    React.useCallback(() => {
+      dispatch(fetchProductsAndCategories() as any);
+    }, [dispatch])
+  );
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await dispatch(fetchProductsAndCategories() as any);
+    setRefreshing(false);
+  }, [dispatch]);
 
   // Check navigation params for preselected category
   useEffect(() => {
@@ -30,6 +54,25 @@ export const ProductsScreen = ({ route, navigation }: any) => {
       setSelectedCategory(route.params.categorySlug);
     }
   }, [route.params]);
+
+  const triggerToast = (name: string, image: string) => {
+    setToast({ visible: true, name, image });
+    // Slide down
+    Animated.timing(slideAnim, {
+      toValue: 20,
+      duration: 350,
+      useNativeDriver: true,
+    }).start();
+
+    // Auto-hide
+    setTimeout(() => {
+      Animated.timing(slideAnim, {
+        toValue: -150,
+        duration: 300,
+        useNativeDriver: true,
+      }).start(() => setToast(null));
+    }, 4000);
+  };
 
   const handleAddToCart = (product: any) => {
     dispatch(addItem({
@@ -40,6 +83,7 @@ export const ProductsScreen = ({ route, navigation }: any) => {
       discountPrice: product.discountPrice,
       imageUrl: product.images[0]
     }));
+    triggerToast(product.name, product.images[0]);
   };
 
   // Filter products
@@ -60,90 +104,121 @@ export const ProductsScreen = ({ route, navigation }: any) => {
   });
 
   return (
-    <View style={styles.container}>
-      
-      {/* 1. Search Bar */}
-      <View style={styles.searchContainer}>
-        <TextInput
-          style={styles.searchInput}
-          placeholder="Search home, kitchen cleaners..."
-          placeholderTextColor="#94A3B8"
-          value={search}
-          onChangeText={setSearch}
-        />
-      </View>
+    <View style={{ flex: 1, backgroundColor: '#F8FAFC' }}>
+      <View style={styles.container}>
+        
+        {/* 1. Search Bar */}
+        <View style={styles.searchContainer}>
+          <TextInput
+            style={styles.searchInput}
+            placeholder="Search home, kitchen cleaners..."
+            placeholderTextColor="#94A3B8"
+            value={search}
+            onChangeText={setSearch}
+          />
+        </View>
 
-      {/* 2. Horizontal categories list */}
-      <View style={styles.categoriesSection}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catScroll}>
-          <TouchableOpacity
-            style={[styles.catBtn, selectedCategory === 'all' && styles.catBtnActive]}
-            onPress={() => setSelectedCategory('all')}
-          >
-            <Text style={[styles.catBtnText, selectedCategory === 'all' && styles.catBtnTextActive]}>
-              All Ranges
-            </Text>
-          </TouchableOpacity>
-          {categories.map((cat) => (
+        {/* 2. Horizontal categories list */}
+        <View style={styles.categoriesSection}>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.catScroll}>
             <TouchableOpacity
-              key={cat.id}
-              style={[styles.catBtn, selectedCategory === cat.slug && styles.catBtnActive]}
-              onPress={() => setSelectedCategory(cat.slug)}
+              style={[styles.catBtn, selectedCategory === 'all' && styles.catBtnActive]}
+              onPress={() => setSelectedCategory('all')}
             >
-              <Text style={[styles.catBtnText, selectedCategory === cat.slug && styles.catBtnTextActive]}>
-                {cat.name}
+              <Text style={[styles.catBtnText, selectedCategory === 'all' && styles.catBtnTextActive]}>
+                All Ranges
               </Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+            {categories.map((cat) => (
+              <TouchableOpacity
+                key={cat.id}
+                style={[styles.catBtn, selectedCategory === cat.slug && styles.catBtnActive]}
+                onPress={() => setSelectedCategory(cat.slug)}
+              >
+                <Text style={[styles.catBtnText, selectedCategory === cat.slug && styles.catBtnTextActive]}>
+                  {cat.name.replace(" Products", "")}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+
+        {/* 3. Products Grid list */}
+        <FlatList
+          data={filteredProducts}
+          keyExtractor={(item) => item.id}
+          numColumns={2}
+          contentContainerStyle={styles.gridContainer}
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0F766E']} />
+          }
+          ListEmptyComponent={
+            <View style={styles.emptyContainer}>
+              <Text style={styles.emptyText}>No cleaning products match your filters.</Text>
+            </View>
+          }
+          renderItem={({ item }) => (
+            <TouchableOpacity
+              style={styles.card}
+              activeOpacity={0.9}
+              onPress={() => navigation.navigate('ProductDetails', { slug: item.slug })}
+            >
+              <Image source={{ uri: item.images[0] }} style={styles.cardImage} />
+              <View style={styles.cardBody}>
+                <Text style={styles.cardCat}>{item.category}</Text>
+                <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
+                
+                <View style={styles.ratingRow}>
+                  <Text style={styles.star}>★</Text>
+                  <Text style={styles.ratingText}>{item.rating}</Text>
+                </View>
+
+                <View style={styles.priceRow}>
+                  <Text style={styles.price}>₹{item.discountPrice}</Text>
+                  {item.discountPrice < item.price && (
+                    <Text style={styles.oldPrice}>₹{item.price}</Text>
+                  )}
+                </View>
+
+                <TouchableOpacity
+                  style={styles.addBtn}
+                  onPress={() => handleAddToCart(item)}
+                >
+                  <Text style={styles.addBtnText}>Add to Cart</Text>
+                </TouchableOpacity>
+              </View>
+            </TouchableOpacity>
+          )}
+        />
+
       </View>
 
-      {/* 3. Products Grid list */}
-      <FlatList
-        data={filteredProducts}
-        keyExtractor={(item) => item.id}
-        numColumns={2}
-        contentContainerStyle={styles.gridContainer}
-        showsVerticalScrollIndicator={false}
-        ListEmptyComponent={
-          <View style={styles.emptyContainer}>
-            <Text style={styles.emptyText}>No cleaning products match your filters.</Text>
-          </View>
-        }
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={styles.card}
-            activeOpacity={0.9}
-            onPress={() => navigation.navigate('ProductDetails', { slug: item.slug })}
-          >
-            <Image source={{ uri: item.images[0] }} style={styles.cardImage} />
-            <View style={styles.cardBody}>
-              <Text style={styles.cardCat}>{item.category}</Text>
-              <Text style={styles.cardTitle} numberOfLines={1}>{item.name}</Text>
-              
-              <View style={styles.ratingRow}>
-                <Text style={styles.star}>★</Text>
-                <Text style={styles.ratingText}>{item.rating}</Text>
+      {/* ─── Web-Style Toast Notification (Slide Down Overlay) ─── */}
+      {toast && (
+        <Animated.View style={[styles.toastContainer, { transform: [{ translateY: slideAnim }] }]}>
+          <View style={styles.toastCard}>
+            <Image source={{ uri: toast.image }} style={styles.toastImg} />
+            <View style={styles.toastBody}>
+              <View style={styles.toastHeaderRow}>
+                <Check size={12} color="#0F766E" style={{ marginRight: 4 }} />
+                <Text style={styles.toastSuccessText}>SUCCESS</Text>
               </View>
-
-              <View style={styles.priceRow}>
-                <Text style={styles.price}>₹{item.discountPrice}</Text>
-                {item.discountPrice < item.price && (
-                  <Text style={styles.oldPrice}>₹{item.price}</Text>
-                )}
-              </View>
-
-              <TouchableOpacity
-                style={styles.addBtn}
-                onPress={() => handleAddToCart(item)}
-              >
-                <Text style={styles.addBtnText}>Add to Cart</Text>
-              </TouchableOpacity>
+              <Text style={styles.toastProdName} numberOfLines={1}>{toast.name}</Text>
+              <Text style={styles.toastSub}>ADDED TO CART</Text>
             </View>
-          </TouchableOpacity>
-        )}
-      />
-
+            <TouchableOpacity 
+              style={styles.toastViewCartBtn}
+              onPress={() => {
+                setToast(null);
+                navigation.navigate('CartTab');
+              }}
+            >
+              <Text style={styles.toastViewCartText}>VIEW CART</Text>
+            </TouchableOpacity>
+          </View>
+        </Animated.View>
+      )}
     </View>
   );
 };
@@ -279,8 +354,72 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#64748B',
     textAlign: 'center',
+  },
+  // Toast Styles
+  toastContainer: {
+    position: 'absolute',
+    top: 50,
+    left: 20,
+    right: 20,
+    zIndex: 9999,
+  },
+  toastCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 6,
+  },
+  toastImg: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#F8FAFC',
+    marginRight: 10,
+  },
+  toastBody: {
+    flex: 1,
+    marginRight: 10,
+  },
+  toastHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 2,
+  },
+  toastSuccessText: {
+    color: '#0F766E',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+  toastProdName: {
+    color: '#0F172A',
+    fontSize: 12,
+    fontWeight: 'bold',
+  },
+  toastSub: {
+    color: '#64748B',
+    fontSize: 8,
+    fontWeight: '700',
+    marginTop: 1,
+  },
+  toastViewCartBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderBottomWidth: 1.5,
+    borderBottomColor: '#0F766E',
+  },
+  toastViewCartText: {
+    color: '#0F766E',
+    fontSize: 10,
+    fontWeight: '900',
   }
 });
 
-import { ScrollView } from 'react-native';
 export default ProductsScreen;

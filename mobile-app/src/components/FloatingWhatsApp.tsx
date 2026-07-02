@@ -65,8 +65,8 @@ export const FloatingWhatsApp: React.FC<FloatingWhatsAppProps> = ({ productName 
 const styles = StyleSheet.create({
   container: {
     position: 'absolute',
-    bottom: 25,
-    right: 25,
+    bottom: 80,
+    right: 20,
     zIndex: 999,
   },
   button: {

@@ -1,7 +1,8 @@
 {
   "expo": {
-    "name": "UNS Home Cleaning Products",
+    "name": "UNS",
     "slug": "uns-home-cleaning",
+    "scheme": "unshomecleaning",
     "owner": "gourav56",
     "version": "1.0.0",
     "orientation": "portrait",

@@ -700,9 +700,49 @@ const productsSlice = createSlice({
   reducers: {
     setProducts: (state, action: PayloadAction<Product[]>) => {
       state.items = action.payload;
+    },
+    setCategories: (state, action: PayloadAction<Category[]>) => {
+      state.categories = action.payload;
+    },
+    setStatus: (state, action: PayloadAction<'idle' | 'loading' | 'succeeded' | 'failed'>) => {
+      state.status = action.payload;
     }
   }
 });
 
-export const { setProducts } = productsSlice.actions;
+export const { setProducts, setCategories, setStatus } = productsSlice.actions;
+
+export const fetchProductsAndCategories = () => async (dispatch: any) => {
+  dispatch(setStatus('loading'));
+  try {
+    const [prodRes, catRes] = await Promise.all([
+      fetch(`${API_BASE_URL}/api/products`),
+      fetch(`${API_BASE_URL}/api/categories`)
+    ]);
+
+    if (prodRes.ok && catRes.ok) {
+      const productsData = await prodRes.json();
+      const categoriesData = await catRes.json();
+
+      const mappedProducts = productsData.map((p: any) => ({
+        ...p,
+        images: p.images ? p.images.map(mapImages) : []
+      }));
+      const mappedCategories = categoriesData.map((c: any) => ({
+        ...c,
+        imageUrl: mapImages(c.imageUrl)
+      }));
+
+      dispatch(setProducts(mappedProducts));
+      dispatch(setCategories(mappedCategories));
+      dispatch(setStatus('succeeded'));
+    } else {
+      dispatch(setStatus('failed'));
+    }
+  } catch (err) {
+    console.error('Failed to fetch catalog:', err);
+    dispatch(setStatus('failed'));
+  }
+};
+
 export default productsSlice.reducer;

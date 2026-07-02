@@ -5,15 +5,38 @@ import {
   View, 
   TextInput, 
   TouchableOpacity, 
-  ScrollView 
+  ScrollView,
+  ActivityIndicator,
+  RefreshControl
 } from 'react-native';
+import { useSelector } from 'react-redux';
+import { useFocusEffect } from '@react-navigation/native';
+import { ArrowLeft, RefreshCw } from 'lucide-react-native';
+import { RootState } from '../store';
+import { API_BASE_URL } from '../config/api';
 
 export const TrackOrderScreen = ({ route }: any) => {
+  const { user } = useSelector((state: RootState) => state.auth);
+  
   const [orderId, setOrderId] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState(user?.phone || '');
   const [orderData, setOrderData] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
+  // History State
+  const [orders, setOrders] = useState<any[]>([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  // Pre-fill phone if user object changes
+  useEffect(() => {
+    if (user?.phone) {
+      setPhone(user.phone);
+    }
+  }, [user]);
+
+  // Handle route params redirection (e.g. from checkout success page)
   useEffect(() => {
     if (route.params?.orderId && route.params?.phone) {
       setOrderId(route.params.orderId);
@@ -22,64 +45,128 @@ export const TrackOrderScreen = ({ route }: any) => {
     }
   }, [route.params]);
 
-  const handleTrack = (id: string, ph: string) => {
+  const fetchOrderHistory = async () => {
+    if (!user?.phone && !user?.email) return;
+    setLoadingHistory(true);
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/my-orders?phone=${user.phone || ''}&email=${user.email || ''}`);
+      if (response.ok) {
+        const data = await response.json();
+        setOrders(data);
+      }
+    } catch (e) {
+      console.log('Error fetching order history:', e);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  // Sync order history automatically on focus
+  useFocusEffect(
+    React.useCallback(() => {
+      fetchOrderHistory();
+    }, [user])
+  );
+
+  const onRefresh = React.useCallback(async () => {
+    setRefreshing(true);
+    await fetchOrderHistory();
+    if (orderData) {
+      // Also refresh the currently viewed order details
+      await handleTrackQuietly(orderData.orderNumber.toString(), orderData.customerPhone);
+    }
+    setRefreshing(false);
+  }, [user, orderData]);
+
+  const handleTrackQuietly = async (id: string, ph: string) => {
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/track?orderId=${id.trim()}&phone=${ph.trim()}`);
+      if (response.ok) {
+        const data = await response.json();
+        setOrderData({
+          orderNumber: data.orderNumber,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          status: data.status,
+          shippingAddress: data.shippingAddress,
+          totalAmount: data.totalAmount,
+          timeline: data.trackingTimeline ? data.trackingTimeline.map((t: any) => ({
+            status: t.status,
+            time: new Date(t.time).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' }),
+            desc: t.description
+          })) : []
+        });
+      }
+    } catch (e) {
+      // Silently fail on background refresh
+    }
+  };
+
+  const handleTrack = async (id: string, ph: string) => {
+    if (!id.trim() || !ph.trim()) {
+      setError("Please enter both Order ID and Phone Number.");
+      return;
+    }
     setError(null);
     setOrderData(null);
+    setLoading(true);
 
-    // Mock search
-    if (id && ph.replace(/[^0-9]/g, '').endsWith('7396158011') || id === '1001') {
-      setOrderData({
-        orderNumber: id,
-        customerName: "Ganesh Reddy",
-        customerPhone: ph,
-        status: "Processing",
-        shippingAddress: "Plot 42, H.No: 4-12/A, Siddipet, Telangana, 502103",
-        totalAmount: 347.00,
-        timeline: [
-          { status: "Order Placed", time: "2026-06-12 10:00 AM", desc: "Order details received." },
-          { status: "Processing", time: "2026-06-12 02:30 PM", desc: "Items packed and ready for dispatch." }
-        ]
-      });
-    } else {
-      setError("No matching order found. For testing, try ID '1001' and Phone '7396158011'.");
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/orders/track?orderId=${id.trim()}&phone=${ph.trim()}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setOrderData({
+          orderNumber: data.orderNumber,
+          customerName: data.customerName,
+          customerPhone: data.customerPhone,
+          status: data.status,
+          shippingAddress: data.shippingAddress,
+          totalAmount: data.totalAmount,
+          timeline: data.trackingTimeline ? data.trackingTimeline.map((t: any) => ({
+            status: t.status,
+            time: new Date(t.time).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' }),
+            desc: t.description
+          })) : []
+        });
+      } else {
+        setError(data.error || "No matching order found. Please check details.");
+      }
+    } catch (err) {
+      setError("Server connection failed. Could not verify order status.");
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      <Text style={styles.screenHeader}>Track Order</Text>
+    <ScrollView 
+      style={styles.container} 
+      showsVerticalScrollIndicator={false}
+      refreshControl={
+        <RefreshControl refreshing={refreshing} onRefresh={onRefresh} colors={['#0F766E']} />
+      }
+    >
+      {orderData ? (
+        <View style={styles.detailHeaderRow}>
+          <TouchableOpacity 
+            style={styles.backBtn} 
+            onPress={() => {
+              setOrderData(null);
+              setError(null);
+            }}
+          >
+            <ArrowLeft size={16} color="#0F766E" />
+            <Text style={styles.backBtnText}>My Orders</Text>
+          </TouchableOpacity>
+          <Text style={styles.detailScreenHeader}>Tracking Status</Text>
+        </View>
+      ) : (
+        <Text style={styles.screenHeader}>Track Order</Text>
+      )}
 
-      {/* Query Form */}
-      <View style={styles.formCard}>
-        <TextInput
-          style={styles.input}
-          placeholder="Order Tracking ID"
-          placeholderTextColor="#94A3B8"
-          value={orderId}
-          onChangeText={setOrderId}
-        />
-        <TextInput
-          style={styles.input}
-          placeholder="Registered Phone Number"
-          placeholderTextColor="#94A3B8"
-          keyboardType="phone-pad"
-          value={phone}
-          onChangeText={setPhone}
-        />
-        <TouchableOpacity 
-          style={styles.trackBtn} 
-          onPress={() => handleTrack(orderId, phone)}
-        >
-          <Text style={styles.trackText}>Verify Order Status</Text>
-        </TouchableOpacity>
-
-        {error && (
-          <Text style={styles.errorText}>{error}</Text>
-        )}
-      </View>
-
-      {/* Tracking Results */}
-      {orderData && (
+      {/* ─── CASE A: TIMELINE DETAILED VIEW ─── */}
+      {orderData ? (
         <View style={styles.resultCard}>
           <View style={styles.summaryRow}>
             <View>
@@ -99,31 +186,139 @@ export const TrackOrderScreen = ({ route }: any) => {
           {/* Vertical Timeline */}
           <Text style={styles.timelineHeader}>Shipment Timeline</Text>
           <View style={styles.timelineContainer}>
-            {orderData.timeline.map((step: any, idx: number) => {
-              const isLatest = idx === orderData.timeline.length - 1;
-              return (
-                <View key={idx} style={styles.timelineItem}>
-                  <View style={styles.timelineIndicator}>
-                    <View style={[styles.dot, isLatest && styles.dotActive]} />
-                    {idx < orderData.timeline.length - 1 && (
-                      <View style={styles.connectorLine} />
-                    )}
-                  </View>
-                  <View style={styles.timelineContent}>
-                    <View style={styles.timelineHeaderRow}>
-                      <Text style={styles.stepTitle}>{step.status}</Text>
-                      <Text style={styles.stepTime}>{step.time}</Text>
+            {orderData.timeline.length > 0 ? (
+              orderData.timeline.map((step: any, idx: number) => {
+                const isLatest = idx === orderData.timeline.length - 1;
+                return (
+                  <View key={idx} style={styles.timelineItem}>
+                    <View style={styles.timelineIndicator}>
+                      <View style={[styles.dot, isLatest && styles.dotActive]} />
+                      {idx < orderData.timeline.length - 1 && (
+                        <View style={styles.connectorLine} />
+                      )}
                     </View>
-                    <Text style={styles.stepDesc}>{step.desc}</Text>
+                    <View style={styles.timelineContent}>
+                      <View style={styles.timelineHeaderRow}>
+                        <Text style={styles.stepTitle}>{step.status}</Text>
+                        <Text style={styles.stepTime}>{step.time}</Text>
+                      </View>
+                      <Text style={styles.stepDesc}>{step.desc}</Text>
+                    </View>
                   </View>
-                </View>
-              );
-            })}
+                );
+              })
+            ) : (
+              <Text style={styles.emptyTimelineText}>No tracking updates available yet.</Text>
+            )}
           </View>
 
           <View style={styles.addressBox}>
             <Text style={styles.addressTitle}>Shipping Address</Text>
             <Text style={styles.addressText}>{orderData.shippingAddress}</Text>
+          </View>
+        </View>
+      ) : (
+        /* ─── CASE B: ORDER HISTORY LIST & SEARCH FORM ─── */
+        <View>
+          {/* Query Form */}
+          <View style={styles.formCard}>
+            <Text style={styles.formSectionTitle}>Search Specific Order</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Order Tracking ID (e.g. 1001)"
+              placeholderTextColor="#94A3B8"
+              value={orderId}
+              onChangeText={setOrderId}
+            />
+            <TextInput
+              style={styles.input}
+              placeholder="Registered Phone Number"
+              placeholderTextColor="#94A3B8"
+              keyboardType="phone-pad"
+              value={phone}
+              onChangeText={setPhone}
+            />
+            <TouchableOpacity 
+              style={[styles.trackBtn, loading && { backgroundColor: '#94A3B8' }]} 
+              onPress={() => handleTrack(orderId, phone)}
+              disabled={loading}
+            >
+              {loading ? (
+                <ActivityIndicator color="#fff" size="small" />
+              ) : (
+                <Text style={styles.trackText}>Verify Order Status</Text>
+              )}
+            </TouchableOpacity>
+
+            {error && (
+              <Text style={styles.errorText}>{error}</Text>
+            )}
+          </View>
+
+          {/* User History List */}
+          <View style={styles.historySection}>
+            <View style={styles.historyHeaderRow}>
+              <Text style={styles.historySectionTitle}>Your Order History</Text>
+              {loadingHistory && <ActivityIndicator size="small" color="#0F766E" />}
+            </View>
+
+            {orders.length > 0 ? (
+              orders.map((order) => (
+                <View key={order.id} style={styles.orderHistoryCard}>
+                  <View style={styles.historyCardHeader}>
+                    <View>
+                      <Text style={styles.orderLabel}>ORDER NUMBER</Text>
+                      <Text style={styles.orderVal}>UNS-#{order.orderNumber}</Text>
+                    </View>
+                    <View style={styles.badgeWrapper}>
+                      <Text style={[
+                        styles.historyStatusBadge,
+                        order.status === 'Delivered' && styles.statusDelivered,
+                        order.status === 'Cancelled' && styles.statusCancelled,
+                      ]}>
+                        {order.status}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <View style={styles.historyCardBody}>
+                    <View style={styles.metaRow}>
+                      <Text style={styles.metaLabel}>Date:</Text>
+                      <Text style={styles.metaVal}>{new Date(order.createdAt).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' })}</Text>
+                    </View>
+                    <View style={styles.metaRow}>
+                      <Text style={styles.metaLabel}>Total Paid:</Text>
+                      <Text style={[styles.metaVal, { fontWeight: 'bold', color: '#0F766E' }]}>₹{order.totalAmount}</Text>
+                    </View>
+                    <View style={styles.metaRow}>
+                      <Text style={styles.metaLabel}>Payment:</Text>
+                      <Text style={[styles.metaVal, { color: order.paymentStatus === 'Paid' ? '#22C55E' : '#EF4444', fontWeight: 'bold' }]}>
+                        {order.paymentStatus}
+                      </Text>
+                    </View>
+                  </View>
+
+                  <TouchableOpacity 
+                    style={styles.historyTrackBtn}
+                    onPress={() => {
+                      setOrderId(order.orderNumber.toString());
+                      setPhone(order.customerPhone);
+                      handleTrack(order.orderNumber.toString(), order.customerPhone);
+                    }}
+                  >
+                    <Text style={styles.historyTrackBtnText}>Track Delivery Timeline</Text>
+                  </TouchableOpacity>
+                </View>
+              ))
+            ) : (
+              <View style={styles.emptyHistoryCard}>
+                <Text style={styles.emptyHistoryEmoji}>📦</Text>
+                <Text style={styles.emptyHistoryTitle}>No Orders Found</Text>
+                <Text style={styles.emptyHistorySub}>
+                  You haven't placed any cleaning orders yet. Your purchases will automatically show up here once checked out!
+                </Text>
+              </View>
+            )}
           </View>
         </View>
       )}
@@ -146,6 +341,32 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     marginBottom: 15,
   },
+  detailHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    marginBottom: 15,
+  },
+  backBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F1F5F9',
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 8,
+    marginRight: 12,
+  },
+  backBtnText: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#0F766E',
+    marginLeft: 4,
+  },
+  detailScreenHeader: {
+    fontSize: 16,
+    fontWeight: 'bold',
+    color: '#0F172A',
+  },
   formCard: {
     backgroundColor: '#fff',
     borderWidth: 1,
@@ -159,6 +380,14 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.04,
     shadowRadius: 3,
     elevation: 2,
+  },
+  formSectionTitle: {
+    fontSize: 11,
+    fontWeight: 'bold',
+    color: '#475569',
+    textTransform: 'uppercase',
+    letterSpacing: 1.2,
+    marginBottom: 10,
   },
   input: {
     borderWidth: 1,
@@ -176,6 +405,8 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     paddingVertical: 10,
     alignItems: 'center',
+    justifyContent: 'center',
+    height: 38,
   },
   trackText: {
     color: '#fff',
@@ -183,7 +414,7 @@ const styles = StyleSheet.create({
     fontWeight: 'bold',
   },
   errorText: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#EF4444',
     textAlign: 'center',
     marginTop: 10,
@@ -288,6 +519,11 @@ const styles = StyleSheet.create({
     color: '#64748B',
     marginTop: 2,
   },
+  emptyTimelineText: {
+    fontSize: 11,
+    color: '#94A3B8',
+    fontStyle: 'italic',
+  },
   addressBox: {
     borderTopWidth: 1,
     borderTopColor: '#F1F5F9',
@@ -305,6 +541,124 @@ const styles = StyleSheet.create({
     color: '#475569',
     marginTop: 2,
     lineHeight: 15,
+  },
+  // History section styles
+  historySection: {
+    marginHorizontal: 20,
+    marginTop: 10,
+  },
+  historyHeaderRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  historySectionTitle: {
+    fontSize: 13,
+    fontWeight: 'bold',
+    color: '#334155',
+  },
+  orderHistoryCard: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 10,
+  },
+  historyCardHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    borderBottomWidth: 1,
+    borderBottomColor: '#F1F5F9',
+    paddingBottom: 8,
+    marginBottom: 8,
+  },
+  orderLabel: {
+    fontSize: 8,
+    color: '#64748B',
+    fontWeight: '900',
+  },
+  orderVal: {
+    fontSize: 12,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    marginTop: 1,
+  },
+  badgeWrapper: {
+    justifyContent: 'center',
+  },
+  historyStatusBadge: {
+    fontSize: 9,
+    fontWeight: '900',
+    color: '#0F766E',
+    backgroundColor: '#F0FDF4',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 4,
+  },
+  statusDelivered: {
+    color: '#16A34A',
+    backgroundColor: '#DCFCE7',
+  },
+  statusCancelled: {
+    color: '#DC2626',
+    backgroundColor: '#FEE2E2',
+  },
+  historyCardBody: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginBottom: 10,
+  },
+  metaRow: {
+    flexDirection: 'column',
+  },
+  metaLabel: {
+    fontSize: 8,
+    color: '#64748B',
+    fontWeight: '700',
+  },
+  metaVal: {
+    fontSize: 10,
+    color: '#334155',
+    marginTop: 2,
+  },
+  historyTrackBtn: {
+    backgroundColor: '#F0FDF4',
+    borderWidth: 1,
+    borderColor: '#CCFBF1',
+    borderRadius: 8,
+    paddingVertical: 8,
+    alignItems: 'center',
+  },
+  historyTrackBtnText: {
+    color: '#0F766E',
+    fontSize: 11,
+    fontWeight: 'bold',
+  },
+  emptyHistoryCard: {
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#E2E8F0',
+    borderRadius: 12,
+    padding: 20,
+    alignItems: 'center',
+  },
+  emptyHistoryEmoji: {
+    fontSize: 32,
+    marginBottom: 10,
+  },
+  emptyHistoryTitle: {
+    fontSize: 14,
+    fontWeight: 'bold',
+    color: '#0F172A',
+    marginBottom: 6,
+  },
+  emptyHistorySub: {
+    fontSize: 11,
+    color: '#64748B',
+    textAlign: 'center',
+    lineHeight: 16,
   }
 });
 
