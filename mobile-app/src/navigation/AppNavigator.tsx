@@ -36,12 +36,11 @@ function TabBarIcon({ label, color }: any) {
   if (label === 'Track') emoji = '🚚';
   if (label === 'Profile') emoji = '👤';
   return (
-    <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 4 }}>
+    <View style={{ alignItems: 'center', justifyContent: 'center', marginTop: 4, minWidth: 80 }}>
       <Text style={{ fontSize: 18 }}>{emoji}</Text>
       <Text 
         numberOfLines={1} 
-        adjustsFontSizeToFit 
-        style={{ fontSize: 8.5, color, fontWeight: '700', marginTop: 2, width: 70, textAlign: 'center' }}
+        style={{ fontSize: 8.5, color, fontWeight: '700', marginTop: 2, textAlign: 'center' }}
       >
         {label}
       </Text>
@@ -72,8 +71,8 @@ function TabNavigator() {
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
           backgroundColor: '#FFFFFF',
-          height: Platform.OS === 'ios' ? 95 : 95,
-          paddingBottom: Platform.OS === 'ios' ? 32 : 32,
+          height: Platform.OS === 'ios' ? 90 : 88,
+          paddingBottom: Platform.OS === 'ios' ? 30 : 28,
           paddingTop: 8,
         },
         tabBarIcon: ({ color }) => {
