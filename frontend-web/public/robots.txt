@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+
+# Disallow crawling of admin dashboard to prevent admin pages from appearing in Google search results
+Disallow: /admin
+Disallow: /admin/*
+
+Sitemap: https://unsindia.com/sitemap.xml

@@ -80,8 +80,21 @@ export const Products: React.FC = () => {
     setShowMobileFilters(false);
   };
 
+  const activeCategoryObj = categories.find(c => c.slug === selectedCategory);
+
   return (
     <div className="py-10 bg-slate-50 min-h-screen">
+      {activeCategoryObj ? (
+        <>
+          <title>{activeCategoryObj.name} | UNS Home Cleaning Products</title>
+          <meta name="description" content={`Browse our ${activeCategoryObj.name} range. ${activeCategoryObj.description || 'Quality cleaning products designed for clean today and healthy tomorrow.'}`} />
+        </>
+      ) : (
+        <>
+          <title>Our Cleaning Products & Formulations | UNS Home Cleaning Products</title>
+          <meta name="description" content="Explore our full range of 12+ cleaning formulations, including household floor cleaners, kitchen dishwash, laundry care detergent liquids, soaps, and commercial products." />
+        </>
+      )}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Breadcrumb / Title */}

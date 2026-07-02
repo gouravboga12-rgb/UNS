@@ -134,6 +134,8 @@ export const Contact: React.FC = () => {
 
   return (
     <div className="py-12 bg-slate-50 min-h-screen relative overflow-hidden">
+      <title>Contact Us & Apply for Distributorship | UNS Home Cleaning Products</title>
+      <meta name="description" content="Get in touch with UNS Home Cleaning Products Pvt Ltd. Ask support questions or fill out the dealership application to start distributing our premium cleaners." />
       {/* Blobs */}
       <div className="absolute top-0 left-[-10%] w-[28rem] h-[28rem] rounded-full bg-teal-200/10 blur-3xl pointer-events-none" />
       <div className="absolute bottom-[10%] right-[-10%] w-[24rem] h-[24rem] rounded-full bg-emerald-200/10 blur-3xl pointer-events-none" />

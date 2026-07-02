@@ -143,6 +143,8 @@ export const Home: React.FC = () => {
 
   return (
     <div className="relative bg-[#FAFAFA] text-slate-800 font-sans">
+      <title>UNS Home Cleaning Products | Premium Household & Commercial Cleaners</title>
+      <meta name="description" content="Discover UNS Home Cleaning Products. We formulate premium floor cleaners, dishwash liquid, laundry detergents, moisturizing hand wash, and eco-friendly herbal soaps. Clean today, healthy tomorrow!" />
       
       {/* 1. Scrolling Announcement Bar — Infinite Marquee (pure CSS) */}
       <style>{`

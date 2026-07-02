@@ -70,6 +70,17 @@ export const About: React.FC = () => {
 
   return (
     <div className="bg-gradient-to-b from-slate-50 via-white to-slate-100 min-h-screen relative pb-20 overflow-hidden">
+      {selectedBlog ? (
+        <>
+          <title>{selectedBlog.seoTitle || `${selectedBlog.title} | UNS`}</title>
+          <meta name="description" content={selectedBlog.seoDescription || selectedBlog.summary} />
+        </>
+      ) : (
+        <>
+          <title>About Us & Expert Cleaning Blogs | UNS Home Cleaning Products</title>
+          <meta name="description" content="Learn about UNS Home Cleaning Products, our high-quality raw materials, state-of-the-art facility in Telangana, and browse expert hygiene tips and guides." />
+        </>
+      )}
       
       {/* Decorative Blur Blobs */}
       <div className="absolute top-[25%] left-[-15%] w-[35rem] h-[35rem] rounded-full bg-teal-200/15 blur-3xl pointer-events-none z-0" />

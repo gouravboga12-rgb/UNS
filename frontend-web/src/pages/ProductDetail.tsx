@@ -395,6 +395,12 @@ export const ProductDetail: React.FC = () => {
 
   return (
     <div className="py-10 bg-slate-50 min-h-screen">
+      <title>{product.seoTitle || `${product.name} | UNS Home Cleaning Products`}</title>
+      <meta name="description" content={product.seoDescription || product.shortDescription} />
+      <meta property="og:title" content={product.seoTitle || `${product.name} | UNS Home Cleaning Products`} />
+      <meta property="og:description" content={product.shortDescription} />
+      <meta property="og:image" content={product.images[0] || 'https://unsindia.com/favicon.png'} />
+      <meta property="og:url" content={`https://unsindia.com/products/${product.slug}`} />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         
         {/* Breadcrumbs */}

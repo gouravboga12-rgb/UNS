@@ -2,49 +2,49 @@
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
   <!-- Core Pages -->
   <url>
-    <loc>https://uns-mu.vercel.app/</loc>
+    <loc>https://unsindia.com/</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>1.0</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/categories</loc>
+    <loc>https://unsindia.com/categories</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products</loc>
+    <loc>https://unsindia.com/products</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>daily</changefreq>
     <priority>0.9</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/about</loc>
+    <loc>https://unsindia.com/about</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/contact</loc>
+    <loc>https://unsindia.com/contact</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.7</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/track-order</loc>
+    <loc>https://unsindia.com/track-order</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.6</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/signin</loc>
+    <loc>https://unsindia.com/signin</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/signup</loc>
+    <loc>https://unsindia.com/signup</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>monthly</changefreq>
     <priority>0.5</priority>
@@ -52,103 +52,103 @@
 
   <!-- Product Pages -->
   <url>
-    <loc>https://uns-mu.vercel.app/products/toilet-cleaner-liquid</loc>
+    <loc>https://unsindia.com/products/toilet-cleaner-liquid</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/bathroom-cleaner-liquid</loc>
+    <loc>https://unsindia.com/products/bathroom-cleaner-liquid</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/floor-cleaner-liquid</loc>
+    <loc>https://unsindia.com/products/floor-cleaner-liquid</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/dish-wash-liquid</loc>
+    <loc>https://unsindia.com/products/dish-wash-liquid</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/hand-wash-liquid</loc>
+    <loc>https://unsindia.com/products/hand-wash-liquid</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/glass-cleaner-liquid</loc>
+    <loc>https://unsindia.com/products/glass-cleaner-liquid</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/detergent-liquid</loc>
+    <loc>https://unsindia.com/products/detergent-liquid</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/white-phenyl</loc>
+    <loc>https://unsindia.com/products/white-phenyl</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/scented-phenyl</loc>
+    <loc>https://unsindia.com/products/scented-phenyl</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/air-freshener</loc>
+    <loc>https://unsindia.com/products/air-freshener</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/car-wash-shampoo</loc>
+    <loc>https://unsindia.com/products/car-wash-shampoo</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/detergent-soap</loc>
+    <loc>https://unsindia.com/products/detergent-soap</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/commercial-floor-cleaner-5l</loc>
+    <loc>https://unsindia.com/products/commercial-floor-cleaner-5l</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/commercial-white-phenyl-5l</loc>
+    <loc>https://unsindia.com/products/commercial-white-phenyl-5l</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/detergent-powder</loc>
+    <loc>https://unsindia.com/products/detergent-powder</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/herbal-shampoo</loc>
+    <loc>https://unsindia.com/products/herbal-shampoo</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
   </url>
   <url>
-    <loc>https://uns-mu.vercel.app/products/herbal-soap</loc>
+    <loc>https://unsindia.com/products/herbal-soap</loc>
     <lastmod>2026-06-18</lastmod>
     <changefreq>weekly</changefreq>
     <priority>0.8</priority>
