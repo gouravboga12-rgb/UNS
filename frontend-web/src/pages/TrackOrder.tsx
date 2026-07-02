@@ -261,6 +261,45 @@ export const TrackOrder: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 relative z-10">
         
+        {/* Mobile Payment Redirect Landing Card */}
+        {(searchParams.get('payment') === 'success' || searchParams.get('payment') === 'failed') && (
+          <div className="w-full max-w-md mx-auto mb-10 bg-white border border-slate-200 rounded-3xl p-6 shadow-soft text-center animate-fade-in relative z-50">
+            {searchParams.get('payment') === 'success' ? (
+              <>
+                <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-emerald-100">
+                  <CheckCircle2 className="text-emerald-600" size={30} />
+                </div>
+                <h2 className="text-xl font-bold text-slate-800">Payment Successful!</h2>
+                <p className="text-slate-500 text-xs mt-2 mb-6 leading-relaxed">
+                  Your transaction has been securely processed. Please tap below to return to your UNS Mobile App.
+                </p>
+                <a 
+                  href={`unshomecleaning://track-order?orderId=${searchParams.get('orderId') || ''}&phone=${searchParams.get('phone') || ''}`}
+                  className="inline-flex items-center justify-center w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 px-5 rounded-xl text-sm transition-colors duration-150"
+                >
+                  Return to UNS App
+                </a>
+              </>
+            ) : (
+              <>
+                <div className="w-16 h-16 bg-red-50 rounded-full flex items-center justify-center mx-auto mb-4 border border-red-100">
+                  <span className="text-red-500 font-black text-xl">✕</span>
+                </div>
+                <h2 className="text-xl font-bold text-slate-800">Payment Failed</h2>
+                <p className="text-slate-500 text-xs mt-2 mb-6 leading-relaxed">
+                  The payment transaction was cancelled or declined. Please return to the app to retry your order.
+                </p>
+                <a 
+                  href={`unshomecleaning://track-order`}
+                  className="inline-flex items-center justify-center w-full bg-teal-600 hover:bg-teal-700 text-white font-semibold py-2.5 px-5 rounded-xl text-sm transition-colors duration-150"
+                >
+                  Return to App & Try Again
+                </a>
+              </>
+            )}
+          </div>
+        )}
+        
         {/* Top Product Shelf Banner Image (to match Koparo Clean tracking header visual) */}
         <div className="w-full max-w-4xl mx-auto rounded-3xl overflow-hidden aspect-[21/6] sm:aspect-[21/4] border border-border shadow-soft bg-teal-950 mb-12 relative group select-none">
           <img 

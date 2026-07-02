@@ -263,6 +263,11 @@ app.get('/api/products', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('products').select('*');
     if (error) throw error;
+    
+    const host = req.get('host');
+    const protocol = host?.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
     // Normalize Supabase snake_case/lowercase columns to camelCase
     list = (data as any[]).map((p: any) => ({
       id: p.id,
@@ -271,7 +276,9 @@ app.get('/api/products', async (req: Request, res: Response) => {
       category: p.category,
       shortDescription: p.shortDescription || p.shortdescription || '',
       fullDescription: p.fullDescription || p.fulldescription || '',
-      images: p.images || [],
+      images: (p.images || []).map((img: string) => 
+        img.startsWith('http://localhost:5000') ? img.replace('http://localhost:5000', baseUrl) : img
+      ),
       price: Number(p.price) || 0,
       discountPrice: Number(p.discountPrice || p.discountprice) || Number(p.price) || 0,
       stock: Number(p.stock) || 0,
@@ -293,7 +300,15 @@ app.get('/api/products', async (req: Request, res: Response) => {
     }
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET products:', err.message);
-    list = [...productsState];
+    const host = req.get('host');
+    const protocol = host?.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+    list = productsState.map(p => ({
+      ...p,
+      images: (p.images || []).map((img: string) => 
+        img.startsWith('http://localhost:5000') ? img.replace('http://localhost:5000', baseUrl) : img
+      )
+    }));
   }
 
   // Filter in memory to align with mock parameters
@@ -344,6 +359,10 @@ app.get('/api/products/:slug', async (req: Request, res: Response) => {
     const { data: rawProduct, error } = await supabase.from('products').select('*').eq('slug', slug).single();
     if (error) throw error;
     
+    const host = req.get('host');
+    const protocol = host?.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+
     // Normalize Supabase lowercase columns to camelCase
     const product: any = {
       id: rawProduct.id,
@@ -352,7 +371,9 @@ app.get('/api/products/:slug', async (req: Request, res: Response) => {
       category: rawProduct.category,
       shortDescription: rawProduct.shortDescription || rawProduct.shortdescription || '',
       fullDescription: rawProduct.fullDescription || rawProduct.fulldescription || '',
-      images: rawProduct.images || [],
+      images: (rawProduct.images || []).map((img: string) => 
+        img.startsWith('http://localhost:5000') ? img.replace('http://localhost:5000', baseUrl) : img
+      ),
       price: Number(rawProduct.price) || 0,
       discountPrice: Number(rawProduct.discountPrice || rawProduct.discountprice) || Number(rawProduct.price) || 0,
       stock: Number(rawProduct.stock) || 0,
@@ -373,10 +394,19 @@ app.get('/api/products/:slug', async (req: Request, res: Response) => {
     res.json(product);
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET product detail:', err.message);
-    const product = productsState.find(p => p.slug === slug);
-    if (!product) {
+    const rawProduct = productsState.find(p => p.slug === slug);
+    if (!rawProduct) {
       return res.status(404).json({ error: 'Product not found' });
     }
+    const host = req.get('host');
+    const protocol = host?.includes('localhost') ? 'http' : 'https';
+    const baseUrl = `${protocol}://${host}`;
+    const product = {
+      ...rawProduct,
+      images: (rawProduct.images || []).map((img: string) => 
+        img.startsWith('http://localhost:5000') ? img.replace('http://localhost:5000', baseUrl) : img
+      )
+    };
     const approvedReviews = product.reviews ? product.reviews.filter(r => r.approved) : [];
     res.json({ ...product, reviews: approvedReviews });
   }
@@ -1026,7 +1056,15 @@ app.post('/api/payments/payment-link', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    const callbackUrl = `http://localhost:5173/track-order?orderId=${order.orderNumber}&phone=${order.customerPhone}&payment=success`;
+    const isMobile = req.body.source === 'mobile';
+    const host = req.get('host');
+    
+    // Web host URL fallback
+    const webUrl = host?.includes('localhost') ? 'http://localhost:5173' : 'https://uns-home-cleaning.vercel.app';
+
+    const callbackUrl = isMobile
+      ? `unshomecleaning://track-order?orderId=${order.orderNumber}&phone=${order.customerPhone}`
+      : `${webUrl}/track-order?orderId=${order.orderNumber}&phone=${order.customerPhone}&payment=success`;
 
     const response = await razorpay.paymentLink.create({
       amount: Math.round(order.totalAmount * 100),

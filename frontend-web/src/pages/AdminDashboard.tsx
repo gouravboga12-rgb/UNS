@@ -56,11 +56,12 @@ export const AdminDashboard: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'orders' | 'reviews' | 'enquiries' | 'customers'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'orders' | 'reviews' | 'enquiries' | 'customers' | 'revenue'>('overview');
   
   // Dashboard stats
   const [stats, setStats] = useState({
     totalSales: 45890,
+    collectedRevenue: 0,
     pendingOrders: 1,
     catalogSize: products.length,
     unreadEnquiries: 1,
@@ -376,11 +377,15 @@ export const AdminDashboard: React.FC = () => {
     const totalSales = localOrders
       .filter(o => o.status !== 'Cancelled')
       .reduce((acc, o) => acc + o.totalAmount, 0);
+    const collectedRevenue = localOrders
+      .filter(o => o.paymentStatus === 'Paid' || o.paymentStatus === 'success' || o.status === 'Delivered')
+      .reduce((acc, o) => acc + o.totalAmount, 0);
     const pending = localOrders.filter(o => o.status === 'Pending' || o.status === 'Processing').length;
     const unread = localEnquiries.filter(e => e.status === 'Unread').length;
 
     setStats({
       totalSales: Math.round(totalSales),
+      collectedRevenue: Math.round(collectedRevenue),
       pendingOrders: pending,
       catalogSize: products.length,
       unreadEnquiries: unread,
@@ -1156,6 +1161,15 @@ export const AdminDashboard: React.FC = () => {
           </button>
 
           <button
+            onClick={() => setActiveTab('revenue')}
+            className={`w-full text-left py-2.5 px-4 rounded-lg font-semibold flex items-center gap-2.5 transition-all ${
+              activeTab === 'revenue' ? 'bg-primary text-white font-bold shadow' : 'hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <BarChart3 size={16} /> Revenue Earnings
+          </button>
+
+          <button
             onClick={() => setActiveTab('reviews')}
             className={`w-full text-left py-2.5 px-4 rounded-lg font-semibold flex items-center gap-2.5 transition-all ${
               activeTab === 'reviews' ? 'bg-primary text-white font-bold shadow' : 'hover:bg-slate-800 hover:text-white'
@@ -1217,7 +1231,7 @@ export const AdminDashboard: React.FC = () => {
             </div>
 
             {/* Metrics cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-6">
               <div className="bg-white p-5 rounded-xl border border-border shadow-soft flex items-center justify-between">
                 <div>
                   <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Total Products</span>
@@ -1245,6 +1259,26 @@ export const AdminDashboard: React.FC = () => {
                 </div>
                 <div className="w-10 h-10 rounded-lg bg-yellow-50 text-yellow-600 flex items-center justify-center">
                   <ShoppingBag size={20} />
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-xl border border-border shadow-soft flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Pending Orders</span>
+                  <h3 className="font-heading text-xl font-bold text-orange-600 mt-1">{stats.pendingOrders}</h3>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-orange-50 text-orange-600 flex items-center justify-center font-bold">
+                  ⌛
+                </div>
+              </div>
+
+              <div className="bg-white p-5 rounded-xl border border-border shadow-soft flex items-center justify-between">
+                <div>
+                  <span className="text-[10px] uppercase font-bold tracking-wider text-muted">Paid Revenue</span>
+                  <h3 className="font-heading text-xl font-bold text-emerald-600 mt-1">₹{stats.collectedRevenue.toLocaleString()}</h3>
+                </div>
+                <div className="w-10 h-10 rounded-lg bg-emerald-50 text-emerald-600 flex items-center justify-center font-bold">
+                  ₹
                 </div>
               </div>
 
@@ -1375,6 +1409,11 @@ export const AdminDashboard: React.FC = () => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* TAB 7: REVENUE EARNINGS */}
+        {activeTab === 'revenue' && (
+          <RevenueEarningsView orders={localOrders} />
         )}
 
         {/* TAB 2: MANAGE CATEGORIES */}
@@ -2626,4 +2665,139 @@ export const AdminDashboard: React.FC = () => {
     </div>
   );
 };
+
+// ─── REVENUE EARNINGS DETAIL VIEW ──────────────────────────────────────────────
+const RevenueEarningsView: React.FC<{ orders: any[] }> = ({ orders }) => {
+  const [timeFilter, setTimeFilter] = useState<'today' | 'weekly' | 'monthly' | 'six-months' | 'yearly' | 'all'>('all');
+
+  const filteredOrders = React.useMemo(() => {
+    const now = new Date();
+    return orders.filter(o => {
+      const isPaid = o.paymentStatus === 'Paid' || o.paymentStatus === 'success' || o.status === 'Delivered';
+      if (!isPaid) return false;
+
+      const orderDate = new Date(o.createdAt);
+      const diffTime = Math.abs(now.getTime() - orderDate.getTime());
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+      if (timeFilter === 'today') {
+        return orderDate.toDateString() === now.toDateString();
+      } else if (timeFilter === 'weekly') {
+        return diffDays <= 7;
+      } else if (timeFilter === 'monthly') {
+        return diffDays <= 30;
+      } else if (timeFilter === 'six-months') {
+        return diffDays <= 180;
+      } else if (timeFilter === 'yearly') {
+        return diffDays <= 365;
+      }
+      return true;
+    });
+  }, [orders, timeFilter]);
+
+  const stats = React.useMemo(() => {
+    const totalCollected = filteredOrders.reduce((sum, o) => sum + o.totalAmount, 0);
+    const totalItems = filteredOrders.reduce((sum, o) => {
+      const itemsCount = o.items ? o.items.reduce((acc: number, item: any) => acc + item.quantity, 0) : 0;
+      return sum + itemsCount;
+    }, 0);
+    return {
+      totalCollected,
+      orderCount: filteredOrders.length,
+      totalItems
+    };
+  }, [filteredOrders]);
+
+  return (
+    <div className="space-y-6 animate-fadeIn">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        <div>
+          <h2 className="text-2xl font-bold text-heading font-heading">Revenue Earnings</h2>
+          <p className="text-xs text-muted">Track day-to-day revenue, weekly collections, and periodic earnings statistics.</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Period Filter:</span>
+          <select
+            className="bg-slate-50 border border-border rounded-lg py-1.5 px-3 text-xs focus:outline-none focus:border-primary font-semibold text-heading"
+            value={timeFilter}
+            onChange={(e) => setTimeFilter(e.target.value as any)}
+          >
+            <option value="all">All-Time Revenue</option>
+            <option value="today">Today</option>
+            <option value="weekly">Last 7 Days</option>
+            <option value="monthly">Last 30 Days</option>
+            <option value="six-months">Last 6 Months</option>
+            <option value="yearly">Last Year</option>
+          </select>
+        </div>
+      </div>
+
+      {/* Mini Stats Grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
+        <div className="bg-white p-5 rounded-xl border border-border shadow-soft">
+          <span className="text-[9px] uppercase font-bold tracking-wider text-muted block">Total Paid Revenue</span>
+          <h3 className="font-heading text-2xl font-bold text-emerald-600 mt-1">₹{stats.totalCollected.toLocaleString()}</h3>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-border shadow-soft">
+          <span className="text-[9px] uppercase font-bold tracking-wider text-muted block">Total Paid Orders</span>
+          <h3 className="font-heading text-2xl font-bold text-primary mt-1">{stats.orderCount}</h3>
+        </div>
+        <div className="bg-white p-5 rounded-xl border border-border shadow-soft">
+          <span className="text-[9px] uppercase font-bold tracking-wider text-muted block font-semibold">Total Product Units Sold</span>
+          <h3 className="font-heading text-2xl font-bold text-teal-600 mt-1">{stats.totalItems}</h3>
+        </div>
+      </div>
+
+      {/* Revenue Table */}
+      <div className="bg-white rounded-2xl border border-border shadow-soft overflow-hidden">
+        <div className="p-5 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+          <h4 className="font-heading font-bold text-xs text-heading uppercase tracking-wider">Collected Payments List</h4>
+          <span className="text-[10px] text-muted font-bold">Showing {filteredOrders.length} transactions</span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full text-left border-collapse text-xs">
+            <thead>
+              <tr className="bg-slate-50 border-b border-border text-slate-400 font-bold uppercase tracking-wider">
+                <th className="p-4 text-center w-12">S.No</th>
+                <th className="p-4">Reference</th>
+                <th className="p-4">Customer Details</th>
+                <th className="p-4">Date & Time</th>
+                <th className="p-4">Products Purchased</th>
+                <th className="p-4 text-right">Amount Collected</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-100 font-medium text-body">
+              {filteredOrders.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="p-8 text-center text-muted italic">
+                    No paid transaction records found for the selected period.
+                  </td>
+                </tr>
+              ) : (
+                filteredOrders.map((order, idx) => (
+                  <tr key={order.id} className="hover:bg-slate-50/50 transition-colors">
+                    <td className="p-4 text-center font-bold text-slate-400">{idx + 1}</td>
+                    <td className="p-4 font-mono font-bold text-heading">UNS-#{order.orderNumber}</td>
+                    <td className="p-4">
+                      <span className="font-bold text-heading block">{order.customerName}</span>
+                      <span className="text-[10px] text-muted block mt-0.5">{order.customerPhone}</span>
+                    </td>
+                    <td className="p-4 text-slate-550">
+                      {new Date(order.createdAt).toLocaleString('en-IN', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short', year: 'numeric' })}
+                    </td>
+                    <td className="p-4 text-slate-650 max-w-xs truncate">
+                      {order.items?.map((item: any) => `${item.name} (${item.quantity}x)`).join(', ')}
+                    </td>
+                    <td className="p-4 text-right font-bold text-emerald-600">₹{order.totalAmount}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export default AdminDashboard;
