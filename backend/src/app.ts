@@ -1075,7 +1075,7 @@ app.post('/api/payments/payment-link', async (req: Request, res: Response) => {
       customer: {
         name: order.customerName,
         email: order.customerEmail || 'customer@example.com',
-        contact: order.customerPhone
+        contact: order.customerPhone.replace(/[^0-9]/g, '').slice(-10) || '9999999999'
       },
       notify: {
         sms: true,

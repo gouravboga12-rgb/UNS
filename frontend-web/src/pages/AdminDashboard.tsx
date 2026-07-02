@@ -681,9 +681,9 @@ export const AdminDashboard: React.FC = () => {
         alert("Please add at least one variant option or disable variants.");
         return;
       }
-      const invalid = formVariants.some(v => !v.name.trim() || !v.price || !v.discountPrice || !v.stock);
+      const invalid = formVariants.some(v => !v.name.trim() || !v.price || !v.discountPrice);
       if (invalid) {
-        alert("Please fill all fields for all added variants.");
+        alert("Please fill name, price and discount price fields for all added variants.");
         return;
       }
 
@@ -692,7 +692,7 @@ export const AdminDashboard: React.FC = () => {
         name: v.name,
         price: Number(v.price),
         discountPrice: Number(v.discountPrice),
-        stock: Number(v.stock)
+        stock: v.stock ? Number(v.stock) : 999
       }));
 
       finalSpecifications = {
@@ -2158,8 +2158,7 @@ export const AdminDashboard: React.FC = () => {
                         <div className="sm:col-span-2">
                           <input
                             type="number"
-                            placeholder="Stock"
-                            required
+                            placeholder="Stock (optional)"
                             className="w-full bg-slate-50 border border-border rounded-md py-1.5 px-2 text-xs focus:outline-none focus:border-primary"
                             value={v.stock}
                             onChange={(e) => {
