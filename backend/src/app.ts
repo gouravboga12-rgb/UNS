@@ -1062,9 +1062,7 @@ app.post('/api/payments/payment-link', async (req: Request, res: Response) => {
     // Web host URL fallback
     const webUrl = host?.includes('localhost') ? 'http://localhost:5173' : 'https://uns-home-cleaning.vercel.app';
 
-    const callbackUrl = isMobile
-      ? `unshomecleaning://track-order?orderId=${order.orderNumber}&phone=${order.customerPhone}`
-      : `${webUrl}/track-order?orderId=${order.orderNumber}&phone=${order.customerPhone}&payment=success`;
+    const callbackUrl = `${webUrl}/track-order?orderId=${order.orderNumber}&phone=${order.customerPhone}&payment=success`;
 
     const response = await razorpay.paymentLink.create({
       amount: Math.round(order.totalAmount * 100),
@@ -1078,10 +1076,10 @@ app.post('/api/payments/payment-link', async (req: Request, res: Response) => {
         contact: order.customerPhone.replace(/[^0-9]/g, '').slice(-10) || '9999999999'
       },
       notify: {
-        sms: true,
-        email: true
+        sms: false,
+        email: false
       },
-      reminder_enable: true,
+      reminder_enable: false,
       notes: {
         orderId: order.id,
         orderNumber: order.orderNumber.toString()

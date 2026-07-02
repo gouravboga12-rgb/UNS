@@ -8,6 +8,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { User, Mail, Phone, Lock, Eye, EyeOff } from 'lucide-react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as Google from 'expo-auth-session/providers/google';
+import * as AuthSession from 'expo-auth-session';
 import { setAuth } from '../../store/authSlice';
 import { API_ENDPOINTS } from '../../config/api';
 
@@ -99,6 +100,7 @@ export const SignUpScreen = ({ navigation }: any) => {
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
     clientId: '870895006042-pb5em17nmrgs2tikpg09uvdhn9ps0q4p.apps.googleusercontent.com',
     androidClientId: '870895006042-4icklhi65m4tj108qta63bu7aitut39p.apps.googleusercontent.com',
+    redirectUri: 'https://auth.expo.io/@gourav56/uns-home-cleaning',
   });
 
   useEffect(() => {
