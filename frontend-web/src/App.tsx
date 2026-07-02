@@ -22,6 +22,7 @@ import { Contact } from './pages/Contact';
 import { AdminDashboard } from './pages/AdminDashboard';
 import { SignIn } from './pages/SignIn';
 import { SignUp } from './pages/SignUp';
+import { Policies } from './pages/Policies';
 
 import AOS from 'aos';
 import 'aos/dist/aos.css';
@@ -65,6 +66,10 @@ const AppContent: React.FC = () => {
             <Route path="/admin/*" element={<AdminDashboard />} />
             <Route path="/signin" element={<SignIn />} />
             <Route path="/signup" element={<SignUp />} />
+            <Route path="/policies" element={<Policies initialTab="terms" />} />
+            <Route path="/terms" element={<Policies initialTab="terms" />} />
+            <Route path="/privacy" element={<Policies initialTab="privacy" />} />
+            <Route path="/refund-policy" element={<Policies initialTab="refund" />} />
           </Routes>
         </main>
 

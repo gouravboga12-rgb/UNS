@@ -141,7 +141,14 @@ export const Footer: React.FC = () => {
       <div className="bg-[#0b1120] py-6 text-center text-xs text-slate-500 border-t border-slate-800">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
           <p>© {new Date().getFullYear()} UNS HOME CLEANING PRODUCTS PVT LTD. All Rights Reserved.</p>
-          <p className="flex items-center gap-1.5">
+          <div className="flex flex-wrap justify-center gap-x-4 gap-y-1 text-slate-400 font-medium my-2 sm:my-0">
+            <Link to="/terms" className="hover:text-primary transition-colors">Terms & Conditions</Link>
+            <span className="text-slate-700 hidden sm:inline">|</span>
+            <Link to="/privacy" className="hover:text-primary transition-colors">Privacy Policy</Link>
+            <span className="text-slate-700 hidden sm:inline">|</span>
+            <Link to="/refund-policy" className="hover:text-primary transition-colors">Refund Policy</Link>
+          </div>
+          <p className="flex items-center justify-center gap-1.5">
             Developed by{' '}
             <a 
               href="https://www.codtechitsolutions.com/" 
