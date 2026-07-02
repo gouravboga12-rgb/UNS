@@ -35,12 +35,12 @@ export const BottomNavigation: React.FC = () => {
 
       {/* Account */}
       <Link
-        to="/signin"
+        to="/account"
         className={`flex flex-col items-center justify-center flex-1 h-full py-1 text-center transition-all ${
-          isActive(['/signin', '/signup', '/admin']) ? 'text-primary font-bold' : 'text-slate-400 hover:text-slate-600'
+          isActive(['/account', '/signin', '/signup', '/admin']) ? 'text-primary font-bold' : 'text-slate-400 hover:text-slate-600'
         }`}
       >
-        <User size={20} className={isActive(['/signin', '/signup', '/admin']) ? 'scale-105 transition-transform' : ''} />
+        <User size={20} className={isActive(['/account', '/signin', '/signup', '/admin']) ? 'scale-105 transition-transform' : ''} />
         <span className="text-[10px] mt-1 tracking-tight">Account</span>
       </Link>
 

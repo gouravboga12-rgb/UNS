@@ -19,6 +19,12 @@ export const SignUp: React.FC = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    // Redirect if already logged in
+    if (localStorage.getItem('uns_current_user')) {
+      navigate('/account');
+      return;
+    }
+
     // Dynamic loading of Google OAuth GSI script
     const script = document.createElement('script');
     script.src = 'https://accounts.google.com/gsi/client';
