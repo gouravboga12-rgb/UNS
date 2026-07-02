@@ -916,16 +916,18 @@ export const AdminDashboard: React.FC = () => {
     } catch {
       // Local fallback
       const timeline = selectedOrder.trackingTimeline || [];
-      if (orderStatus && orderStatus !== selectedOrder.status) {
+      const currentStatus = orderStatus || selectedOrder.status;
+      const hasStatusChanged = orderStatus && orderStatus !== selectedOrder.status;
+      if (hasStatusChanged || orderStatusDesc) {
         timeline.push({
-          status: orderStatus,
+          status: currentStatus,
           time: new Date().toISOString(),
-          description: orderStatusDesc || `Order status updated to ${orderStatus}`
+          description: orderStatusDesc || `Order status updated to ${currentStatus}`
         });
       }
       const updatedOrder = {
         ...selectedOrder,
-        status: orderStatus,
+        status: currentStatus,
         trackingId: orderTrackingId,
         trackingLink: orderTrackingLink,
         trackingTimeline: timeline

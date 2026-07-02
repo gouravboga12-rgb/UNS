@@ -1232,11 +1232,11 @@ app.put('/api/admin/orders/:id', async (req: Request, res: Response) => {
     if (fetchErr) throw fetchErr;
 
     const timeline = order.trackingTimeline || [];
-    if (status && status !== order.status) {
+    if ((status && status !== order.status) || description) {
       timeline.push({
-        status,
+        status: status || order.status,
         time: new Date().toISOString(),
-        description: description || `Order status updated to ${status}`
+        description: description || `Order status updated to ${status || order.status}`
       });
     }
 
@@ -1262,12 +1262,16 @@ app.put('/api/admin/orders/:id', async (req: Request, res: Response) => {
       return res.status(404).json({ error: 'Order not found' });
     }
 
-    if (status && status !== order.status) {
+    const currentStatus = status || order.status;
+    const hasStatusChanged = status && status !== order.status;
+    if (hasStatusChanged) {
       order.status = status;
+    }
+    if (hasStatusChanged || description) {
       order.trackingTimeline.push({
-        status,
+        status: currentStatus,
         time: new Date().toISOString(),
-        description: description || `Order status updated to ${status}`
+        description: description || `Order status updated to ${currentStatus}`
       });
     }
 

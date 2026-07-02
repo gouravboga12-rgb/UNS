@@ -424,19 +424,28 @@ export const TrackOrder: React.FC = () => {
               </div>
               
               {/* Tracking ID & Link */}
-              {orderData.trackingId && (
+              {(orderData.trackingId || orderData.trackingLink) && (
                 <div>
-                  <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">Tracking ID</span>
-                  <span className="text-xs font-mono font-bold text-heading mt-0.5 block">{orderData.trackingId}</span>
+                  {orderData.trackingId && (
+                    <>
+                      <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">Tracking ID</span>
+                      <span className="text-xs font-mono font-bold text-heading mt-0.5 block mb-2">{orderData.trackingId}</span>
+                    </>
+                  )}
                   {orderData.trackingLink && (
-                    <a 
-                      href={orderData.trackingLink} 
-                      target="_blank" 
-                      rel="noopener noreferrer" 
-                      className="text-[10px] text-primary hover:underline font-bold block mt-0.5"
-                    >
-                      Track via Courier ↗
-                    </a>
+                    <>
+                      {!orderData.trackingId && (
+                        <span className="text-[10px] text-muted font-bold uppercase tracking-wider block">Tracking Link</span>
+                      )}
+                      <a 
+                        href={orderData.trackingLink} 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        className="text-xs text-primary hover:underline font-bold inline-block mt-1 bg-teal-50 px-3 py-1.5 rounded-lg border border-teal-100"
+                      >
+                        Track via Courier ↗
+                      </a>
+                    </>
                   )}
                 </div>
               )}
