@@ -254,23 +254,7 @@ export const SignUpScreen = ({ navigation }: any) => {
             )}
           </TouchableOpacity>
 
-          {/* Divider */}
-          <View style={styles.divider}>
-            <View style={styles.dividerLine} />
-            <Text style={styles.dividerText}>OR</Text>
-            <View style={styles.dividerLine} />
-          </View>
 
-          {/* Google Sign Up Button */}
-          <TouchableOpacity 
-            style={styles.googleBtn} 
-            onPress={handleGoogleSignUp}
-          >
-            <View style={styles.googleIconContainer}>
-              <Text style={styles.googleIconText}>G</Text>
-            </View>
-            <Text style={styles.googleBtnText}>Sign Up with Google</Text>
-          </TouchableOpacity>
 
           {/* Sign In link */}
           <View style={styles.signinRow}>

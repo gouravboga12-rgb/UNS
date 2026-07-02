@@ -71,8 +71,8 @@ function TabNavigator() {
           borderTopWidth: 1,
           borderTopColor: '#E2E8F0',
           backgroundColor: '#FFFFFF',
-          height: Platform.OS === 'ios' ? 90 : 88,
-          paddingBottom: Platform.OS === 'ios' ? 30 : 28,
+          height: Platform.OS === 'ios' ? 95 : 94,
+          paddingBottom: Platform.OS === 'ios' ? 34 : 32,
           paddingTop: 8,
         },
         tabBarIcon: ({ color }) => {
