@@ -1900,6 +1900,51 @@ app.post('/api/auth/google', async (req: Request, res: Response) => {
   }
 });
 
+// Shipping Settings State & Database Sync
+let settingsState = {
+  freeShippingEnabled: true,
+  freeShippingThreshold: 500,
+  defaultDeliveryCharge: 50
+};
+
+async function loadSettings() {
+  try {
+    const { data, error } = await supabase.from('settings').select('*').eq('key', 'shipping_settings').single();
+    if (data && data.value) {
+      settingsState = data.value;
+      console.log('[UNS Settings] Loaded settings successfully from Supabase.');
+    }
+  } catch (err) {
+    console.log('[UNS Settings] Fallback settings active or table not initialized.');
+  }
+}
+loadSettings();
+
+app.get('/api/settings', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase.from('settings').select('*').eq('key', 'shipping_settings').single();
+    if (data && data.value) {
+      return res.json(data.value);
+    }
+  } catch (err) {}
+  res.json(settingsState);
+});
+
+app.post('/api/settings', async (req: Request, res: Response) => {
+  const newSettings = req.body;
+  settingsState = { ...settingsState, ...newSettings };
+  try {
+    const { error } = await supabase.from('settings').upsert({
+      key: 'shipping_settings',
+      value: settingsState
+    });
+    if (error) throw error;
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] POST settings:', err.message);
+  }
+  res.json(settingsState);
+});
+
 // Start Server
 if (!process.env.VERCEL) {
   app.listen(PORT, () => {

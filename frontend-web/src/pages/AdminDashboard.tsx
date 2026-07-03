@@ -15,9 +15,11 @@ import {
   deleteCategoryLocally,
   approveReviewLocally,
   deleteReviewLocally,
-  updateReviewLocally
+  updateReviewLocally,
+  fetchShippingSettings,
+  updateShippingSettings
 } from '../store/productsSlice';
-import type { Product, Category } from '../store/productsSlice';
+import type { Product, Category, ShippingSettings } from '../store/productsSlice';
 import { 
   BarChart3, 
   Package, 
@@ -56,7 +58,17 @@ export const AdminDashboard: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'orders' | 'reviews' | 'enquiries' | 'customers' | 'revenue'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'orders' | 'reviews' | 'enquiries' | 'customers' | 'revenue' | 'settings'>('overview');
+
+  // Shipping settings state
+  const shippingSettings = useSelector((state: RootState) => state.products.shippingSettings);
+  const [shippingForm, setShippingForm] = useState<ShippingSettings>({
+    freeShippingEnabled: true,
+    freeShippingThreshold: 500,
+    defaultDeliveryCharge: 50
+  });
+  const [shippingSaved, setShippingSaved] = useState(false);
+  const [shippingSaving, setShippingSaving] = useState(false);
   
   // Dashboard stats
   const [stats, setStats] = useState({
@@ -371,7 +383,19 @@ export const AdminDashboard: React.FC = () => {
     loadAdminData();
     dispatch(fetchProducts() as any);
     dispatch(fetchCategories() as any);
+    dispatch(fetchShippingSettings() as any);
   }, [isAdmin, dispatch]);
+
+  // Sync shipping settings from Redux into local form when loaded
+  useEffect(() => {
+    if (shippingSettings) {
+      setShippingForm({
+        freeShippingEnabled: shippingSettings.freeShippingEnabled,
+        freeShippingThreshold: shippingSettings.freeShippingThreshold,
+        defaultDeliveryCharge: shippingSettings.defaultDeliveryCharge
+      });
+    }
+  }, [shippingSettings]);
 
   // Compute analytics stats dynamically
   useEffect(() => {
@@ -1280,6 +1304,15 @@ export const AdminDashboard: React.FC = () => {
           >
             <Users size={16} /> Customers List
           </button>
+
+          <button
+            onClick={() => setActiveTab('settings')}
+            className={`w-full text-left py-2.5 px-4 rounded-lg font-semibold flex items-center gap-2.5 transition-all ${
+              activeTab === 'settings' ? 'bg-primary text-white font-bold shadow' : 'hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <Lock size={16} /> Store Settings
+          </button>
         </nav>
 
         <div className="p-4 border-t border-slate-800 flex flex-col gap-2">
@@ -1496,6 +1529,125 @@ export const AdminDashboard: React.FC = () => {
         {/* TAB 7: REVENUE EARNINGS */}
         {activeTab === 'revenue' && (
           <RevenueEarningsView orders={localOrders} />
+        )}
+
+        {/* STORE SETTINGS TAB */}
+        {activeTab === 'settings' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div>
+              <h2 className="text-2xl font-bold text-heading font-heading">Store Settings</h2>
+              <p className="text-xs text-muted">Configure shipping, delivery rules, and other store-wide settings.</p>
+            </div>
+
+            {/* Shipping Settings Card */}
+            <div className="bg-white rounded-2xl border border-border shadow-soft p-6 space-y-6 max-w-xl">
+              <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
+                <div className="p-2 bg-primary/10 rounded-lg">
+                  <Package size={18} className="text-primary" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-bold text-heading">Shipping & Delivery Settings</h3>
+                  <p className="text-[10px] text-muted">These settings apply globally to the cart across all products.</p>
+                </div>
+              </div>
+
+              {/* Free Shipping Toggle */}
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-xs font-bold text-heading">Enable Free Shipping</label>
+                  <p className="text-[10px] text-muted mt-0.5">When enabled, orders above the threshold get free delivery.</p>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    className="sr-only peer"
+                    checked={shippingForm.freeShippingEnabled}
+                    onChange={(e) => setShippingForm({ ...shippingForm, freeShippingEnabled: e.target.checked })}
+                  />
+                  <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary"></div>
+                </label>
+              </div>
+
+              {/* Free Shipping Threshold */}
+              {shippingForm.freeShippingEnabled && (
+                <div>
+                  <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Free Shipping Threshold (₹)</label>
+                  <div className="flex items-center gap-3">
+                    <input
+                      type="number"
+                      min={0}
+                      className="w-full bg-slate-50 border border-border rounded-lg py-2.5 px-3 text-sm font-bold focus:outline-none focus:border-primary text-heading"
+                      value={shippingForm.freeShippingThreshold}
+                      onChange={(e) => setShippingForm({ ...shippingForm, freeShippingThreshold: Number(e.target.value) })}
+                    />
+                    <span className="text-xs text-muted whitespace-nowrap">₹ and above → FREE</span>
+                  </div>
+                  <p className="text-[10px] text-muted mt-1.5">Example: Set 500 → orders totaling ₹500 or more get free delivery. Set 0 → always free.</p>
+                </div>
+              )}
+
+              {/* Default Delivery Charge */}
+              <div>
+                <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Default Delivery Charge (₹)</label>
+                <div className="flex items-center gap-3">
+                  <input
+                    type="number"
+                    min={0}
+                    className="w-full bg-slate-50 border border-border rounded-lg py-2.5 px-3 text-sm font-bold focus:outline-none focus:border-primary text-heading"
+                    value={shippingForm.defaultDeliveryCharge}
+                    onChange={(e) => setShippingForm({ ...shippingForm, defaultDeliveryCharge: Number(e.target.value) })}
+                  />
+                  <span className="text-xs text-muted whitespace-nowrap">₹ per order</span>
+                </div>
+                <p className="text-[10px] text-muted mt-1.5">This is the fallback rate if no variant-level or product-level delivery charge is set.</p>
+              </div>
+
+              {/* Live Preview */}
+              <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
+                <h4 className="text-[10px] font-bold text-muted uppercase tracking-wider mb-3">Preview — Cart Delivery Logic</h4>
+                <div className="space-y-2 text-xs">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-accent"></span>
+                    <span className="text-muted">Free shipping:</span>
+                    <span className="font-bold text-heading">
+                      {shippingForm.freeShippingEnabled
+                        ? shippingForm.freeShippingThreshold === 0
+                          ? 'Always FREE (threshold = ₹0)'
+                          : `Orders ≥ ₹${shippingForm.freeShippingThreshold} → FREE`
+                        : 'Disabled — always charge delivery'}
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-primary"></span>
+                    <span className="text-muted">Below threshold:</span>
+                    <span className="font-bold text-heading">₹{shippingForm.defaultDeliveryCharge} delivery charge applies</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Save Button */}
+              <button
+                onClick={async () => {
+                  setShippingSaving(true);
+                  setShippingSaved(false);
+                  await dispatch(updateShippingSettings(shippingForm) as any);
+                  setShippingSaving(false);
+                  setShippingSaved(true);
+                  setTimeout(() => setShippingSaved(false), 3000);
+                }}
+                disabled={shippingSaving}
+                className="w-full bg-primary text-white rounded-xl py-3 text-sm font-bold hover:bg-primary/90 transition-all flex items-center justify-center gap-2"
+              >
+                {shippingSaving ? (
+                  <><span className="animate-spin">⟳</span> Saving...</>
+                ) : shippingSaved ? (
+                  <><Check size={16} /> Settings Saved!</>
+                ) : (
+                  'Save Shipping Settings'
+                )}
+              </button>
+            </div>
+          </div>
         )}
 
         {/* TAB 2: MANAGE CATEGORIES */}

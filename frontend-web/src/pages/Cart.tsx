@@ -5,6 +5,7 @@ import { updateQuantity, removeItem, clearCart } from '../store/cartSlice';
 import { Trash2, ShieldCheck, ShoppingBag, Plus, Minus } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { API_URL } from '../config';
+import { fetchShippingSettings } from '../store/productsSlice';
 
 
 // Helper: Dynamically load Razorpay checkout script
@@ -43,6 +44,12 @@ export const Cart: React.FC = () => {
   const [checkoutSuccess, setCheckoutSuccess] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
+  const { shippingSettings } = useSelector((state: RootState) => state.products);
+
+  React.useEffect(() => {
+    dispatch(fetchShippingSettings() as any);
+  }, [dispatch]);
+
   // Get live delivery charge from Redux products state (not stale cart item value)
   const getLiveDeliveryCharge = (cartItemId: string, cartItemName: string, fallback?: number): number => {
     const product = allProducts.find(p => cartItemId.startsWith(p.id));
@@ -60,14 +67,22 @@ export const Cart: React.FC = () => {
         return Number(product.specifications.deliveryCharge);
       }
     }
-    return fallback !== undefined ? fallback : 50;
+    return fallback !== undefined ? fallback : (shippingSettings?.defaultDeliveryCharge ?? 50);
   };
 
   // Calculations
+  const freeShippingLimit = shippingSettings?.freeShippingThreshold !== undefined ? shippingSettings.freeShippingThreshold : 500;
+  const isFreeShippingEnabled = shippingSettings?.freeShippingEnabled !== false;
+
   const subtotal = cartItems.reduce((acc, item) => acc + (item.discountPrice || item.price) * item.quantity, 0);
-  const shipping = cartItems.length === 0 || subtotal > 500
+  
+  // Calculate base delivery charge
+  const baseShipping = Math.max(...cartItems.map(item => getLiveDeliveryCharge(item.id, item.name, item.deliveryCharge)), 0);
+
+  // Apply free shipping rules
+  const shipping = cartItems.length === 0 || (isFreeShippingEnabled && subtotal >= freeShippingLimit)
     ? 0
-    : Math.max(...cartItems.map(item => getLiveDeliveryCharge(item.id, item.name, item.deliveryCharge)), 0);
+    : baseShipping;
   const total = subtotal + shipping;
 
   const handleQuantityChange = (id: string, q: number) => {
@@ -344,8 +359,8 @@ export const Cart: React.FC = () => {
                     {shipping === 0 ? <span className="text-accent">FREE</span> : `₹${shipping.toFixed(2)}`}
                   </span>
                 </div>
-                {shipping > 0 && subtotal <= 500 && (
-                  <p className="text-[10px] text-muted font-medium italic">Add ₹{Math.max(0, 501 - subtotal).toFixed(0)} more for free shipping</p>
+                {shipping > 0 && isFreeShippingEnabled && subtotal < freeShippingLimit && (
+                  <p className="text-[10px] text-muted font-medium italic">Add ₹{Math.max(0, freeShippingLimit - subtotal).toFixed(0)} more for free shipping</p>
                 )}
                 <div className="flex justify-between text-sm font-bold pt-3 border-t border-slate-100 text-heading">
                   <span>Total Amount</span>

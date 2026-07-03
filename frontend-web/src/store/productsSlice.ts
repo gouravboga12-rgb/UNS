@@ -44,11 +44,18 @@ export interface Category {
   imageUrl: string;
 }
 
+export interface ShippingSettings {
+  freeShippingEnabled: boolean;
+  freeShippingThreshold: number;
+  defaultDeliveryCharge: number;
+}
+
 interface ProductsState {
   items: Product[];
   categories: Category[];
   status: 'idle' | 'loading' | 'succeeded' | 'failed';
   error: string | null;
+  shippingSettings: ShippingSettings;
 }
 
 const fallbackCategories: Category[] = [
@@ -834,6 +841,38 @@ export const fetchCategories = createAsyncThunk('products/fetchCategories', asyn
   }
 });
 
+export const fetchShippingSettings = createAsyncThunk('products/fetchShippingSettings', async () => {
+  try {
+    const response = await fetch(`${API_URL}/settings`);
+    if (!response.ok) throw new Error('API Error');
+    return (await response.json()) as ShippingSettings;
+  } catch {
+    const saved = localStorage.getItem('uns_shipping_settings');
+    return saved ? JSON.parse(saved) : {
+      freeShippingEnabled: true,
+      freeShippingThreshold: 500,
+      defaultDeliveryCharge: 50
+    };
+  }
+});
+
+export const updateShippingSettings = createAsyncThunk('products/updateShippingSettings', async (settings: ShippingSettings) => {
+  try {
+    const response = await fetch(`${API_URL}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(settings)
+    });
+    if (!response.ok) throw new Error('API Error');
+    const data = await response.json();
+    localStorage.setItem('uns_shipping_settings', JSON.stringify(data));
+    return data as ShippingSettings;
+  } catch {
+    localStorage.setItem('uns_shipping_settings', JSON.stringify(settings));
+    return settings;
+  }
+});
+
 const productsSlice = createSlice({
   name: 'products',
   initialState: {
@@ -841,6 +880,11 @@ const productsSlice = createSlice({
     categories: mapCategoryImages(loadCatsFromLS() ?? fallbackCategories) as Category[],
     status: 'idle',
     error: null,
+    shippingSettings: {
+      freeShippingEnabled: true,
+      freeShippingThreshold: 500,
+      defaultDeliveryCharge: 50
+    }
   } as ProductsState,
   reducers: {
     setLocalProducts: (state, action: PayloadAction<Product[]>) => {
@@ -932,6 +976,12 @@ const productsSlice = createSlice({
       })
       .addCase(fetchCategories.fulfilled, (state, action) => {
         state.categories = action.payload;
+      })
+      .addCase(fetchShippingSettings.fulfilled, (state, action) => {
+        state.shippingSettings = action.payload;
+      })
+      .addCase(updateShippingSettings.fulfilled, (state, action) => {
+        state.shippingSettings = action.payload;
       });
   },
 });
