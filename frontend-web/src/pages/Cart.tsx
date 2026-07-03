@@ -29,6 +29,7 @@ const loadRazorpayScript = () => {
 export const Cart: React.FC = () => {
   const dispatch = useDispatch();
   const cartItems = useSelector((state: RootState) => state.cart.items);
+  const allProducts = useSelector((state: RootState) => state.products.items);
 
   // Authenticated user pre-fill
   const u = localStorage.getItem('uns_current_user');
@@ -42,11 +43,22 @@ export const Cart: React.FC = () => {
   const [checkoutSuccess, setCheckoutSuccess] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Get live delivery charge from Redux products state (not stale cart item value)
+  const getLiveDeliveryCharge = (cartItemId: string, fallback?: number): number => {
+    // cartItemId may be 'prod-xyz' or 'prod-xyz-500ml' (variant) — match by prefix
+    const product = allProducts.find(p => cartItemId.startsWith(p.id));
+    if (product && product.specifications?.deliveryCharge !== undefined) {
+      return Number(product.specifications.deliveryCharge);
+    }
+    // Fallback to cart item's stored value or 50
+    return fallback !== undefined ? fallback : 50;
+  };
+
   // Calculations
   const subtotal = cartItems.reduce((acc, item) => acc + (item.discountPrice || item.price) * item.quantity, 0);
   const shipping = cartItems.length === 0 || subtotal > 500
     ? 0
-    : Math.max(...cartItems.map(item => item.deliveryCharge !== undefined ? item.deliveryCharge : 50), 0);
+    : Math.max(...cartItems.map(item => getLiveDeliveryCharge(item.id, item.deliveryCharge)), 0);
   const total = subtotal + shipping;
 
   const handleQuantityChange = (id: string, q: number) => {
@@ -323,8 +335,8 @@ export const Cart: React.FC = () => {
                     {shipping === 0 ? <span className="text-accent">FREE</span> : `₹${shipping.toFixed(2)}`}
                   </span>
                 </div>
-                {shipping > 0 && (
-                  <p className="text-[10px] text-muted font-medium italic">Add ₹{Math.max(0, 501 - subtotal)} more for free shipping</p>
+                {shipping > 0 && subtotal <= 500 && (
+                  <p className="text-[10px] text-muted font-medium italic">Add ₹{Math.max(0, 501 - subtotal).toFixed(0)} more for free shipping</p>
                 )}
                 <div className="flex justify-between text-sm font-bold pt-3 border-t border-slate-100 text-heading">
                   <span>Total Amount</span>
