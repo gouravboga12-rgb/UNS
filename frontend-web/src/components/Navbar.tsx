@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import type { RootState } from '../store';
 import { ShoppingCart, Menu, X, Search, ChevronDown, User } from 'lucide-react';
@@ -10,7 +10,16 @@ export const Navbar: React.FC = () => {
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
+  const location = useLocation();
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Helper: returns active or default nav link classes
+  const navLinkClass = (path: string) =>
+    `font-medium text-sm transition-colors relative ${
+      location.pathname === path || location.pathname.startsWith(path + '/')
+        ? 'text-primary after:absolute after:bottom-[-4px] after:left-0 after:right-0 after:h-[2px] after:rounded-full after:bg-primary'
+        : 'text-body hover:text-primary'
+    }`;
 
   const cartItems = useSelector((state: RootState) => state.cart.items);
   const categories = useSelector((state: RootState) => state.products.categories);
@@ -119,9 +128,9 @@ export const Navbar: React.FC = () => {
               )}
             </div>
 
-            <Link to="/about" className="text-body hover:text-primary font-medium text-sm transition-colors">About & Blog</Link>
-            <Link to="/track-order" className="text-body hover:text-primary font-medium text-sm transition-colors">Track Order</Link>
-            <Link to="/contact" className="text-body hover:text-primary font-medium text-sm transition-colors">Contact</Link>
+            <Link to="/about" className={navLinkClass('/about')}>About & Blog</Link>
+            <Link to="/track-order" className={navLinkClass('/track-order')}>Track Order</Link>
+            <Link to="/contact" className={navLinkClass('/contact')}>Contact</Link>
           </nav>
 
           {/* Right Action Icons */}
