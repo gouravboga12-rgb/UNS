@@ -171,12 +171,15 @@ export const ProductDetail: React.FC = () => {
     if (isFromDelivery) {
       setFromDeliveryLink(true);
       setShowReviewModal(true);
-      // Auto-fill name from logged in user
-      if (currentUser?.name) {
-        setReviewName(currentUser.name);
-      }
     }
-  }, [searchParams, currentUser]);
+  }, [searchParams]);
+
+  // Whenever the review modal opens, auto-fill name from the signed-in account
+  useEffect(() => {
+    if (showReviewModal && currentUser?.name) {
+      setReviewName(currentUser.name);
+    }
+  }, [showReviewModal, currentUser]);
 
   useEffect(() => {
     if (product) {
@@ -372,37 +375,55 @@ export const ProductDetail: React.FC = () => {
       };
 
       let apiSuccess = false;
+      let savedReview: any = null;
       try {
         const res = await fetch(`${API_URL}/products/${product.id}/reviews`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(reviewPayload)
         });
-        apiSuccess = res.ok;
+        if (res.ok) {
+          apiSuccess = true;
+          const json = await res.json();
+          savedReview = json.review;
+        }
       } catch (err) {
         console.error('Error posting review to API:', err);
       }
 
-      // Reviews from delivery link are trusted as verified buyer — show immediately as approved
-      const isApproved = fromDeliveryLink || apiSuccess;
-
-      const newReview = {
+      const newReview = savedReview || {
         id: `rev-local-${Math.random().toString(36).substring(2, 9)}`,
         productId: product.id,
         customerName: reviewName,
         rating: reviewRating,
         comment: reviewComment,
-        approved: isApproved,
+        approved: fromDeliveryLink || apiSuccess,
         createdAt: new Date().toISOString()
       };
 
+      // Store locally as backup
       const existingReviewsRaw = localStorage.getItem('uns_local_reviews');
       const existingReviews = existingReviewsRaw ? JSON.parse(existingReviewsRaw) : [];
-      existingReviews.push(newReview);
+      existingReviews.push({ ...newReview, approved: true });
       localStorage.setItem('uns_local_reviews', JSON.stringify(existingReviews));
 
-      // Show review immediately on page (even if pending admin approval, show to reviewer)
-      setReviewsList(prev => [{ ...newReview, approved: true }, ...prev]);
+      if (apiSuccess) {
+        // Re-fetch from server to get the globally persisted list (reflects for all users on refresh)
+        try {
+          const refreshRes = await fetch(`${API_URL}/products/${product.slug}`);
+          if (refreshRes.ok) {
+            const refreshData = await refreshRes.json();
+            setReviewsList(refreshData.reviews || []);
+          } else {
+            setReviewsList(prev => [{ ...newReview, approved: true }, ...prev]);
+          }
+        } catch {
+          setReviewsList(prev => [{ ...newReview, approved: true }, ...prev]);
+        }
+      } else {
+        // Fallback: add to local list immediately
+        setReviewsList(prev => [{ ...newReview, approved: true }, ...prev]);
+      }
 
       setReviewName(currentUser?.name || '');
       setReviewComment('');
@@ -826,16 +847,16 @@ export const ProductDetail: React.FC = () => {
               </div>
             ) : (
               <form onSubmit={handleReviewSubmit} className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-muted mb-1.5 uppercase tracking-wider">Your Name</label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="Enter your name"
-                    className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary"
-                    value={reviewName}
-                    onChange={(e) => setReviewName(e.target.value)}
-                  />
+                {/* Reviewing as — locked to signed-in account */}
+                <div className="flex items-center gap-3 bg-slate-50 border border-border rounded-lg py-2.5 px-3">
+                  <div className="w-7 h-7 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-primary font-bold text-xs">{reviewName?.charAt(0)?.toUpperCase() || '?'}</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-[10px] text-muted font-semibold uppercase tracking-wider">Reviewing as</p>
+                    <p className="text-xs font-bold text-heading truncate">{reviewName || currentUser?.name || 'Guest'}</p>
+                  </div>
+                  <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded whitespace-nowrap">Verified</span>
                 </div>
 
                 <div>

@@ -550,7 +550,7 @@ app.post('/api/products/:id/reviews', async (req: Request, res: Response) => {
     customerName,
     rating: Number(rating),
     comment: comment || '',
-    approved: false, // Default requires moderation
+    approved: true, // Auto-approve — admin can delete/edit from admin panel if needed
     createdAt: new Date().toISOString()
   };
 
