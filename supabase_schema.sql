@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS public.products (
     "shortDescription" TEXT,
     "fullDescription" TEXT,
     images TEXT[] NOT NULL DEFAULT '{}',
+    videos TEXT[] DEFAULT '{}',
     price NUMERIC NOT NULL,
     "discountPrice" NUMERIC NOT NULL,
     stock INTEGER DEFAULT 0,

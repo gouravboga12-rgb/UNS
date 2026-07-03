@@ -24,6 +24,7 @@ export interface Product {
   shortDescription: string;
   fullDescription: string;
   images: string[];
+  videos?: string[];
   price: number;
   discountPrice: number;
   stock: number;
