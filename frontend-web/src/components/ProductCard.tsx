@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import { addItem } from '../store/cartSlice';
 import { showToast } from '../store/toastSlice';
-import { ShoppingCart, Star } from 'lucide-react';
+import { ShoppingCart, Star, Eye } from 'lucide-react';
 import type { Product } from '../store/productsSlice';
 import { MediaSlider } from './MediaSlider';
 
@@ -93,8 +93,17 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, customBadge }
             </div>
           )}
         </div>
-        {/* Slider covers the whole card image area; Link wraps only for clicking on the image itself */}
-        <Link to={`/products/${product.slug}`} className="absolute inset-0 z-0" aria-label={`View ${product.name}`} />
+        {/* Clickable overlay link wrapping the media area, excluding slider controls */}
+        <Link 
+          to={`/products/${product.slug}`} 
+          className="absolute inset-0 z-20 flex items-center justify-center bg-slate-950/0 hover:bg-slate-950/15 transition-all duration-300 group/media"
+          aria-label={`View ${product.name}`}
+        >
+          {/* Glassmorphic Eye Icon */}
+          <div className="opacity-0 scale-75 group-hover/media:opacity-100 group-hover/media:scale-100 transition-all duration-300 w-11 h-11 bg-white/25 backdrop-blur-md border border-white/30 text-white rounded-full flex items-center justify-center shadow-lg">
+            <Eye className="w-5 h-5" />
+          </div>
+        </Link>
         <MediaSlider
           images={product.images || []}
           videos={product.videos || []}

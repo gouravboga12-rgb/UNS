@@ -77,7 +77,7 @@ export const MediaSlider: React.FC<MediaSliderProps> = ({
   };
 
   const arrowBase =
-    'absolute top-1/2 -translate-y-1/2 z-10 flex items-center justify-center rounded-full bg-slate-900/60 hover:bg-slate-900/85 active:scale-95 text-white backdrop-blur-sm border border-white/10 transition-all duration-200 shadow-lg';
+    'absolute top-1/2 -translate-y-1/2 z-30 flex items-center justify-center rounded-full bg-slate-900/60 hover:bg-slate-900/85 active:scale-95 text-white backdrop-blur-sm border border-white/10 transition-all duration-200 shadow-lg';
   const arrowSm = mode === 'compact' ? 'w-6 h-6' : 'w-9 h-9';
 
   return (
@@ -154,7 +154,7 @@ export const MediaSlider: React.FC<MediaSliderProps> = ({
           </button>
 
           {/* Dot indicators */}
-          <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1 pointer-events-none">
+          <div className="absolute bottom-2 inset-x-0 flex justify-center gap-1 pointer-events-none z-30">
             {allMedia.map((m, i) => (
               <button
                 key={i}
