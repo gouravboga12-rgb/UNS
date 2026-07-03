@@ -104,7 +104,7 @@ export const AdminDashboard: React.FC = () => {
   const [formPrice, setFormPrice] = useState('');
   const [formDiscountPrice, setFormDiscountPrice] = useState('');
   const [formShortDesc, setFormShortDesc] = useState('');
-  const [formImage, setFormImage] = useState('');
+  const [formMediaItems, setFormMediaItems] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
   const [uploadingProdImg, setUploadingProdImg] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
   const [formVariants, setFormVariants] = useState<{ name: string; price: string; discountPrice: string; stock: string }[]>([]);
@@ -422,50 +422,91 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // Upload file directly to Cloudinary (unsigned preset - works on production/Vercel)
-  const handleImageUpload = async (file: File, type: 'product' | 'category') => {
-    if (type === 'product') setUploadingProdImg(true);
-    else setUploadingCatImg(true);
+  const handleMediaUpload = async (files: FileList | File[]) => {
+    const fileArr = Array.from(files);
+    setUploadingProdImg(true);
 
-    const formData = new FormData();
-    formData.append('file', file);
-    formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-    formData.append('folder', type === 'product' ? 'uns/products' : 'uns/categories');
+    for (const file of fileArr) {
+      const isVideo = file.type.startsWith('video/');
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      formData.append('folder', 'uns/products');
 
-    try {
-      const response = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
-        { method: 'POST', body: formData }
-      );
-      if (response.ok) {
-        const result = await response.json();
-        if (type === 'product') setFormImage(result.secure_url);
-        else setCatImg(result.secure_url);
-      } else {
-        const errData = await response.json().catch(() => ({}));
-        console.error('Cloudinary error:', errData);
-        // Fallback: try local backend if available
-        await handleImageUploadFallback(file, type);
+      try {
+        const endpoint = isVideo
+          ? `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`
+          : `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+
+        const response = await fetch(endpoint, { method: 'POST', body: formData });
+        if (response.ok) {
+          const result = await response.json();
+          setFormMediaItems(prev => [...prev, { url: result.secure_url, type: isVideo ? 'video' : 'image' }]);
+        } else {
+          // Fallback: try via local backend
+          await handleMediaUploadFallback(file, isVideo);
+        }
+      } catch {
+        await handleMediaUploadFallback(file, isVideo);
       }
-    } catch (err) {
-      console.error('Direct Cloudinary upload error:', err);
-      // Fallback: try local backend
-      await handleImageUploadFallback(file, type);
-    } finally {
-      if (type === 'product') setUploadingProdImg(false);
-      else setUploadingCatImg(false);
+    }
+
+    setUploadingProdImg(false);
+  };
+
+  // Keep backward-compat: category image upload still goes through original handler
+  const handleImageUpload = async (file: File, type: 'product' | 'category') => {
+    if (type === 'category') {
+      setUploadingCatImg(true);
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+      formData.append('folder', 'uns/categories');
+      try {
+        const response = await fetch(
+          `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`,
+          { method: 'POST', body: formData }
+        );
+        if (response.ok) {
+          const result = await response.json();
+          setCatImg(result.secure_url);
+        } else {
+          await handleImageUploadFallback(file, type);
+        }
+      } catch {
+        await handleImageUploadFallback(file, type);
+      } finally {
+        setUploadingCatImg(false);
+      }
     }
   };
 
   // Fallback: upload via local backend (dev environment only)
-  const handleImageUploadFallback = async (file: File, type: 'product' | 'category') => {
+  const handleMediaUploadFallback = async (file: File, isVideo: boolean) => {
     const formData = new FormData();
-    formData.append('image', file);
+    formData.append('file', file);
     try {
       const response = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
       if (response.ok) {
         const result = await response.json();
-        if (type === 'product') setFormImage(result.url);
-        else setCatImg(result.url);
+        setFormMediaItems(prev => [...prev, { url: result.url, type: isVideo ? 'video' : 'image' }]);
+      } else {
+        alert('Upload failed. Please try a direct URL paste.');
+      }
+    } catch {
+      alert('Upload failed. Please paste a direct URL in the URL field.');
+    }
+  };
+
+  // Backward-compat fallback for category image
+  const handleImageUploadFallback = async (file: File, type: 'product' | 'category') => {
+    const formData = new FormData();
+    formData.append('file', file);
+    try {
+      const response = await fetch(`${API_URL}/upload`, { method: 'POST', body: formData });
+      if (response.ok) {
+        const result = await response.json();
+        if (type === 'category') setCatImg(result.url);
       } else {
         alert('Image upload failed. Please paste a direct image URL instead.');
       }
@@ -582,7 +623,8 @@ export const AdminDashboard: React.FC = () => {
     setFormPrice('120');
     setFormDiscountPrice('99');
     setFormShortDesc('Premium chemical formulation.');
-    setFormImage('');
+    setFormMediaItems([]);
+    setUploadingProdImg(false);
     setHasVariants(false);
     setFormVariants([]);
     setFormStockStatus('Stock Available');
@@ -601,7 +643,10 @@ export const AdminDashboard: React.FC = () => {
     setFormPrice(prod.price.toString());
     setFormDiscountPrice(prod.discountPrice.toString());
     setFormShortDesc(prod.shortDescription);
-    setFormImage(prod.images[0]);
+    // Populate media items from existing product
+    const existingImages = (prod.images || []).map(u => ({ url: u, type: 'image' as const }));
+    const existingVideos = (prod.videos || []).map(u => ({ url: u, type: 'video' as const }));
+    setFormMediaItems([...existingImages, ...existingVideos]);
     const dbVars = prod.specifications?.variants || [];
     if (Array.isArray(dbVars) && dbVars.length > 0) {
       setHasVariants(true);
@@ -642,8 +687,8 @@ export const AdminDashboard: React.FC = () => {
   const handleProductSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formName.trim()) return;
-    if (!formImage) {
-      alert("Please upload a product image.");
+    if (formMediaItems.length === 0) {
+      alert("Please upload at least one product image or video.");
       return;
     }
 
@@ -730,7 +775,8 @@ export const AdminDashboard: React.FC = () => {
         discountPrice: finalDiscountPrice,
         stock: finalStock,
         shortDescription: formShortDesc,
-        images: [formImage],
+        images: formMediaItems.filter(m => m.type === 'image').map(m => m.url),
+        videos: formMediaItems.filter(m => m.type === 'video').map(m => m.url),
         specifications: finalSpecifications,
         benefits: benefitsArray,
         usageInstructions: instructionsArray
@@ -761,7 +807,8 @@ export const AdminDashboard: React.FC = () => {
         category: formCategory,
         shortDescription: formShortDesc,
         fullDescription: `<p>UNS ${formName} is engineered with high concentration active surfactant molecules to clean thoroughly.</p>`,
-        images: [formImage],
+        images: formMediaItems.filter(m => m.type === 'image').map(m => m.url),
+        videos: formMediaItems.filter(m => m.type === 'video').map(m => m.url),
         price: finalPrice,
         discountPrice: finalDiscountPrice,
         stock: finalStock,
@@ -2311,46 +2358,104 @@ export const AdminDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Product Image</label>
-                {formImage ? (
-                  <div className="relative rounded-xl border border-border overflow-hidden bg-slate-50 aspect-video flex items-center justify-center group">
-                    <img src={formImage} alt="Preview" className="max-h-full max-w-full object-contain" />
-                    <div className="absolute inset-0 bg-slate-950/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                      <label className="bg-white hover:bg-slate-100 text-heading text-[10px] font-bold py-1.5 px-3 rounded-lg cursor-pointer flex items-center gap-1 shadow-sm">
-                        Change Image
-                        <input 
-                          type="file" 
-                          accept="image/*" 
-                          className="hidden" 
-                          onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'product')} 
-                        />
-                      </label>
-                      <button
-                        type="button"
-                        onClick={() => setFormImage('')}
-                        className="bg-red-650 hover:bg-red-700 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-sm"
-                      >
-                        Remove
-                      </button>
-                    </div>
+                <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Product Images &amp; Videos</label>
+                
+                {/* Media items grid */}
+                {formMediaItems.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mb-3">
+                    {formMediaItems.map((m, idx) => (
+                      <div key={idx} className="relative group rounded-xl overflow-hidden border border-border bg-slate-50 aspect-square">
+                        {m.type === 'video' ? (
+                          <>
+                            <video src={m.url} className="w-full h-full object-cover" />
+                            <div className="absolute inset-0 flex items-center justify-center bg-slate-900/30 pointer-events-none">
+                              <div className="w-7 h-7 bg-white/90 rounded-full flex items-center justify-center">
+                                <svg className="w-3 h-3 fill-slate-800 translate-x-px" viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9" /></svg>
+                              </div>
+                            </div>
+                            <span className="absolute top-1 left-1 text-[8px] font-bold bg-emerald-600 text-white px-1.5 py-0.5 rounded-full">VIDEO</span>
+                          </>
+                        ) : (
+                          <img src={m.url} alt={`media-${idx}`} className="w-full h-full object-cover" />
+                        )}
+                        {/* Remove button */}
+                        <button
+                          type="button"
+                          onClick={() => setFormMediaItems(prev => prev.filter((_, i) => i !== idx))}
+                          className="absolute top-1 right-1 w-5 h-5 bg-red-600 text-white rounded-full text-[10px] font-bold flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow-md hover:bg-red-700"
+                        >
+                          ✕
+                        </button>
+                        {/* Reorder: set as first */}
+                        {idx !== 0 && (
+                          <button
+                            type="button"
+                            onClick={() => setFormMediaItems(prev => { const arr = [...prev]; const [item] = arr.splice(idx, 1); return [item, ...arr]; })}
+                            className="absolute bottom-1 left-1 text-[8px] font-bold bg-slate-900/70 text-white px-1.5 py-0.5 rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            Set 1st
+                          </button>
+                        )}
+                      </div>
+                    ))}
                   </div>
-                ) : (
-                  <label className="border-2 border-dashed border-slate-200 hover:border-primary rounded-2xl p-6 cursor-pointer flex flex-col items-center justify-center gap-2 bg-slate-50/50 hover:bg-slate-50 transition-all text-center">
-                    <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
-                      <Upload size={18} />
-                    </div>
-                    <div>
-                      <span className="font-bold text-xs text-heading block">Click to upload product image</span>
-                      <span className="text-[10px] text-muted block mt-0.5">Supports PNG, JPG, JPEG, WEBP</span>
-                    </div>
-                    <input 
-                      type="file" 
-                      accept="image/*" 
-                      className="hidden" 
-                      onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0], 'product')} 
-                    />
-                  </label>
                 )}
+
+                {/* Add media drop zone */}
+                <label className="border-2 border-dashed border-slate-200 hover:border-primary rounded-2xl p-5 cursor-pointer flex flex-col items-center justify-center gap-2 bg-slate-50/50 hover:bg-slate-50 transition-all text-center">
+                  <div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center">
+                    <Upload size={18} />
+                  </div>
+                  <div>
+                    <span className="font-bold text-xs text-heading block">
+                      {formMediaItems.length === 0 ? 'Click to upload images & videos' : 'Add more images / videos'}
+                    </span>
+                    <span className="text-[10px] text-muted block mt-0.5">PNG, JPG, WEBP, MP4, MOV — multiple files OK</span>
+                  </div>
+                  <input 
+                    type="file" 
+                    accept="image/*,video/*" 
+                    multiple
+                    className="hidden" 
+                    onChange={(e) => e.target.files && e.target.files.length > 0 && handleMediaUpload(e.target.files)}
+                  />
+                </label>
+
+                {/* URL paste field for direct URL entry */}
+                <div className="mt-2 flex gap-2">
+                  <input
+                    type="url"
+                    placeholder="Or paste a direct image/video URL..."
+                    className="flex-1 border border-border rounded-lg px-3 py-2 text-xs bg-white focus:outline-none focus:ring-1 focus:ring-primary"
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault();
+                        const val = (e.target as HTMLInputElement).value.trim();
+                        if (val) {
+                          const isVid = /\.(mp4|webm|ogg|mov|avi|mkv)(\?.*)?$/i.test(val) || val.includes('/video/upload/');
+                          setFormMediaItems(prev => [...prev, { url: val, type: isVid ? 'video' : 'image' }]);
+                          (e.target as HTMLInputElement).value = '';
+                        }
+                      }
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="text-[10px] font-bold bg-primary text-white px-3 py-2 rounded-lg hover:bg-primary-light transition-colors whitespace-nowrap"
+                    onClick={(e) => {
+                      const input = (e.currentTarget.previousElementSibling as HTMLInputElement);
+                      const val = input?.value.trim();
+                      if (val) {
+                        const isVid = /\.(mp4|webm|ogg|mov|avi|mkv)(\?.*)?$/i.test(val) || val.includes('/video/upload/');
+                        setFormMediaItems(prev => [...prev, { url: val, type: isVid ? 'video' : 'image' }]);
+                        if (input) input.value = '';
+                      }
+                    }}
+                  >
+                    Add URL
+                  </button>
+                </div>
+
                 {uploadingProdImg && (
                   <div className="mt-2 flex items-center gap-2 text-[10px] text-primary font-semibold">
                     <div className="w-3.5 h-3.5 border-2 border-primary border-t-transparent rounded-full animate-spin" />

@@ -20,6 +20,7 @@ import {
   Edit,
   Trash2
 } from 'lucide-react';
+import { MediaSlider } from '../components/MediaSlider';
 
 export const ProductDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
@@ -30,7 +31,6 @@ export const ProductDetail: React.FC = () => {
   const product = products.find(p => p.slug === slug);
 
   // States
-  const [activeImage, setActiveImage] = useState<string>('');
   const [quantity, setQuantity] = useState<number>(1);
   const [activeTab, setActiveTab] = useState<'benefits' | 'instructions' | 'specs'>('benefits');
   const [reviewsList, setReviewsList] = useState<any[]>([]);
@@ -165,7 +165,6 @@ export const ProductDetail: React.FC = () => {
 
   useEffect(() => {
     if (product) {
-      setActiveImage(product.images[0]);
       
       const loadReviews = async () => {
         try {
@@ -415,28 +414,38 @@ export const ProductDetail: React.FC = () => {
         {/* Product Layout Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 bg-white rounded-3xl p-6 sm:p-10 border border-border shadow-soft mb-12">
           
-          {/* Left: Images Column */}
-          <div className="lg:col-span-5 space-y-4">
+          {/* Left: Images + Videos Column */}
+          <div className="lg:col-span-5">
             <div className="aspect-square w-full rounded-2xl overflow-hidden bg-slate-50 border border-border">
-              <img 
-                src={activeImage} 
-                alt={product.name} 
-                className="w-full h-full object-cover" 
+              <MediaSlider
+                images={product.images || []}
+                videos={product.videos || []}
+                productName={product.name}
+                mode="full"
+                className="w-full h-full"
               />
             </div>
-            {/* Gallery Strip */}
-            {product.images.length > 1 && (
-              <div className="flex gap-3 overflow-x-auto pb-1">
-                {product.images.map((img, i) => (
-                  <button
+            {/* Thumbnail strip */}
+            {((product.images?.length ?? 0) + (product.videos?.length ?? 0)) > 1 && (
+              <div className="flex gap-2 mt-4 overflow-x-auto pb-1">
+                {[...(product.images || []).map(u => ({ url: u, type: 'image' as const })), ...(product.videos || []).map(u => ({ url: u, type: 'video' as const }))].map((m, i) => (
+                  <div
                     key={i}
-                    onClick={() => setActiveImage(img)}
-                    className={`w-20 h-20 rounded-xl overflow-hidden border-2 flex-shrink-0 bg-slate-50 transition-all ${
-                      activeImage === img ? 'border-primary' : 'border-border opacity-70 hover:opacity-100'
-                    }`}
+                    className="w-16 h-16 rounded-xl overflow-hidden border-2 flex-shrink-0 bg-slate-50 border-border relative"
                   >
-                    <img src={img} alt="" className="w-full h-full object-cover" />
-                  </button>
+                    {m.type === 'video' ? (
+                      <>
+                        <video src={m.url} className="w-full h-full object-cover" />
+                        <div className="absolute inset-0 flex items-center justify-center bg-slate-900/30">
+                          <div className="w-5 h-5 bg-white/90 rounded-full flex items-center justify-center">
+                            <svg className="w-2.5 h-2.5 fill-slate-800 translate-x-px" viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9" /></svg>
+                          </div>
+                        </div>
+                      </>
+                    ) : (
+                      <img src={m.url} alt="" className="w-full h-full object-cover" />
+                    )}
+                  </div>
                 ))}
               </div>
             )}

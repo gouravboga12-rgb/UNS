@@ -21,6 +21,7 @@ export interface Product {
   shortDescription: string;
   fullDescription: string;
   images: string[];
+  videos?: string[];
   price: number;
   discountPrice: number;
   stock: number;
@@ -783,14 +784,13 @@ const loadCatsFromLS = (): Category[] | null => {
 const mapProductImages = (products: Product[]): Product[] => {
   const base = API_URL.replace(/\/api$/, '');
   return products.map(product => {
-    if (!product.images) return product;
-    const mappedImages = product.images.map(img => {
+    const mappedImages = (product.images || []).map(img => {
       if (img && img.startsWith('http://localhost:5000')) {
         return img.replace('http://localhost:5000', base);
       }
       return img;
     });
-    return { ...product, images: mappedImages };
+    return { ...product, images: mappedImages, videos: product.videos || [] };
   });
 };
 

@@ -131,22 +131,26 @@ async function recalculateProductRating(productId: string) {
 }
 
 // -------------------------------------------------------------
-// Cloudinary Upload API
+// Cloudinary Upload API (images + videos)
 // -------------------------------------------------------------
-app.post('/api/upload', upload.single('image'), (req: Request, res: Response) => {
+app.post('/api/upload', upload.single('file'), (req: Request, res: Response) => {
   if (!req.file) {
     return res.status(400).json({ error: 'No file uploaded' });
   }
 
-  // Upload stream to Cloudinary
+  const mimeType = req.file.mimetype || '';
+  const isVideo = mimeType.startsWith('video/');
+  const resourceType: 'image' | 'video' | 'auto' = isVideo ? 'video' : 'image';
+
+  // Upload stream to Cloudinary (auto-detect resource type)
   const uploadStream = cloudinary.uploader.upload_stream(
-    { folder: 'uns_media' },
+    { folder: 'uns_media', resource_type: resourceType },
     (error, result) => {
       if (error) {
         console.error('Cloudinary upload error:', error);
         return res.status(500).json({ error: 'Cloudinary upload failed' });
       }
-      res.json({ url: result?.secure_url });
+      res.json({ url: result?.secure_url, isVideo });
     }
   );
 

@@ -5,6 +5,7 @@ import { addItem } from '../store/cartSlice';
 import { showToast } from '../store/toastSlice';
 import { ShoppingCart, Star } from 'lucide-react';
 import type { Product } from '../store/productsSlice';
+import { MediaSlider } from './MediaSlider';
 
 interface ProductCardProps {
   product: Product;
@@ -53,9 +54,10 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, customBadge }
   return (
     <div className="bg-white rounded-xl shadow-soft hover:shadow-soft-lg hover-card-zoom border border-border overflow-hidden transition-all duration-300 flex flex-col group h-full">
       
-      {/* Product Image */}
-      <Link to={`/products/${product.slug}`} className="relative block overflow-hidden aspect-square bg-slate-50">
-        <div className="absolute top-3 left-3 right-3 z-10 flex flex-wrap gap-1.5 items-start justify-between pointer-events-none">
+      {/* Product Media (images + videos slider) */}
+      <div className="relative block aspect-square bg-slate-50 overflow-hidden">
+        {/* Badges overlay */}
+        <div className="absolute top-3 left-3 right-3 z-20 flex flex-wrap gap-1.5 items-start justify-between pointer-events-none">
           {discountPercent > 0 ? (
             <span className="bg-accent text-white text-[11px] font-bold px-2 py-1 rounded-md shadow-sm pointer-events-auto">
               {discountPercent}% OFF
@@ -91,13 +93,16 @@ export const ProductCard: React.FC<ProductCardProps> = ({ product, customBadge }
             </div>
           )}
         </div>
-        <img
-          src={product.images[0]}
-          alt={product.name}
-          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-          loading="lazy"
+        {/* Slider covers the whole card image area; Link wraps only for clicking on the image itself */}
+        <Link to={`/products/${product.slug}`} className="absolute inset-0 z-0" aria-label={`View ${product.name}`} />
+        <MediaSlider
+          images={product.images || []}
+          videos={product.videos || []}
+          productName={product.name}
+          mode="compact"
+          className="w-full h-full"
         />
-      </Link>
+      </div>
 
       {/* Product Body */}
       <div className="p-3 sm:p-4 flex-1 flex flex-col justify-between">

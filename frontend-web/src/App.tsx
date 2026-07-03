@@ -9,6 +9,8 @@ import { FloatingWhatsApp } from './components/FloatingWhatsApp';
 import { BottomNavigation } from './components/BottomNavigation';
 import { ScrollToTop } from './components/ScrollToTop';
 import { ToastNotification } from './components/ToastNotification';
+import { IntroVideoOverlay } from './components/IntroVideoOverlay';
+
 
 // Pages lazy/direct import
 import { Home } from './pages/Home';
@@ -48,6 +50,7 @@ const AppContent: React.FC = () => {
 
   return (
     <>
+      {!isAdminRoute && <IntroVideoOverlay />}
       <ScrollToTop />
       <div className="flex flex-col min-h-screen bg-background w-full max-w-full">
         {!isAdminRoute && <Navbar />}
