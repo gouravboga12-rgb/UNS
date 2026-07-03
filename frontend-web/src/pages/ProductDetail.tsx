@@ -40,6 +40,7 @@ export const ProductDetail: React.FC = () => {
   const [reviewComment, setReviewComment] = useState('');
   const [showReviewModal, setShowReviewModal] = useState(false);
   const [reviewSubmitted, setReviewSubmitted] = useState(false);
+  const [fromDeliveryLink, setFromDeliveryLink] = useState(false);
 
   // Volume Variants Logic
   const dbVariants: any[] = product?.specifications?.variants || [];
@@ -164,11 +165,18 @@ export const ProductDetail: React.FC = () => {
     };
   }, []);
 
+  // Auto-fill reviewer name and open review modal when navigated via writeReview=true
   useEffect(() => {
-    if (searchParams.get('writeReview') === 'true') {
+    const isFromDelivery = searchParams.get('writeReview') === 'true';
+    if (isFromDelivery) {
+      setFromDeliveryLink(true);
       setShowReviewModal(true);
+      // Auto-fill name from logged in user
+      if (currentUser?.name) {
+        setReviewName(currentUser.name);
+      }
     }
-  }, [searchParams]);
+  }, [searchParams, currentUser]);
 
   useEffect(() => {
     if (product) {
@@ -262,6 +270,11 @@ export const ProductDetail: React.FC = () => {
             return matchesUser && containsProduct;
           });
         }
+      }
+
+      // Also trust reviews from the "Rate & Write Review" delivery deeplink
+      if (!matched && searchParams.get('writeReview') === 'true') {
+        matched = true;
       }
 
       if (!matched && (currentUser.email === 'user@example.com' || currentUser.phone === '7396158011' || currentUser.name === 'Ganesh Reddy')) {
@@ -358,24 +371,28 @@ export const ProductDetail: React.FC = () => {
         comment: reviewComment
       };
 
+      let apiSuccess = false;
       try {
-        await fetch(`${API_URL}/products/${product.id}/reviews`, {
+        const res = await fetch(`${API_URL}/products/${product.id}/reviews`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(reviewPayload)
         });
+        apiSuccess = res.ok;
       } catch (err) {
         console.error('Error posting review to API:', err);
       }
 
-      // Local fallback representation
+      // Reviews from delivery link are trusted as verified buyer — show immediately as approved
+      const isApproved = fromDeliveryLink || apiSuccess;
+
       const newReview = {
         id: `rev-local-${Math.random().toString(36).substring(2, 9)}`,
         productId: product.id,
         customerName: reviewName,
         rating: reviewRating,
         comment: reviewComment,
-        approved: false, // Moderated by default!
+        approved: isApproved,
         createdAt: new Date().toISOString()
       };
 
@@ -384,7 +401,10 @@ export const ProductDetail: React.FC = () => {
       existingReviews.push(newReview);
       localStorage.setItem('uns_local_reviews', JSON.stringify(existingReviews));
 
-      setReviewName('');
+      // Show review immediately on page (even if pending admin approval, show to reviewer)
+      setReviewsList(prev => [{ ...newReview, approved: true }, ...prev]);
+
+      setReviewName(currentUser?.name || '');
       setReviewComment('');
       setReviewRating(5);
       setReviewSubmitted(true);
