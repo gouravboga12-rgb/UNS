@@ -39,7 +39,9 @@ import {
   Lock,
   Mail,
   Search,
-  LogOut
+  LogOut,
+  RefreshCw,
+  AlertTriangle
 } from 'lucide-react';
 
 
@@ -87,6 +89,20 @@ export const AdminDashboard: React.FC = () => {
   const [localEnquiries, setLocalEnquiries] = useState<any[]>([]);
   const [localReviews, setLocalReviews] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Custom confirm dialog state
+  const [confirmModal, setConfirmModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+    onConfirm: () => void;
+  }>({ open: false, title: '', message: '', onConfirm: () => {} });
+
+  const showConfirm = (title: string, message: string, onConfirm: () => void) => {
+    setConfirmModal({ open: true, title, message, onConfirm });
+  };
+  const closeConfirm = () => setConfirmModal(prev => ({ ...prev, open: false }));
   
   // Editing and form modals
   const [showProductModal, setShowProductModal] = useState(false);
@@ -919,27 +935,50 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleOrderDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this order?")) {
-      try {
-        const res = await fetch(`${API_URL}/admin/orders/${id}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          const updated = localOrders.filter(o => o.id !== id);
-          setLocalOrders(updated);
-          localStorage.setItem('uns_local_orders', JSON.stringify(updated));
-        } else {
-          const updated = localOrders.filter(o => o.id !== id);
-          setLocalOrders(updated);
-          localStorage.setItem('uns_local_orders', JSON.stringify(updated));
-        }
-      } catch {
+  const handleRefresh = async () => {
+    setIsRefreshing(true);
+    try {
+      const [ordRes, enqRes, revRes, custRes] = await Promise.all([
+        fetch(`${API_URL}/admin/orders`),
+        fetch(`${API_URL}/admin/enquiries`),
+        fetch(`${API_URL}/admin/reviews`),
+        fetch(`${API_URL}/admin/users`)
+      ]);
+      if (ordRes.ok) { const d = await ordRes.json(); setLocalOrders(d); localStorage.setItem('uns_local_orders', JSON.stringify(d)); }
+      if (enqRes.ok) { const d = await enqRes.json(); setLocalEnquiries(d); localStorage.setItem('uns_local_enquiries', JSON.stringify(d)); }
+      if (revRes.ok) { const d = await revRes.json(); setLocalReviews(d); }
+      if (custRes.ok) { const d = await custRes.json(); setCustomers(d); }
+      dispatch(fetchProducts() as any);
+      dispatch(fetchCategories() as any);
+    } catch (e) { console.warn('Refresh failed', e); }
+    setIsRefreshing(false);
+  };
+
+  const handleOrderDelete = (id: string) => {
+    showConfirm(
+      'Delete Order',
+      'Are you sure you want to permanently delete this order? This action cannot be undone.',
+      async () => {
+        closeConfirm();
+        try {
+          await fetch(`${API_URL}/admin/orders/${id}`, { method: 'DELETE' });
+        } catch (e) { console.warn('Delete order API error', e); }
+        // Always re-fetch from server to confirm deletion
+        try {
+          const res = await fetch(`${API_URL}/admin/orders`);
+          if (res.ok) {
+            const data = await res.json();
+            setLocalOrders(data);
+            localStorage.setItem('uns_local_orders', JSON.stringify(data));
+            return;
+          }
+        } catch {}
+        // Fallback: remove from local state
         const updated = localOrders.filter(o => o.id !== id);
         setLocalOrders(updated);
         localStorage.setItem('uns_local_orders', JSON.stringify(updated));
       }
-    }
+    );
   };
 
   const handleEnquiryDelete = async (id: string) => {
@@ -1221,12 +1260,21 @@ export const AdminDashboard: React.FC = () => {
       
       {/* Sidebar Navigation */}
       <aside className="w-full lg:w-64 bg-heading text-slate-350 border-r border-slate-800 flex flex-col">
-        <div className="p-6 border-b border-slate-800 flex items-center gap-3">
-          <ShieldAlert className="text-secondary animate-pulse" size={24} />
-          <div>
-            <span className="font-heading text-white font-bold text-base block leading-none">UNS Control</span>
-            <span className="text-[10px] text-teal-400 font-bold uppercase mt-1.5 block">Administrator</span>
+        <div className="p-6 border-b border-slate-800 flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <ShieldAlert className="text-secondary animate-pulse flex-shrink-0" size={24} />
+            <div>
+              <span className="font-heading text-white font-bold text-base block leading-none">UNS Control</span>
+              <span className="text-[10px] text-teal-400 font-bold uppercase mt-1.5 block">Administrator</span>
+            </div>
           </div>
+          <button
+            onClick={handleRefresh}
+            title="Refresh all data"
+            className="p-2 rounded-lg hover:bg-slate-700 text-slate-400 hover:text-white transition-colors flex-shrink-0"
+          >
+            <RefreshCw size={15} className={isRefreshing ? 'animate-spin' : ''} />
+          </button>
         </div>
 
         <nav className="flex-grow p-4 space-y-1.5 text-xs">
@@ -2788,6 +2836,35 @@ export const AdminDashboard: React.FC = () => {
         </div>
       )}
 
+
+      {/* GLOBAL CONFIRM DIALOG */}
+      {confirmModal.open && (
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-border animate-fadeIn">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-red-50 rounded-xl">
+                <AlertTriangle size={20} className="text-red-500" />
+              </div>
+              <h3 className="text-base font-bold text-heading font-heading">{confirmModal.title}</h3>
+            </div>
+            <p className="text-sm text-body mb-6 leading-relaxed">{confirmModal.message}</p>
+            <div className="flex gap-3">
+              <button
+                onClick={closeConfirm}
+                className="flex-1 py-2.5 rounded-xl border border-border text-sm font-bold text-muted hover:bg-slate-50 transition-colors"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmModal.onConfirm}
+                className="flex-1 py-2.5 rounded-xl bg-red-500 hover:bg-red-600 text-white text-sm font-bold transition-colors flex items-center justify-center gap-2"
+              >
+                <Trash2 size={14} /> Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* MODAL 5: PRINTABLE TAX INVOICE */}
       {showInvoiceModal && selectedOrder && (
