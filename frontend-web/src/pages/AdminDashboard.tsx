@@ -814,11 +814,12 @@ export const AdminDashboard: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updated)
         });
+        // Always dispatch the locally-constructed updated object first
+        // so images/videos appear immediately in the admin list
+        dispatch(updateProductLocally(updated));
         if (res.ok) {
-          const data = await res.json();
-          dispatch(updateProductLocally(data));
-        } else {
-          dispatch(updateProductLocally(updated));
+          // Re-fetch after a short delay to sync any server-side changes
+          setTimeout(() => dispatch(fetchProducts() as any), 800);
         }
       } catch {
         dispatch(updateProductLocally(updated));
@@ -1654,7 +1655,15 @@ export const AdminDashboard: React.FC = () => {
                     ) : filteredProducts.map(prod => (
                       <tr key={prod.id} className="hover:bg-slate-50/50">
                         <td className="p-4 font-semibold text-heading flex items-center gap-2.5">
-                          <img src={prod.images[0]} alt="" className="w-8 h-8 rounded object-cover border border-border bg-slate-50" />
+                          {prod.images?.[0] ? (
+                            <img src={prod.images[0]} alt="" className="w-8 h-8 rounded object-cover border border-border bg-slate-50" />
+                          ) : prod.videos?.[0] ? (
+                            <div className="w-8 h-8 rounded border border-border bg-slate-100 flex items-center justify-center">
+                              <svg className="w-3 h-3 fill-slate-500" viewBox="0 0 10 10"><polygon points="2,1 9,5 2,9" /></svg>
+                            </div>
+                          ) : (
+                            <div className="w-8 h-8 rounded border border-border bg-slate-100" />
+                          )}
                           {prod.name}
                         </td>
                         <td className="p-4">{prod.category}</td>

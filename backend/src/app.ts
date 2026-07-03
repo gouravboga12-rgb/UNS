@@ -283,6 +283,7 @@ app.get('/api/products', async (req: Request, res: Response) => {
       images: (p.images || []).map((img: string) => 
         img.startsWith('http://localhost:5000') ? img.replace('http://localhost:5000', baseUrl) : img
       ),
+      videos: p.videos || [],
       price: Number(p.price) || 0,
       discountPrice: Number(p.discountPrice || p.discountprice) || Number(p.price) || 0,
       stock: Number(p.stock) || 0,
@@ -378,6 +379,7 @@ app.get('/api/products/:slug', async (req: Request, res: Response) => {
       images: (rawProduct.images || []).map((img: string) => 
         img.startsWith('http://localhost:5000') ? img.replace('http://localhost:5000', baseUrl) : img
       ),
+      videos: rawProduct.videos || [],
       price: Number(rawProduct.price) || 0,
       discountPrice: Number(rawProduct.discountPrice || rawProduct.discountprice) || Number(rawProduct.price) || 0,
       stock: Number(rawProduct.stock) || 0,
@@ -419,7 +421,7 @@ app.get('/api/products/:slug', async (req: Request, res: Response) => {
 
 // Admin product CRUD
 app.post('/api/products', async (req: Request, res: Response) => {
-  const { name, category, shortDescription, fullDescription, price, discountPrice, stock, images, specifications, benefits, usageInstructions, featured } = req.body;
+  const { name, category, shortDescription, fullDescription, price, discountPrice, stock, images, videos, specifications, benefits, usageInstructions, featured } = req.body;
   
   if (!name || !price || !category) {
     return res.status(400).json({ error: 'Name, Category, and Price are required' });
@@ -438,6 +440,7 @@ app.post('/api/products', async (req: Request, res: Response) => {
     discountPrice: discountPrice ? Number(discountPrice) : Number(price),
     stock: stock ? Number(stock) : 0,
     images: images && images.length ? images : ['https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=600&q=80'],
+    videos: videos && videos.length ? videos : [],
     rating: 5.0,
     specifications: specifications || {},
     benefits: benefits || [],
