@@ -241,19 +241,25 @@ export const ProductDetail: React.FC = () => {
       }
 
       let matched = false;
+
+      const isDeliveredOrder = (order: any) => {
+        const deliveredStatus = ['Delivered', 'delivered', 'DELIVERED'];
+        const matchesUser =
+          (order.customerEmail && order.customerEmail.toLowerCase() === currentUser.email?.toLowerCase()) ||
+          (order.customerPhone && currentUser.phone &&
+            order.customerPhone.replace(/[^0-9]/g, '').endsWith(currentUser.phone.replace(/[^0-9]/g, '').slice(-10)));
+        const containsProduct = order.items?.some((item: any) =>
+          item.productId === product.id || item.productId?.startsWith(product.id + '-')
+        );
+        const isDelivered = deliveredStatus.includes(order.status);
+        return matchesUser && containsProduct && isDelivered;
+      };
+
       try {
         const response = await fetch(`${API_URL}/admin/orders`);
         if (response.ok) {
           const orders = await response.json();
-          matched = orders.some((order: any) => {
-            const matchesUser = 
-              (order.customerEmail && order.customerEmail.toLowerCase() === currentUser.email.toLowerCase()) || 
-              (order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(currentUser.phone.replace(/[^0-9]/g, '').slice(-10)));
-            const containsProduct = order.items.some((item: any) => 
-              item.productId === product.id || item.productId.startsWith(product.id + '-')
-            );
-            return matchesUser && containsProduct;
-          });
+          matched = orders.some(isDeliveredOrder);
         }
       } catch (err) {
         console.error('Error verifying purchase history:', err);
@@ -262,27 +268,10 @@ export const ProductDetail: React.FC = () => {
       if (!matched) {
         const localOrdersRaw = localStorage.getItem('uns_local_orders');
         if (localOrdersRaw) {
-          const localOrders = JSON.parse(localOrdersRaw);
-          matched = localOrders.some((order: any) => {
-            const matchesUser = 
-              (order.customerEmail && order.customerEmail.toLowerCase() === currentUser.email.toLowerCase()) || 
-              (order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(currentUser.phone.replace(/[^0-9]/g, '').slice(-10)));
-            const containsProduct = order.items.some((item: any) => 
-              item.productId === product.id || item.productId.startsWith(product.id + '-')
-            );
-            return matchesUser && containsProduct;
-          });
-        }
-      }
-
-      // Also trust reviews from the "Rate & Write Review" delivery deeplink
-      if (!matched && searchParams.get('writeReview') === 'true') {
-        matched = true;
-      }
-
-      if (!matched && (currentUser.email === 'user@example.com' || currentUser.phone === '7396158011' || currentUser.name === 'Ganesh Reddy')) {
-        if (product.id === 'prod-1' || product.id === 'prod-3') {
-          matched = true;
+          try {
+            const localOrders = JSON.parse(localOrdersRaw);
+            matched = localOrders.some(isDeliveredOrder);
+          } catch {}
         }
       }
 
@@ -768,8 +757,8 @@ export const ProductDetail: React.FC = () => {
                   Write a Review
                 </button>
               ) : (
-                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-100 py-2 px-4 rounded-lg font-semibold self-start">
-                  Only verified buyers can review this product
+                <div className="text-xs text-amber-600 bg-amber-50 border border-amber-100 py-2.5 px-4 rounded-lg font-semibold self-start flex items-center gap-2">
+                  <span>🔒</span> Only customers who received this product can write a review
                 </div>
               )
             ) : (
@@ -793,12 +782,13 @@ export const ProductDetail: React.FC = () => {
                   <div className="flex items-center justify-between mb-2">
                     <div className="flex items-center gap-2">
                       <h4 className="font-heading font-semibold text-sm text-heading">{rev.customerName}</h4>
+                      {/* Admin controls: edit & delete any review */}
                       {currentUser?.role === 'admin' && (
                         <div className="flex items-center gap-1.5">
                           <button
                             onClick={() => handleOpenEditReviewModal(rev)}
                             className="text-[10px] text-primary hover:text-primary-light font-bold flex items-center gap-0.5 hover:underline"
-                            title="Edit Review Rating and Comment"
+                            title="Edit Review"
                           >
                             <Edit size={10} /> Edit
                           </button>
@@ -807,6 +797,27 @@ export const ProductDetail: React.FC = () => {
                             onClick={() => handleDeleteReview(rev)}
                             className="text-[10px] text-red-500 hover:text-red-650 font-bold flex items-center gap-0.5 hover:underline"
                             title="Delete Review"
+                          >
+                            <Trash2 size={10} /> Delete
+                          </button>
+                        </div>
+                      )}
+                      {/* User controls: edit & delete their own review only */}
+                      {currentUser && currentUser.role !== 'admin' &&
+                        rev.customerName === currentUser.name && (
+                        <div className="flex items-center gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditReviewModal(rev)}
+                            className="text-[10px] text-primary hover:text-primary-light font-bold flex items-center gap-0.5 hover:underline"
+                            title="Edit your review"
+                          >
+                            <Edit size={10} /> Edit
+                          </button>
+                          <span className="text-[10px] text-slate-300">|</span>
+                          <button
+                            onClick={() => handleDeleteReview(rev)}
+                            className="text-[10px] text-red-500 font-bold flex items-center gap-0.5 hover:underline"
+                            title="Delete your review"
                           >
                             <Trash2 size={10} /> Delete
                           </button>
