@@ -62,6 +62,29 @@ export const IntroVideoOverlay: React.FC<IntroVideoOverlayProps> = ({ onClose })
     }
   }, [isVisible]);
 
+  // Unmute automatically on first user interaction with the document
+  useEffect(() => {
+    if (!isVisible) return;
+    
+    const handleFirstInteraction = () => {
+      if (videoRef.current && videoRef.current.muted) {
+        videoRef.current.muted = false;
+        setIsMuted(false);
+      }
+      cleanup();
+    };
+
+    const cleanup = () => {
+      document.removeEventListener('click', handleFirstInteraction);
+      document.removeEventListener('touchstart', handleFirstInteraction);
+    };
+
+    document.addEventListener('click', handleFirstInteraction);
+    document.addEventListener('touchstart', handleFirstInteraction);
+
+    return cleanup;
+  }, [isVisible]);
+
   const handleClose = () => {
     setIsExiting(true);
     // Persist that the intro played so we don't show it again this session
@@ -82,6 +105,11 @@ export const IntroVideoOverlay: React.FC<IntroVideoOverlayProps> = ({ onClose })
       videoRef.current.pause();
       setIsPlaying(false);
     } else {
+      // If manually played, unmute it as user action is guaranteed
+      if (videoRef.current.muted) {
+        videoRef.current.muted = false;
+        setIsMuted(false);
+      }
       videoRef.current.play()
         .then(() => {
           setIsPlaying(true);
@@ -95,8 +123,9 @@ export const IntroVideoOverlay: React.FC<IntroVideoOverlayProps> = ({ onClose })
 
   const handleToggleMute = () => {
     if (!videoRef.current) return;
-    videoRef.current.muted = !isMuted;
-    setIsMuted(!isMuted);
+    const nextMuteState = !videoRef.current.muted;
+    videoRef.current.muted = nextMuteState;
+    setIsMuted(nextMuteState);
   };
 
   const formatTime = (time: number) => {
