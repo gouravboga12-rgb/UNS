@@ -108,7 +108,7 @@ export const AdminDashboard: React.FC = () => {
   const [formMediaItems, setFormMediaItems] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
   const [uploadingProdImg, setUploadingProdImg] = useState(false);
   const [hasVariants, setHasVariants] = useState(false);
-  const [formVariants, setFormVariants] = useState<{ name: string; price: string; discountPrice: string; stock: string }[]>([]);
+  const [formVariants, setFormVariants] = useState<{ name: string; price: string; discountPrice: string; stock: string; deliveryCharge: string }[]>([]);
   
   // Custom stock options & custom specs
   const [formStockStatus, setFormStockStatus] = useState('Stock Available');
@@ -683,7 +683,8 @@ export const AdminDashboard: React.FC = () => {
         name: v.name,
         price: v.price.toString(),
         discountPrice: v.discountPrice.toString(),
-        stock: v.stock.toString()
+        stock: v.stock.toString(),
+        deliveryCharge: (v.deliveryCharge !== undefined ? v.deliveryCharge : 50).toString()
       })));
     } else {
       setHasVariants(false);
@@ -767,7 +768,8 @@ export const AdminDashboard: React.FC = () => {
         name: v.name,
         price: Number(v.price),
         discountPrice: Number(v.discountPrice),
-        stock: v.stock ? Number(v.stock) : 999
+        stock: v.stock ? Number(v.stock) : 999,
+        deliveryCharge: v.deliveryCharge !== undefined ? Number(v.deliveryCharge) : 50
       }));
 
       finalSpecifications = {
@@ -2215,7 +2217,7 @@ export const AdminDashboard: React.FC = () => {
                             }}
                           />
                         </div>
-                        <div className="sm:col-span-3">
+                        <div className="sm:col-span-2">
                           <input
                             type="number"
                             placeholder="MRP (₹)"
@@ -2229,7 +2231,7 @@ export const AdminDashboard: React.FC = () => {
                             }}
                           />
                         </div>
-                        <div className="sm:col-span-3">
+                        <div className="sm:col-span-2">
                           <input
                             type="number"
                             placeholder="Discount (₹)"
@@ -2246,7 +2248,21 @@ export const AdminDashboard: React.FC = () => {
                         <div className="sm:col-span-2">
                           <input
                             type="number"
-                            placeholder="Stock (optional)"
+                            placeholder="Del. Charge (₹)"
+                            required
+                            className="w-full bg-slate-50 border border-border rounded-md py-1.5 px-2 text-xs focus:outline-none focus:border-primary font-semibold text-primary"
+                            value={v.deliveryCharge}
+                            onChange={(e) => {
+                              const updated = [...formVariants];
+                              updated[index].deliveryCharge = e.target.value;
+                              setFormVariants(updated);
+                            }}
+                          />
+                        </div>
+                        <div className="sm:col-span-2">
+                          <input
+                            type="number"
+                            placeholder="Stock"
                             className="w-full bg-slate-50 border border-border rounded-md py-1.5 px-2 text-xs focus:outline-none focus:border-primary"
                             value={v.stock}
                             onChange={(e) => {
@@ -2273,7 +2289,7 @@ export const AdminDashboard: React.FC = () => {
 
                     <button
                       type="button"
-                      onClick={() => setFormVariants([...formVariants, { name: '', price: '', discountPrice: '', stock: '' }])}
+                      onClick={() => setFormVariants([...formVariants, { name: '', price: '', discountPrice: '', stock: '', deliveryCharge: '50' }])}
                       className="w-full bg-slate-100 hover:bg-slate-200 border border-slate-200 text-heading text-[10px] font-bold py-2 px-3 rounded-lg flex items-center justify-center gap-1"
                     >
                       <Plus size={12} /> Add Variant Option

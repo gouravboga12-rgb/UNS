@@ -322,6 +322,22 @@ export const ProductDetail: React.FC = () => {
       ? `${product.name} (${selectedSize})`
       : product.name;
 
+    // Get delivery charge from selected variant if available, otherwise from product specifications
+    let currentDeliveryCharge = 50;
+    if (hasDbVariants) {
+      const dbVars = product.specifications?.variants || [];
+      const v = dbVars.find((x: any) => x.name === selectedSize);
+      if (v && v.deliveryCharge !== undefined) {
+        currentDeliveryCharge = Number(v.deliveryCharge);
+      } else if (product.specifications?.deliveryCharge !== undefined) {
+        currentDeliveryCharge = Number(product.specifications.deliveryCharge);
+      }
+    } else {
+      if (product.specifications?.deliveryCharge !== undefined) {
+        currentDeliveryCharge = Number(product.specifications.deliveryCharge);
+      }
+    }
+
     // Add multiple quantities
     for (let i = 0; i < quantity; i++) {
        dispatch(addItem({
@@ -331,7 +347,7 @@ export const ProductDetail: React.FC = () => {
         price: currentPrice,
         discountPrice: currentDiscountPrice,
         imageUrl: product.images[0],
-        deliveryCharge: product.specifications?.deliveryCharge !== undefined ? Number(product.specifications.deliveryCharge) : 50
+        deliveryCharge: currentDeliveryCharge
       }));
     }
     dispatch(showToast({

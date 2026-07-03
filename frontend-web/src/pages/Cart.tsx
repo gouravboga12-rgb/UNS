@@ -44,13 +44,22 @@ export const Cart: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   // Get live delivery charge from Redux products state (not stale cart item value)
-  const getLiveDeliveryCharge = (cartItemId: string, fallback?: number): number => {
-    // cartItemId may be 'prod-xyz' or 'prod-xyz-500ml' (variant) — match by prefix
+  const getLiveDeliveryCharge = (cartItemId: string, cartItemName: string, fallback?: number): number => {
     const product = allProducts.find(p => cartItemId.startsWith(p.id));
-    if (product && product.specifications?.deliveryCharge !== undefined) {
-      return Number(product.specifications.deliveryCharge);
+    if (product) {
+      const dbVars = product.specifications?.variants || [];
+      if (dbVars.length > 0) {
+        const match = cartItemName.match(/\(([^)]+)\)$/);
+        const sizeName = match ? match[1] : '';
+        const v = dbVars.find((x: any) => x.name.toLowerCase() === sizeName.toLowerCase());
+        if (v && v.deliveryCharge !== undefined) {
+          return Number(v.deliveryCharge);
+        }
+      }
+      if (product.specifications?.deliveryCharge !== undefined) {
+        return Number(product.specifications.deliveryCharge);
+      }
     }
-    // Fallback to cart item's stored value or 50
     return fallback !== undefined ? fallback : 50;
   };
 
@@ -58,7 +67,7 @@ export const Cart: React.FC = () => {
   const subtotal = cartItems.reduce((acc, item) => acc + (item.discountPrice || item.price) * item.quantity, 0);
   const shipping = cartItems.length === 0 || subtotal > 500
     ? 0
-    : Math.max(...cartItems.map(item => getLiveDeliveryCharge(item.id, item.deliveryCharge)), 0);
+    : Math.max(...cartItems.map(item => getLiveDeliveryCharge(item.id, item.name, item.deliveryCharge)), 0);
   const total = subtotal + shipping;
 
   const handleQuantityChange = (id: string, q: number) => {

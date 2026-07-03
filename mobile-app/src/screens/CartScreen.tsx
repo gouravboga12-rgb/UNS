@@ -20,6 +20,7 @@ import { API_BASE_URL } from '../config/api';
 export const CartScreen = ({ navigation }: any) => {
   const dispatch = useDispatch();
   const cartItems = useSelector((state: RootState) => state.cart.items);
+  const allProducts = useSelector((state: RootState) => state.products.items);
 
   // Form states
   const [name, setName] = useState('');
@@ -28,10 +29,30 @@ export const CartScreen = ({ navigation }: any) => {
   const [success, setSuccess] = useState<any | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Get live delivery charge from Redux products state (not stale cart item value)
+  const getLiveDeliveryCharge = (cartItemId: string, cartItemName: string, fallback?: number): number => {
+    const product = allProducts.find(p => cartItemId.startsWith(p.id));
+    if (product) {
+      const dbVars = product.specifications?.variants || [];
+      if (dbVars.length > 0) {
+        const match = cartItemName.match(/\(([^)]+)\)$/);
+        const sizeName = match ? match[1] : '';
+        const v = dbVars.find((x: any) => x.name.toLowerCase() === sizeName.toLowerCase());
+        if (v && v.deliveryCharge !== undefined) {
+          return Number(v.deliveryCharge);
+        }
+      }
+      if (product.specifications?.deliveryCharge !== undefined) {
+        return Number(product.specifications.deliveryCharge);
+      }
+    }
+    return fallback !== undefined ? fallback : 50;
+  };
+
   const subtotal = cartItems.reduce((acc, item) => acc + (item.discountPrice || item.price) * item.quantity, 0);
   const shipping = cartItems.length === 0 || subtotal > 500
     ? 0
-    : Math.max(...cartItems.map(item => item.deliveryCharge !== undefined ? item.deliveryCharge : 50), 0);
+    : Math.max(...cartItems.map(item => getLiveDeliveryCharge(item.id, item.name, item.deliveryCharge)), 0);
   const total = subtotal + shipping;
 
   const handleQtyChange = (id: string, q: number) => {
