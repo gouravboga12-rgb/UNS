@@ -2320,18 +2320,25 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 )}
 
-                {/* Delivery Charge Input */}
-                <div>
-                  <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Delivery Charge (₹)</label>
-                  <input
-                    type="number"
-                    required
-                    className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary font-semibold text-heading"
-                    placeholder="Enter delivery charge (default: 50)"
-                    value={formDeliveryCharge}
-                    onChange={(e) => setFormDeliveryCharge(e.target.value)}
-                  />
-                </div>
+                {/* Delivery Charge Input — only shown when variants are OFF */}
+                {!hasVariants ? (
+                  <div>
+                    <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Delivery Charge (₹)</label>
+                    <input
+                      type="number"
+                      required
+                      className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary font-semibold text-heading"
+                      placeholder="Enter delivery charge (e.g. 0 for free, 50 default)"
+                      value={formDeliveryCharge}
+                      onChange={(e) => setFormDeliveryCharge(e.target.value)}
+                    />
+                    <p className="text-[9px] text-muted mt-1">Set to 0 for free delivery. Orders above ₹500 always get free delivery.</p>
+                  </div>
+                ) : (
+                  <div className="bg-blue-50 border border-blue-100 rounded-lg px-3 py-2 text-[10px] text-blue-600 font-semibold flex items-center gap-2">
+                    <span>ℹ️</span> Delivery charges are set per variant above in the <strong>Del. Charge (₹)</strong> column. Set each variant's charge individually.
+                  </div>
+                )}
 
               </div>
 
