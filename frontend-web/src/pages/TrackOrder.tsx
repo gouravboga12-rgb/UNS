@@ -25,7 +25,8 @@ export const TrackOrder: React.FC = () => {
 
   // Form input states
   const [orderId, setOrderId] = useState(searchParams.get('orderId') || '');
-  const [phone, setPhone] = useState(searchParams.get('phone') || localStorage.getItem('uns_tracking_phone') || userPhone);
+  // Always use the signed-in user's phone — never read a shared tracking phone that could belong to another account
+  const [phone, setPhone] = useState(searchParams.get('phone') || userPhone);
   const [searching, setSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [orderData, setOrderData] = useState<any | null>(null);
@@ -41,9 +42,9 @@ export const TrackOrder: React.FC = () => {
   const displayProducts = bestSellers.length ? bestSellers : products.slice(0, 5);
 
   useEffect(() => {
-    const defaultPhone = searchParams.get('phone') || localStorage.getItem('uns_tracking_phone') || userPhone;
-    if (defaultPhone) {
-      setPhone(defaultPhone);
+    // Only use signed-in user's phone — don't pull from a shared key that could be another account's
+    if (userPhone) {
+      setPhone(userPhone);
     }
   }, [userPhone, searchParams]);
 
@@ -57,8 +58,16 @@ export const TrackOrder: React.FC = () => {
 
   useEffect(() => {
     const fetchUserOrders = async () => {
-      const trackingPhone = localStorage.getItem('uns_tracking_phone') || currentUser?.phone || '';
+      // Strictly use ONLY the signed-in user's credentials — never a shared phone from localStorage
+      const trackingPhone = currentUser?.phone || '';
       const trackingEmail = currentUser?.email || '';
+
+      // If no user is signed in, clear orders and return
+      if (!currentUser) {
+        setUserOrders([]);
+        setLoadingOrders(false);
+        return;
+      }
 
       if (!trackingPhone && !trackingEmail) return;
       setLoadingOrders(true);
@@ -77,7 +86,7 @@ export const TrackOrder: React.FC = () => {
         console.error('Error fetching user orders:', err);
       }
 
-      // Merge with uns_local_orders
+      // Merge ONLY with local orders that strictly match this signed-in user
       const localOrdersRaw = localStorage.getItem('uns_local_orders');
       if (localOrdersRaw) {
         try {
@@ -89,7 +98,10 @@ export const TrackOrder: React.FC = () => {
             const matchesEmail = trackingEmail
               ? order.customerEmail && order.customerEmail.toLowerCase() === trackingEmail.toLowerCase()
               : false;
-            return matchesPhone || matchesEmail;
+            // Require BOTH phone AND email to match if both are available (stricter matching)
+            return trackingPhone && trackingEmail
+              ? (matchesPhone || matchesEmail)
+              : (matchesPhone || matchesEmail);
           });
 
           // Combine and deduplicate
@@ -111,21 +123,29 @@ export const TrackOrder: React.FC = () => {
       }
 
       setUserOrders(fetched);
-      if (fetched.length > 0 && !orderData) {
-        setOrderId(fetched[0].orderNumber.toString());
-        setOrderData(fetched[0]);
-      }
+      // Do NOT auto-set orderData — user should explicitly click to view a specific order
       setLoadingOrders(false);
     };
 
     fetchUserOrders();
-  }, [currentUser?.phone, currentUser?.email, phone]);
+  }, [currentUser?.phone, currentUser?.email]);
 
   const handleTrack = async (id: string, ph: string) => {
     const targetPhone = ph || userPhone;
     if (!id.trim() || !targetPhone.trim()) return;
+
+    // Security: if a user is signed in, require that the phone used for tracking
+    // matches their registered phone — don't allow tracking other people's orders
+    if (currentUser) {
+      const normalizedInput = targetPhone.replace(/[^0-9]/g, '').slice(-10);
+      const normalizedUser = (currentUser.phone || '').replace(/[^0-9]/g, '').slice(-10);
+      if (normalizedUser && normalizedInput && normalizedInput !== normalizedUser) {
+        setError('The phone number you entered does not match your signed-in account. Please use your registered phone number.');
+        setSearching(false);
+        return;
+      }
+    }
     
-    localStorage.setItem('uns_tracking_phone', targetPhone);
     setSearching(true);
     setError(null);
     setOrderData(null);
@@ -373,10 +393,15 @@ export const TrackOrder: React.FC = () => {
                 type="tel"
                 required
                 placeholder="Enter Registered Phone"
-                className="w-full bg-transparent border-none py-1.5 px-2 text-xs focus:outline-none text-heading font-medium"
+                className={`w-full bg-transparent border-none py-1.5 px-2 text-xs focus:outline-none text-heading font-medium ${currentUser ? 'opacity-70 cursor-not-allowed' : ''}`}
                 value={phone}
-                onChange={(e) => setPhone(e.target.value)}
+                onChange={(e) => !currentUser && setPhone(e.target.value)}
+                readOnly={!!currentUser}
+                title={currentUser ? "Phone is locked to your signed-in account for security" : ""}
               />
+              {currentUser && (
+                <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 border border-emerald-100 px-1.5 py-0.5 rounded whitespace-nowrap">Verified</span>
+              )}
             </div>
 
             <button
@@ -706,18 +731,24 @@ export const TrackOrder: React.FC = () => {
               ))}
             </div>
           ) : !currentUser ? (
-            <div className="bg-slate-50 border border-border rounded-2xl p-6 text-center space-y-3">
-              <p className="text-xs text-muted font-medium">You are not signed in. Log in to view your previous order history and statuses.</p>
+            <div className="bg-slate-50 border border-border rounded-2xl p-8 text-center space-y-4">
+              <div className="w-14 h-14 bg-slate-100 rounded-full flex items-center justify-center mx-auto border border-slate-200">
+                <ClipboardList className="w-7 h-7 text-slate-400" />
+              </div>
+              <div className="space-y-1">
+                <p className="text-sm font-bold text-heading">Sign in to view your orders</p>
+                <p className="text-xs text-muted">Your order history is private and only visible when you're signed in to your account.</p>
+              </div>
               <Link 
                 to="/signin"
-                className="inline-block bg-primary hover:bg-primary-light text-white text-xs font-bold py-2 px-6 rounded-xl shadow-sm transition-colors font-semibold"
+                className="inline-block bg-primary hover:bg-primary-light text-white text-xs font-bold py-2.5 px-8 rounded-xl shadow-sm transition-colors"
               >
-                Sign In
+                Sign In to Your Account
               </Link>
             </div>
           ) : (
             <div className="bg-white border border-border rounded-2xl p-8 text-center text-xs text-muted">
-              You haven't placed any orders yet. Once you order, they will appear here.
+              You haven't placed any orders yet. Once you order, they will appear here automatically.
             </div>
           )}
         </div>
