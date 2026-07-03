@@ -29,7 +29,9 @@ export const CartScreen = ({ navigation }: any) => {
   const [loading, setLoading] = useState(false);
 
   const subtotal = cartItems.reduce((acc, item) => acc + (item.discountPrice || item.price) * item.quantity, 0);
-  const shipping = subtotal > 500 ? 0 : 50;
+  const shipping = cartItems.length === 0 || subtotal > 500
+    ? 0
+    : Math.max(...cartItems.map(item => item.deliveryCharge !== undefined ? item.deliveryCharge : 50), 0);
   const total = subtotal + shipping;
 
   const handleQtyChange = (id: string, q: number) => {

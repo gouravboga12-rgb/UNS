@@ -103,6 +103,7 @@ export const AdminDashboard: React.FC = () => {
   const [formCategory, setFormCategory] = useState('');
   const [formPrice, setFormPrice] = useState('');
   const [formDiscountPrice, setFormDiscountPrice] = useState('');
+  const [formDeliveryCharge, setFormDeliveryCharge] = useState('50');
   const [formShortDesc, setFormShortDesc] = useState('');
   const [formMediaItems, setFormMediaItems] = useState<{ url: string; type: 'image' | 'video' }[]>([]);
   const [uploadingProdImg, setUploadingProdImg] = useState(false);
@@ -648,6 +649,7 @@ export const AdminDashboard: React.FC = () => {
     setFormCategory(categories[0]?.name || 'Home Cleaning Products');
     setFormPrice('120');
     setFormDiscountPrice('99');
+    setFormDeliveryCharge('50');
     setFormShortDesc('Premium chemical formulation.');
     setFormMediaItems([]);
     setUploadingProdImg(false);
@@ -668,6 +670,7 @@ export const AdminDashboard: React.FC = () => {
     setFormCategory(prod.category);
     setFormPrice(prod.price.toString());
     setFormDiscountPrice(prod.discountPrice.toString());
+    setFormDeliveryCharge((prod.specifications?.deliveryCharge !== undefined ? prod.specifications.deliveryCharge : 50).toString());
     setFormShortDesc(prod.shortDescription);
     // Populate media items from existing product
     const existingImages = (prod.images || []).map(u => ({ url: u, type: 'image' as const }));
@@ -727,7 +730,7 @@ export const AdminDashboard: React.FC = () => {
 
     // Clean up old custom specs if editing
     if (editingProduct && editingProduct.specifications) {
-      const standardKeys = ['Volume', 'Form', 'variants', 'stockStatus', 'customStockStatus'];
+      const standardKeys = ['Volume', 'Form', 'variants', 'stockStatus', 'customStockStatus', 'deliveryCharge'];
       Object.keys(editingProduct.specifications).forEach(key => {
         if (!standardKeys.includes(key)) {
           delete finalSpecifications[key];
@@ -735,8 +738,9 @@ export const AdminDashboard: React.FC = () => {
       });
     }
 
-    // Add stock status and custom specs
+    // Add stock status, delivery charge, and custom specs
     finalSpecifications.stockStatus = formStockStatus;
+    finalSpecifications.deliveryCharge = Number(formDeliveryCharge) || 0;
     if (formStockStatus === 'Custom') {
       finalSpecifications.customStockStatus = formCustomStockStatus;
     } else {
@@ -2299,6 +2303,19 @@ export const AdminDashboard: React.FC = () => {
                     </div>
                   </div>
                 )}
+
+                {/* Delivery Charge Input */}
+                <div>
+                  <label className="block text-[10px] font-bold text-muted mb-1.5 uppercase tracking-wider">Delivery Charge (₹)</label>
+                  <input
+                    type="number"
+                    required
+                    className="w-full bg-slate-50 border border-border rounded-lg py-2 px-3 text-xs focus:outline-none focus:border-primary font-semibold text-heading"
+                    placeholder="Enter delivery charge (default: 50)"
+                    value={formDeliveryCharge}
+                    onChange={(e) => setFormDeliveryCharge(e.target.value)}
+                  />
+                </div>
 
               </div>
 

@@ -71,7 +71,8 @@ export const ProductDetailsScreen = ({ route, navigation }: any) => {
         slug: product.slug,
         price: product.price,
         discountPrice: product.discountPrice,
-        imageUrl: product.images[0]
+        imageUrl: product.images[0],
+        deliveryCharge: product.specifications?.deliveryCharge !== undefined ? Number(product.specifications.deliveryCharge) : 50
       }));
     }
     triggerToast(product.name, product.images[0]);

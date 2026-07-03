@@ -330,7 +330,8 @@ export const ProductDetail: React.FC = () => {
         slug: product.slug,
         price: currentPrice,
         discountPrice: currentDiscountPrice,
-        imageUrl: product.images[0]
+        imageUrl: product.images[0],
+        deliveryCharge: product.specifications?.deliveryCharge !== undefined ? Number(product.specifications.deliveryCharge) : 50
       }));
     }
     dispatch(showToast({
