@@ -5,7 +5,12 @@ import type { RootState } from '../store';
 import { ProductCard } from '../components/ProductCard';
 import { Loader2, ClipboardList, MapPin, Truck, CheckCircle2, X } from 'lucide-react';
 import { API_URL } from '../config';
-
+// Helper to extract base product ID and name (e.g. "prod-12-2 liter" -> "prod-12", "Commercial White Phenyl (2 liter)" -> "Commercial White Phenyl")
+const getBaseProduct = (productId: string, productName: string) => {
+  const baseId = productId.includes('-') ? productId.split('-').slice(0, 2).join('-') : productId;
+  const baseName = productName.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  return { baseId, baseName };
+};
 
 export const TrackOrder: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -505,7 +510,12 @@ export const TrackOrder: React.FC = () => {
 
               <div className="space-y-3">
                 {orderData.items.map((item: any, i: number) => {
-                  const matchedProduct = products.find(p => p.id === item.productId || p.name.toLowerCase() === item.name.toLowerCase());
+                  const { baseId, baseName } = getBaseProduct(item.productId || '', item.name || '');
+                  const matchedProduct = products.find(p => 
+                    p.id === baseId || 
+                    p.name.toLowerCase() === baseName.toLowerCase() ||
+                    item.name.toLowerCase().startsWith(p.name.toLowerCase())
+                  );
                   const productSlug = matchedProduct?.slug || item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
                   const productImage = matchedProduct?.images?.[0] || 'https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=600&q=80';
                   
@@ -617,7 +627,12 @@ export const TrackOrder: React.FC = () => {
                         </div>
                       )}
                       {order.items.map((item: any, idx: number) => {
-                        const matchedProduct = products.find(p => p.id === item.productId || p.name.toLowerCase() === item.name.toLowerCase());
+                        const { baseId, baseName } = getBaseProduct(item.productId || '', item.name || '');
+                        const matchedProduct = products.find(p => 
+                          p.id === baseId || 
+                          p.name.toLowerCase() === baseName.toLowerCase() ||
+                          item.name.toLowerCase().startsWith(p.name.toLowerCase())
+                        );
                         const productSlug = matchedProduct?.slug || item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
                         const productImage = matchedProduct?.images?.[0] || 'https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=600&q=80';
                         
