@@ -121,12 +121,21 @@ export const IntroVideoOverlay: React.FC<IntroVideoOverlayProps> = ({ onClose })
     }
   };
 
-  const handleToggleMute = () => {
+  const handleToggleMute = (e: React.MouseEvent) => {
+    e.stopPropagation();
     if (!videoRef.current) return;
     const nextMuteState = !videoRef.current.muted;
     videoRef.current.muted = nextMuteState;
     setIsMuted(nextMuteState);
   };
+
+  const handleOverlayClick = () => {
+    if (videoRef.current && videoRef.current.muted) {
+      videoRef.current.muted = false;
+      setIsMuted(false);
+    }
+  };
+
 
   const formatTime = (time: number) => {
     if (isNaN(time)) return '0:00';
@@ -155,6 +164,7 @@ export const IntroVideoOverlay: React.FC<IntroVideoOverlayProps> = ({ onClose })
   return (
     <div
       ref={overlayRef}
+      onClick={handleOverlayClick}
       className={`fixed inset-0 z-[99999] flex items-center justify-center bg-slate-950/90 backdrop-blur-xl transition-opacity duration-500 ease-out ${
         isExiting ? 'opacity-0' : 'opacity-100'
       }`}
