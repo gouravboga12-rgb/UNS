@@ -496,13 +496,64 @@ export const TrackOrder: React.FC = () => {
             {/* Items Summary */}
             <div className="border-t border-slate-100 pt-6">
               <h4 className="font-heading font-bold text-xs uppercase tracking-wider text-muted mb-4">Items in Package</h4>
+              
+              {orderData.status?.toLowerCase() === 'delivered' && (
+                <div className="mb-4 bg-emerald-50 border border-emerald-100 text-emerald-800 rounded-xl p-3 text-[11px] font-medium leading-relaxed">
+                  🎉 <strong>Your order has been delivered!</strong> We value your feedback. Please click "Rate &amp; Write Review" next to any product below to share your experience and highlight customer reviews.
+                </div>
+              )}
+
               <div className="space-y-3">
-                {orderData.items.map((item: any, i: number) => (
-                  <div key={i} className="flex justify-between items-center text-xs">
-                    <span className="text-slate-650">{item.name} <strong className="text-heading text-[10px]">x{item.quantity}</strong></span>
-                    <span className="font-semibold text-heading">₹{(item.price * item.quantity).toFixed(2)}</span>
-                  </div>
-                ))}
+                {orderData.items.map((item: any, i: number) => {
+                  const matchedProduct = products.find(p => p.id === item.productId || p.name.toLowerCase() === item.name.toLowerCase());
+                  const productSlug = matchedProduct?.slug || item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                  const productImage = matchedProduct?.images?.[0] || 'https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=600&q=80';
+                  
+                  return (
+                    <div key={i} className="flex flex-col gap-2 p-3 bg-slate-50/50 rounded-xl border border-slate-100">
+                      <div className="flex justify-between items-center gap-3 text-xs">
+                        <Link 
+                          to={`/products/${productSlug}`} 
+                          className="flex items-center gap-3 flex-1 min-w-0 group"
+                        >
+                          <img 
+                            src={productImage} 
+                            alt={item.name} 
+                            className="w-10 h-10 rounded-lg object-cover border border-slate-200 group-hover:opacity-85 transition-opacity" 
+                          />
+                          <div className="min-w-0">
+                            <span className="font-semibold text-heading truncate block group-hover:text-primary transition-colors text-xs">
+                              {item.name}
+                            </span>
+                            <span className="text-[10px] text-muted block">
+                              Unit Price: ₹{parseFloat(item.price).toFixed(2)}
+                            </span>
+                          </div>
+                        </Link>
+                        
+                        <div className="text-right">
+                          <span className="font-bold text-heading text-xs block">
+                            ₹{(item.price * item.quantity).toFixed(2)}
+                          </span>
+                          <span className="text-[10px] text-muted">
+                            Qty: {item.quantity}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      {orderData.status?.toLowerCase() === 'delivered' && (
+                        <div className="flex justify-end pt-1 border-t border-dashed border-slate-200 mt-1">
+                          <Link
+                            to={`/products/${productSlug}?writeReview=true`}
+                            className="inline-flex items-center gap-1.5 text-[10.5px] font-bold text-primary hover:text-primary-light bg-primary/10 hover:bg-primary/15 px-3 py-1 rounded-md transition-colors"
+                          >
+                            Rate &amp; Write Review
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
               </div>
             </div>
 
@@ -559,16 +610,57 @@ export const TrackOrder: React.FC = () => {
                     </div>
 
                     {/* Items */}
-                    <div className="space-y-1 mb-4">
-                      {order.items.slice(0, 3).map((item: any, idx: number) => (
-                        <div key={idx} className="text-[11px] text-slate-650 flex justify-between">
-                          <span className="truncate max-w-[170px]">{item.name}</span>
-                          <span className="font-semibold text-heading whitespace-nowrap">x{item.quantity}</span>
+                    <div className="space-y-3 mb-4">
+                      {order.status?.toLowerCase() === 'delivered' && (
+                        <div className="bg-emerald-50/70 border border-emerald-100 text-emerald-800 rounded-lg p-2.5 text-[10px] font-medium leading-normal mb-2.5">
+                          🎉 <strong>Order delivered!</strong> Click below to write a review.
                         </div>
-                      ))}
-                      {order.items.length > 3 && (
-                        <p className="text-[10px] text-muted italic">+ {order.items.length - 3} more item(s)</p>
                       )}
+                      {order.items.map((item: any, idx: number) => {
+                        const matchedProduct = products.find(p => p.id === item.productId || p.name.toLowerCase() === item.name.toLowerCase());
+                        const productSlug = matchedProduct?.slug || item.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+                        const productImage = matchedProduct?.images?.[0] || 'https://images.unsplash.com/photo-1563453392212-326f5e854473?auto=format&fit=crop&w=600&q=80';
+                        
+                        return (
+                          <div key={idx} className="flex flex-col gap-2 pt-2 border-t border-slate-100/60 first:border-0 first:pt-0">
+                            <div className="flex items-center justify-between gap-3 text-xs">
+                              <Link 
+                                to={`/products/${productSlug}`} 
+                                className="flex items-center gap-2 flex-1 min-w-0 group"
+                              >
+                                <img 
+                                  src={productImage} 
+                                  alt={item.name} 
+                                  className="w-8 h-8 rounded-md object-cover border border-slate-200 group-hover:opacity-85 transition-opacity" 
+                                />
+                                <div className="min-w-0">
+                                  <span className="font-semibold text-heading truncate block group-hover:text-primary transition-colors text-[11px] sm:text-xs">
+                                    {item.name}
+                                  </span>
+                                  <span className="text-[10px] text-muted block">
+                                    ₹{item.price ? parseFloat(item.price).toFixed(2) : '0.00'}
+                                  </span>
+                                </div>
+                              </Link>
+                              
+                              <span className="font-bold text-heading text-[11px] whitespace-nowrap bg-slate-100 px-2 py-0.5 rounded">
+                                x{item.quantity}
+                              </span>
+                            </div>
+                            
+                            {order.status?.toLowerCase() === 'delivered' && (
+                              <div className="flex justify-end pl-10">
+                                <Link
+                                  to={`/products/${productSlug}?writeReview=true`}
+                                  className="inline-flex items-center gap-1 text-[10px] font-bold text-primary hover:text-primary-light bg-primary/5 hover:bg-primary/10 px-2.5 py-1 rounded transition-colors"
+                                >
+                                  Rate &amp; Write Review
+                                </Link>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </div>
 

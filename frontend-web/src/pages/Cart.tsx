@@ -63,6 +63,8 @@ export const Cart: React.FC = () => {
     const orderItems = cartItems.map(item => ({
       productId: item.id,
       name: item.name,
+      slug: item.slug,
+      image: item.imageUrl,
       quantity: item.quantity,
       price: item.discountPrice || item.price
     }));

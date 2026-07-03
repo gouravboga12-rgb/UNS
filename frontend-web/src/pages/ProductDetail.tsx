@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { API_URL } from '../config';
 
@@ -26,6 +26,7 @@ export const ProductDetail: React.FC = () => {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+  const [searchParams] = useSearchParams();
 
   const products = useSelector((state: RootState) => state.products.items);
   const product = products.find(p => p.slug === slug);
@@ -162,6 +163,12 @@ export const ProductDetail: React.FC = () => {
       window.removeEventListener('authChange', checkUser);
     };
   }, []);
+
+  useEffect(() => {
+    if (searchParams.get('writeReview') === 'true') {
+      setShowReviewModal(true);
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     if (product) {
