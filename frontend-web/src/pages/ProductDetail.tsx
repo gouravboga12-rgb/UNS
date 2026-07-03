@@ -49,7 +49,7 @@ export const ProductDetail: React.FC = () => {
   
   const showBenefits = Array.isArray(product?.benefits) && product.benefits.length > 0;
   const showInstructions = Array.isArray(product?.usageInstructions) && product.usageInstructions.length > 0;
-  const visibleSpecs = Object.keys(product?.specifications || {}).filter(key => !['variants', 'stockStatus', 'customStockStatus'].includes(key));
+  const visibleSpecs = Object.keys(product?.specifications || {}).filter(key => !['variants', 'stockStatus', 'customStockStatus', 'deliveryCharge'].includes(key));
   const showSpecs = visibleSpecs.length > 0;
 
 
@@ -213,7 +213,7 @@ export const ProductDetail: React.FC = () => {
         setActiveTab('benefits');
       } else if (Array.isArray(product.usageInstructions) && product.usageInstructions.length > 0) {
         setActiveTab('instructions');
-      } else if (Object.keys(product.specifications || {}).filter(key => !['variants', 'stockStatus', 'customStockStatus'].includes(key)).length > 0) {
+      } else if (Object.keys(product.specifications || {}).filter(key => !['variants', 'stockStatus', 'customStockStatus', 'deliveryCharge'].includes(key)).length > 0) {
         setActiveTab('specs');
       }
 
@@ -679,7 +679,9 @@ export const ProductDetail: React.FC = () => {
                           <div key={key} className="grid grid-cols-2 p-3 bg-white hover:bg-slate-50">
                             <span className="font-semibold text-heading">{key}</span>
                             <span className="text-body">
-                              {key === 'Volume' && selectedSize ? selectedSize : product.specifications[key]}
+                              {(key.toLowerCase() === 'volume' || key.toLowerCase() === 'size') && selectedSize
+                                ? selectedSize
+                                : product.specifications[key]}
                             </span>
                           </div>
                         ))}
