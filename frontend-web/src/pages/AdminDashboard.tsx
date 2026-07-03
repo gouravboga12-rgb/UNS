@@ -422,6 +422,7 @@ export const AdminDashboard: React.FC = () => {
   };
 
   // Upload file directly to Cloudinary (unsigned preset - works on production/Vercel)
+  // Uses /auto/upload which handles both images AND videos without needing a video-enabled preset.
   const handleMediaUpload = async (files: FileList | File[]) => {
     const fileArr = Array.from(files);
     setUploadingProdImg(true);
@@ -431,22 +432,47 @@ export const AdminDashboard: React.FC = () => {
       const formData = new FormData();
       formData.append('file', file);
       formData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
-      formData.append('folder', 'uns/products');
+      // Note: omit 'folder' — some unsigned presets block the folder param
 
+      let uploaded = false;
+
+      // Try 1: /auto/upload — works for both images & videos
       try {
-        const endpoint = isVideo
-          ? `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`
-          : `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
-
-        const response = await fetch(endpoint, { method: 'POST', body: formData });
+        const autoEndpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/auto/upload`;
+        const response = await fetch(autoEndpoint, { method: 'POST', body: formData });
         if (response.ok) {
           const result = await response.json();
-          setFormMediaItems(prev => [...prev, { url: result.secure_url, type: isVideo ? 'video' : 'image' }]);
+          const detectedVideo = result.resource_type === 'video' || isVideo;
+          setFormMediaItems(prev => [...prev, { url: result.secure_url, type: detectedVideo ? 'video' : 'image' }]);
+          uploaded = true;
         } else {
-          // Fallback: try via local backend
-          await handleMediaUploadFallback(file, isVideo);
+          const errBody = await response.json().catch(() => ({}));
+          console.warn('Cloudinary /auto/upload failed:', errBody);
         }
-      } catch {
+      } catch (err) {
+        console.warn('Cloudinary /auto/upload error:', err);
+      }
+
+      // Try 2: /image/upload (fallback for presets that only allow images)
+      if (!uploaded && !isVideo) {
+        try {
+          const imgFormData = new FormData();
+          imgFormData.append('file', file);
+          imgFormData.append('upload_preset', CLOUDINARY_UPLOAD_PRESET);
+          const imgEndpoint = `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`;
+          const imgRes = await fetch(imgEndpoint, { method: 'POST', body: imgFormData });
+          if (imgRes.ok) {
+            const result = await imgRes.json();
+            setFormMediaItems(prev => [...prev, { url: result.secure_url, type: 'image' }]);
+            uploaded = true;
+          }
+        } catch (err) {
+          console.warn('Cloudinary /image/upload fallback error:', err);
+        }
+      }
+
+      // Try 3: backend proxy as last resort
+      if (!uploaded) {
         await handleMediaUploadFallback(file, isVideo);
       }
     }
