@@ -925,15 +925,15 @@ export const AdminDashboard: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updated)
         });
-        // Always dispatch the locally-constructed updated object first
-        // so images/videos appear immediately in the admin list
+        // Update local Redux store immediately so the list reflects changes
         dispatch(updateProductLocally(updated));
-        if (res.ok) {
-          // Re-fetch after a short delay to sync any server-side changes
-          setTimeout(() => dispatch(fetchProducts() as any), 800);
+        if (!res.ok) {
+          console.warn('[Product Update] Server returned error, local state updated only');
         }
-      } catch {
+      } catch (err) {
+        // Network error — still update locally
         dispatch(updateProductLocally(updated));
+        console.warn('[Product Update] Network error:', err);
       }
       alert('Product updated successfully!');
     } else {
@@ -981,6 +981,7 @@ export const AdminDashboard: React.FC = () => {
       setTimeout(() => dispatch(fetchProducts() as any), 800);
     }
     setShowProductModal(false);
+    setEditingProduct(null);
   };
 
   const handleProductDelete = (id: string) => {
@@ -2651,7 +2652,7 @@ export const AdminDashboard: React.FC = () => {
           <div className="bg-white rounded-2xl max-w-lg w-full border border-border shadow-2xl p-6 relative max-h-[90vh] overflow-y-auto animate-zoomIn">
             <button
               type="button"
-              onClick={() => setShowProductModal(false)}
+              onClick={() => { setShowProductModal(false); setEditingProduct(null); }}
               className="absolute top-4 right-4 text-muted hover:text-heading transition-colors"
               title="Close"
             >
@@ -3044,7 +3045,7 @@ export const AdminDashboard: React.FC = () => {
               <div className="flex justify-end gap-3 pt-4 border-t border-slate-100">
                 <button
                   type="button"
-                  onClick={() => setShowProductModal(false)}
+                  onClick={() => { setShowProductModal(false); setEditingProduct(null); }}
                   className="text-xs text-muted hover:text-heading font-semibold py-2 px-4"
                 >
                   Cancel
