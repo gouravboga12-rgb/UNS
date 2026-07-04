@@ -177,7 +177,7 @@ export const IntroVideoOverlay: React.FC<IntroVideoOverlayProps> = ({ onClose })
 
       {/* Main Container */}
       <div 
-        className={`relative max-w-5xl w-[92%] aspect-video rounded-2xl overflow-hidden border border-white/10 bg-black shadow-2xl shadow-emerald-950/45 transition-transform duration-500 ease-out ${
+        className={`relative w-full h-full overflow-hidden bg-black transition-transform duration-500 ease-out ${
           isExiting ? 'scale-95' : 'scale-100'
         }`}
       >
@@ -195,7 +195,7 @@ export const IntroVideoOverlay: React.FC<IntroVideoOverlayProps> = ({ onClose })
         />
 
         {/* Top Control Bar: Skip Button */}
-        <div className="absolute top-4 right-4 z-10">
+        <div className="absolute top-6 right-6 z-10">
           <button
             onClick={handleClose}
             className="flex items-center gap-1.5 px-4 py-2 bg-slate-900/60 hover:bg-slate-800/80 active:bg-slate-950 text-white rounded-full border border-white/10 hover:border-white/20 backdrop-blur-md transition-all duration-300 font-medium text-sm hover:scale-105 shadow-lg shadow-black/20"
@@ -204,6 +204,19 @@ export const IntroVideoOverlay: React.FC<IntroVideoOverlayProps> = ({ onClose })
             <ChevronRight className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Center Mute indicator / Click to turn on sound button */}
+        {isPlaying && isMuted && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none animate-pulse">
+            <button
+              onClick={handleToggleMute}
+              className="pointer-events-auto flex items-center gap-2 px-6 py-3.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 rounded-full shadow-2xl shadow-emerald-500/50 transition-all duration-300 font-bold text-sm hover:scale-105 active:scale-95"
+            >
+              <VolumeX className="w-5 h-5" />
+              Click to Turn On Sound
+            </button>
+          </div>
+        )}
 
         {/* Big Center Play Button (shown if autoplay failed or paused) */}
         {(!isPlaying || autoplayFailed) && (
