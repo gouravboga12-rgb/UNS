@@ -73,6 +73,7 @@ export const TrackOrder: React.FC = () => {
       setLoadingOrders(true);
       
       let fetched: any[] = [];
+      let isSuccess = false;
       try {
         const queryParams = new URLSearchParams();
         if (trackingPhone) queryParams.append('phone', trackingPhone);
@@ -81,49 +82,58 @@ export const TrackOrder: React.FC = () => {
         const response = await fetch(`${API_URL}/orders/my-orders?${queryParams.toString()}`);
         if (response.ok) {
           fetched = await response.json();
+          isSuccess = true;
+
+          // Prune deleted orders from local storage cache
+          const localOrdersRaw = localStorage.getItem('uns_local_orders');
+          if (localOrdersRaw) {
+            try {
+              const localOrders = JSON.parse(localOrdersRaw);
+              const otherUsersLocalOrders = localOrders.filter((order: any) => {
+                const matchesPhone = trackingPhone 
+                  ? order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(trackingPhone.replace(/[^0-9]/g, '').slice(-10))
+                  : false;
+                const matchesEmail = trackingEmail
+                  ? order.customerEmail && order.customerEmail.toLowerCase() === trackingEmail.toLowerCase()
+                  : false;
+                return !matchesPhone && !matchesEmail;
+              });
+              const updatedLocalOrders = [...otherUsersLocalOrders, ...fetched];
+              localStorage.setItem('uns_local_orders', JSON.stringify(updatedLocalOrders));
+            } catch (e) {
+              console.error('Error syncing local orders:', e);
+            }
+          }
         }
       } catch (err) {
         console.error('Error fetching user orders:', err);
       }
 
-      // Merge ONLY with local orders that strictly match this signed-in user
-      const localOrdersRaw = localStorage.getItem('uns_local_orders');
-      if (localOrdersRaw) {
-        try {
-          const localOrders = JSON.parse(localOrdersRaw);
-          const userLocalOrders = localOrders.filter((order: any) => {
-            const matchesPhone = trackingPhone 
-              ? order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(trackingPhone.replace(/[^0-9]/g, '').slice(-10))
-              : false;
-            const matchesEmail = trackingEmail
-              ? order.customerEmail && order.customerEmail.toLowerCase() === trackingEmail.toLowerCase()
-              : false;
-            // Require BOTH phone AND email to match if both are available (stricter matching)
-            return trackingPhone && trackingEmail
-              ? (matchesPhone || matchesEmail)
-              : (matchesPhone || matchesEmail);
-          });
-
-          // Combine and deduplicate
-          const combined = [...fetched];
-          userLocalOrders.forEach((lo: any) => {
-            const exists = combined.some(o => o.id === lo.id || o.orderNumber === lo.orderNumber);
-            if (!exists) {
-              combined.push(lo);
-            }
-          });
-          
-          // Sort by date/createdAt descending
-          combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          
-          fetched = combined;
-        } catch (e) {
-          console.error('Error parsing local orders:', e);
+      if (!isSuccess) {
+        // Fallback ONLY on connection/fetch error
+        const localOrdersRaw = localStorage.getItem('uns_local_orders');
+        if (localOrdersRaw) {
+          try {
+            const localOrders = JSON.parse(localOrdersRaw);
+            const userLocalOrders = localOrders.filter((order: any) => {
+              const matchesPhone = trackingPhone 
+                ? order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(trackingPhone.replace(/[^0-9]/g, '').slice(-10))
+                : false;
+              const matchesEmail = trackingEmail
+                ? order.customerEmail && order.customerEmail.toLowerCase() === trackingEmail.toLowerCase()
+                : false;
+              return matchesPhone || matchesEmail;
+            });
+            fetched = userLocalOrders;
+          } catch (e) {
+            console.error('Error parsing local orders:', e);
+          }
         }
       }
 
+      // Sort by date/createdAt descending
+      fetched.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setUserOrders(fetched);
-      // Do NOT auto-set orderData — user should explicitly click to view a specific order
       setLoadingOrders(false);
     };
 
@@ -221,6 +231,22 @@ export const TrackOrder: React.FC = () => {
       if (response.ok) {
         const orders = await response.json();
         setUserOrders(orders);
+
+        // Prune deleted orders from local storage cache
+        const localOrdersRaw = localStorage.getItem('uns_local_orders');
+        if (localOrdersRaw) {
+          try {
+            const localOrders = JSON.parse(localOrdersRaw);
+            const otherUsersLocalOrders = localOrders.filter((order: any) => {
+              return !(order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(ph.replace(/[^0-9]/g, '').slice(-10)));
+            });
+            const updatedLocalOrders = [...otherUsersLocalOrders, ...orders];
+            localStorage.setItem('uns_local_orders', JSON.stringify(updatedLocalOrders));
+          } catch (e) {
+            console.error('Error syncing local orders:', e);
+          }
+        }
+
         if (orders.length > 0) {
           setOrderData(orders[0]); // Auto-display the most recent one
           setOrderId(orders[0].orderNumber.toString());
@@ -228,6 +254,22 @@ export const TrackOrder: React.FC = () => {
           setError("No orders found matching this phone number.");
         }
       } else {
+        // Fallback ONLY on fetch error (offline support)
+        const localOrdersRaw = localStorage.getItem('uns_local_orders');
+        if (localOrdersRaw) {
+          try {
+            const localOrders = JSON.parse(localOrdersRaw);
+            const userLocalOrders = localOrders.filter((order: any) => {
+              return order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(ph.replace(/[^0-9]/g, '').slice(-10));
+            });
+            setUserOrders(userLocalOrders);
+            if (userLocalOrders.length > 0) {
+              setOrderData(userLocalOrders[0]);
+              setOrderId(userLocalOrders[0].orderNumber.toString());
+              return;
+            }
+          } catch {}
+        }
         setError("Failed to find orders for this phone number.");
       }
     } catch (err) {

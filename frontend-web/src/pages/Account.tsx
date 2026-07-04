@@ -36,9 +36,35 @@ export const Account: React.FC = () => {
         const response = await fetch(`${API_URL}/orders/my-orders?${queryParams.toString()}`);
         if (response.ok) {
           const data = await response.json();
-          // Merge local orders to keep sync
-          const localOrdersRaw = localStorage.getItem('uns_local_orders');
           let combined = [...data];
+          
+          // Prune deleted orders from local storage cache
+          const localOrdersRaw = localStorage.getItem('uns_local_orders');
+          if (localOrdersRaw) {
+            try {
+              const localOrders = JSON.parse(localOrdersRaw);
+              const otherUsersLocalOrders = localOrders.filter((order: any) => {
+                const matchesPhone = user.phone 
+                  ? order.customerPhone && order.customerPhone.replace(/[^0-9]/g, '').endsWith(user.phone.replace(/[^0-9]/g, '').slice(-10))
+                  : false;
+                const matchesEmail = user.email
+                  ? order.customerEmail && order.customerEmail.toLowerCase() === user.email.toLowerCase()
+                  : false;
+                return !matchesPhone && !matchesEmail;
+              });
+              const updatedLocalOrders = [...otherUsersLocalOrders, ...data];
+              localStorage.setItem('uns_local_orders', JSON.stringify(updatedLocalOrders));
+            } catch (e) {
+              console.error('Error syncing local orders:', e);
+            }
+          }
+
+          // Sort by creation date
+          combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setOrders(combined);
+        } else {
+          // Fallback to local storage (offline support)
+          const localOrdersRaw = localStorage.getItem('uns_local_orders');
           if (localOrdersRaw) {
             try {
               const localOrders = JSON.parse(localOrdersRaw);
@@ -51,22 +77,11 @@ export const Account: React.FC = () => {
                   : false;
                 return matchesPhone || matchesEmail;
               });
-
-              userLocalOrders.forEach((lo: any) => {
-                const exists = combined.some(o => o.id === lo.id || o.orderNumber === lo.orderNumber);
-                if (!exists) {
-                  combined.push(lo);
-                }
-              });
-            } catch (e) {
-              console.error('Error parsing local orders:', e);
-            }
+              userLocalOrders.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+              setOrders(userLocalOrders);
+              return;
+            } catch {}
           }
-
-          // Sort by creation date
-          combined.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-          setOrders(combined);
-        } else {
           throw new Error('Failed to load order history.');
         }
       } catch (err: any) {
