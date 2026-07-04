@@ -461,42 +461,86 @@ app.post('/api/products', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('products').insert(dbProduct).select().single();
     if (error) throw error;
-    res.status(201).json({ ...data, reviews: [] });
+    // Normalize response to camelCase
+    const normalized = {
+      ...newProduct,
+      shortDescription: data.shortDescription || data.shortdescription || newProduct.shortDescription,
+      fullDescription: data.fullDescription || data.fulldescription || newProduct.fullDescription,
+      discountPrice: Number(data.discountPrice || data.discountprice) || newProduct.discountPrice,
+      usageInstructions: data.usageInstructions || data.usageinstructions || newProduct.usageInstructions,
+      seoTitle: data.seoTitle || data.seotitle || newProduct.seoTitle,
+      seoDescription: data.seoDescription || data.seodescription || newProduct.seoDescription,
+      createdAt: data.createdAt || data.createdat || newProduct.createdAt,
+      reviews: []
+    };
+    res.status(201).json(normalized);
   } catch (err: any) {
-    console.warn('[Supabase Fallback] POST product:', err.message);
+    console.error('[Supabase] POST product error:', err.message);
     productsState.push(newProduct);
     res.status(201).json(newProduct);
   }
 });
 
+
 app.put('/api/products/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
   const body = req.body;
-  const updatedPayload = {
-    ...body,
-    price: body.price ? Number(body.price) : undefined,
-    discountPrice: body.discountPrice ? Number(body.discountPrice) : undefined,
-    stock: body.stock !== undefined ? Number(body.stock) : undefined,
-  };
 
-  const { reviews, id: payloadId, createdAt, ...dbPayload } = updatedPayload;
+  // Explicitly map to Supabase column names (handles both camelCase and lowercase columns)
+  const dbPayload: Record<string, any> = {};
+  if (body.name !== undefined)              dbPayload.name = body.name;
+  if (body.slug !== undefined)              dbPayload.slug = body.slug;
+  if (body.category !== undefined)          dbPayload.category = body.category;
+  if (body.shortDescription !== undefined)  dbPayload.shortDescription = body.shortDescription;
+  if (body.fullDescription !== undefined)   dbPayload.fullDescription = body.fullDescription;
+  if (body.images !== undefined)            dbPayload.images = body.images;
+  if (body.videos !== undefined)            dbPayload.videos = body.videos;
+  if (body.price !== undefined)             dbPayload.price = Number(body.price);
+  if (body.discountPrice !== undefined)     dbPayload.discountPrice = Number(body.discountPrice);
+  if (body.stock !== undefined)             dbPayload.stock = Number(body.stock);
+  if (body.rating !== undefined)            dbPayload.rating = Number(body.rating);
+  if (body.specifications !== undefined)    dbPayload.specifications = body.specifications;
+  if (body.benefits !== undefined)          dbPayload.benefits = body.benefits;
+  if (body.usageInstructions !== undefined) dbPayload.usageInstructions = body.usageInstructions;
+  if (body.featured !== undefined)          dbPayload.featured = !!body.featured;
+  if (body.seoTitle !== undefined)          dbPayload.seoTitle = body.seoTitle;
+  if (body.seoDescription !== undefined)    dbPayload.seoDescription = body.seoDescription;
 
   try {
     const { data, error } = await supabase.from('products').update(dbPayload).eq('id', id).select().single();
     if (error) throw error;
-    
-    // Fetch current reviews for response completeness
+
+    // Normalize response back to camelCase for the frontend
+    const normalized = {
+      id: data.id,
+      name: data.name,
+      slug: data.slug,
+      category: data.category,
+      shortDescription: data.shortDescription || data.shortdescription || '',
+      fullDescription: data.fullDescription || data.fulldescription || '',
+      images: data.images || [],
+      videos: data.videos || [],
+      price: Number(data.price) || 0,
+      discountPrice: Number(data.discountPrice || data.discountprice) || 0,
+      stock: Number(data.stock) || 0,
+      rating: Number(data.rating) || 5.0,
+      specifications: data.specifications || {},
+      benefits: data.benefits || [],
+      usageInstructions: data.usageInstructions || data.usageinstructions || [],
+      featured: !!data.featured,
+      seoTitle: data.seoTitle || data.seotitle || '',
+      seoDescription: data.seoDescription || data.seodescription || '',
+      createdAt: data.createdAt || data.createdat || new Date().toISOString(),
+    };
+
     const { data: revs } = await supabase.from('reviews').select('*').eq('productId', id);
-    res.json({ ...data, reviews: revs || [] });
+    res.json({ ...normalized, reviews: revs || [] });
   } catch (err: any) {
-    console.warn('[Supabase Fallback] PUT product:', err.message);
+    console.error('[Supabase] PUT product error:', err.message);
+    // Fallback: update in-memory state
     const idx = productsState.findIndex(p => p.id === id);
-    if (idx === -1) {
-      return res.status(404).json({ error: 'Product not found' });
-    }
-    const updated = {
-      ...productsState[idx],
-      ...body,
+    if (idx === -1) return res.status(404).json({ error: 'Product not found' });
+    const updated = { ...productsState[idx], ...body,
       price: body.price ? Number(body.price) : productsState[idx].price,
       discountPrice: body.discountPrice ? Number(body.discountPrice) : productsState[idx].discountPrice,
       stock: body.stock !== undefined ? Number(body.stock) : productsState[idx].stock,
@@ -505,6 +549,7 @@ app.put('/api/products/:id', async (req: Request, res: Response) => {
     res.json(updated);
   }
 });
+
 
 app.delete('/api/products/:id', async (req: Request, res: Response) => {
   const { id } = req.params;
