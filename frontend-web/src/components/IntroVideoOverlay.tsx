@@ -191,7 +191,17 @@ export const IntroVideoOverlay: React.FC<IntroVideoOverlayProps> = ({ onClose })
           onTimeUpdate={handleTimeUpdate}
           onLoadedMetadata={handleLoadedMetadata}
           onEnded={handleClose}
-          onClick={handleTogglePlay}
+          onClick={(e) => {
+            if (isMuted) {
+              e.stopPropagation();
+              if (videoRef.current) {
+                videoRef.current.muted = false;
+                setIsMuted(false);
+              }
+            } else {
+              handleTogglePlay();
+            }
+          }}
         />
 
         {/* Top Control Bar: Skip Button */}
