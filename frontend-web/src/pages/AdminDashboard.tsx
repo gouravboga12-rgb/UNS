@@ -52,6 +52,21 @@ const generateId = () => Math.random().toString(36).substring(2, 9);
 
 export const AdminDashboard: React.FC = () => {
   const dispatch = useDispatch();
+
+  const formatDateTime = (dateStr: string | undefined | null) => {
+    if (!dateStr) return 'N/A';
+    try {
+      return new Date(dateStr).toLocaleString('en-IN', {
+        hour: '2-digit',
+        minute: '2-digit',
+        day: '2-digit',
+        month: 'short',
+        year: 'numeric'
+      });
+    } catch {
+      return dateStr;
+    }
+  };
   
   // Redux lists
   const products = useSelector((state: RootState) => state.products.items);
@@ -1686,7 +1701,7 @@ export const AdminDashboard: React.FC = () => {
                             </span>
                           </td>
                           <td className="p-4 text-muted">
-                            {cust.createdAt ? new Date(cust.createdAt).toLocaleString() : 'N/A'}
+                            {formatDateTime(cust.createdAt)}
                           </td>
                           <td className="p-4 text-center">
                             <button
@@ -2333,7 +2348,7 @@ export const AdminDashboard: React.FC = () => {
                   <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-3 gap-2">
                     <div>
                       <span className="text-[10px] text-muted font-bold block uppercase tracking-wider">
-                        {new Date(enq.createdAt).toLocaleString()}
+                        {formatDateTime(enq.createdAt)}
                       </span>
                       <h4 className="font-heading font-bold text-sm text-heading mt-0.5">{enq.subject}</h4>
                     </div>
@@ -2445,7 +2460,7 @@ export const AdminDashboard: React.FC = () => {
                     <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-3 gap-2">
                       <div>
                         <span className="text-[10px] text-muted font-bold block uppercase tracking-wider">
-                          Received: {new Date(app.createdAt || app.date).toLocaleString()}
+                          Received: {formatDateTime(app.createdAt || app.date)}
                         </span>
                         <h4 className="font-heading font-bold text-sm text-heading mt-0.5">
                           {app.applicantName} {app.businessName ? `— ${app.businessName}` : ''}
