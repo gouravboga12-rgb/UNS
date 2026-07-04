@@ -1097,6 +1097,11 @@ async function syncPaymentStatusIfUnpaid(order: any) {
   }
 }
 
+// Payment config route
+app.get('/api/payments/config', (req: Request, res: Response) => {
+  res.json({ keyId: process.env.RAZORPAY_KEY_ID || 'rzp_test_T7T6MVvx0hvF4f' });
+});
+
 // Signature verification route
 app.post('/api/payments/verify', async (req: Request, res: Response) => {
   const { razorpayOrderId, razorpayPaymentId, razorpaySignature, orderId } = req.body;

@@ -152,8 +152,22 @@ export const Cart: React.FC = () => {
       return;
     }
 
+    // Dynamically retrieve the configured Razorpay Key ID from the backend
+    let razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_T7T6MVvx0hvF4f';
+    try {
+      const configRes = await fetch(`${API_URL}/payments/config`);
+      if (configRes.ok) {
+        const configData = await configRes.json();
+        if (configData.keyId) {
+          razorpayKey = configData.keyId;
+        }
+      }
+    } catch (err) {
+      console.warn("Failed to fetch Razorpay config from backend, using fallback:", err);
+    }
+
     const options = {
-      key: import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_T7T6MVvx0hvF4f',
+      key: razorpayKey,
       amount: Math.round(total * 100), // in paise
       currency: 'INR',
       name: 'UNS Home Cleaning Products',
