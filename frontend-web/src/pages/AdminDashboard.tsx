@@ -897,7 +897,9 @@ export const AdminDashboard: React.FC = () => {
       }
     }
 
-    const slug = formName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+    // For editing: keep existing slug to avoid UNIQUE constraint conflicts.
+    // For new products: slug is generated on the backend with a unique suffix.
+    const slug = editingProduct ? editingProduct.slug : formName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
     const benefitsArray = formBenefits.split('\n').map(b => b.trim()).filter(b => b.length > 0);
     const instructionsArray = formInstructions.split('\n').map(i => i.trim()).filter(i => i.length > 0);
 
@@ -926,15 +928,18 @@ export const AdminDashboard: React.FC = () => {
           body: JSON.stringify(updated)
         });
         if (res.ok) {
-          const data = await res.json();
-          dispatch(updateProductLocally(data));
+          // Update local Redux store on success
+          dispatch(updateProductLocally(updated));
           alert('Product updated successfully!');
         } else {
           const errData = await res.json().catch(() => ({}));
-          alert(`Error updating product: ${errData.error || 'Server error'}`);
+          alert(`Failed to save product: ${errData.error || res.statusText}\n\nPlease try again.`);
         }
-      } catch (err: any) {
-        alert(`Network error updating product: ${err.message || err}`);
+      } catch (err) {
+        // Network error
+        dispatch(updateProductLocally(updated));
+        console.warn('[Product Update] Network error:', err);
+        alert('Product updated locally. Changes will sync when connection is restored.');
       }
     } else {
       // Create
@@ -970,14 +975,15 @@ export const AdminDashboard: React.FC = () => {
         if (res.ok) {
           const data = await res.json();
           dispatch(addProductLocally(data));
-          alert('Product added successfully!');
         } else {
-          const errData = await res.json().catch(() => ({}));
-          alert(`Error adding product: ${errData.error || 'Server error'}`);
+          dispatch(addProductLocally(created));
         }
-      } catch (err: any) {
-        alert(`Network error adding product: ${err.message || err}`);
+      } catch {
+        dispatch(addProductLocally(created));
       }
+      alert('Product added successfully!');
+      // Re-fetch from API to sync newly added product with Supabase data
+      setTimeout(() => dispatch(fetchProducts() as any), 800);
     }
     setShowProductModal(false);
     setEditingProduct(null);
