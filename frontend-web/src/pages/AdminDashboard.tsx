@@ -806,7 +806,7 @@ export const AdminDashboard: React.FC = () => {
     const customKey = Object.keys(prod.specifications || {}).find(key => !standardKeys.includes(key));
     if (customKey) {
       setFormCustomSpecName(customKey);
-      setFormCustomSpecValue(prod.specifications[customKey] || '');
+      setFormCustomSpecValue(prod.specifications[customKey] !== undefined ? String(prod.specifications[customKey]) : '');
     } else {
       setFormCustomSpecName('');
       setFormCustomSpecValue('');
@@ -854,7 +854,7 @@ export const AdminDashboard: React.FC = () => {
     }
 
     if (formCustomSpecName.trim()) {
-      finalSpecifications[formCustomSpecName.trim()] = formCustomSpecValue.trim();
+      finalSpecifications[formCustomSpecName.trim()] = String(formCustomSpecValue).trim();
     }
 
     if (hasVariants) {
