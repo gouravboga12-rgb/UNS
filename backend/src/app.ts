@@ -479,7 +479,7 @@ app.put('/api/products/:id', async (req: Request, res: Response) => {
     stock: body.stock !== undefined ? Number(body.stock) : undefined,
   };
 
-  const { reviews, ...dbPayload } = updatedPayload;
+  const { reviews, id: payloadId, createdAt, ...dbPayload } = updatedPayload;
 
   try {
     const { data, error } = await supabase.from('products').update(dbPayload).eq('id', id).select().single();
