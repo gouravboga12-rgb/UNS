@@ -69,6 +69,10 @@ const upload = multer({ storage });
 
 // Middleware
 app.use(cors());
+app.use((req, res, next) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  next();
+});
 app.use(express.json());
 app.use(morgan('dev'));
 app.use('/products', express.static(path.join(__dirname, '../public/products')));

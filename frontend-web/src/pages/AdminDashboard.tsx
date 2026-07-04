@@ -103,6 +103,23 @@ export const AdminDashboard: React.FC = () => {
     setConfirmModal({ open: true, title, message, onConfirm });
   };
   const closeConfirm = () => setConfirmModal(prev => ({ ...prev, open: false }));
+
+  // Custom alert dialog state
+  const [alertModal, setAlertModal] = useState<{
+    open: boolean;
+    title: string;
+    message: string;
+  }>({ open: false, title: 'Notice', message: '' });
+
+  const showAlert = (title: string, message: string) => {
+    setAlertModal({ open: true, title, message });
+  };
+  const closeAlert = () => setAlertModal(prev => ({ ...prev, open: false }));
+
+  // Intercept standard alert calls in this component
+  const alert = (msg: string) => {
+    showAlert('Notice', msg);
+  };
   
   // Editing and form modals
   const [showProductModal, setShowProductModal] = useState(false);
@@ -664,22 +681,27 @@ export const AdminDashboard: React.FC = () => {
     setShowCategoryModal(true);
   };
 
-  const handleCategoryDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this category? Any products assigned to this category will not be deleted but they will lose their category classification.")) {
-      try {
-        const res = await fetch(`${API_URL}/categories/${id}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          dispatch(deleteCategoryLocally(id));
-        } else {
+  const handleCategoryDelete = (id: string) => {
+    showConfirm(
+      'Delete Category',
+      'Are you sure you want to delete this category? Any products assigned to this category will not be deleted but they will lose their category classification.',
+      async () => {
+        closeConfirm();
+        try {
+          const res = await fetch(`${API_URL}/categories/${id}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            dispatch(deleteCategoryLocally(id));
+          } else {
+            dispatch(deleteCategoryLocally(id));
+          }
+        } catch {
           dispatch(deleteCategoryLocally(id));
         }
-      } catch {
-        dispatch(deleteCategoryLocally(id));
+        alert('Category deleted successfully!');
       }
-      alert('Category deleted successfully!');
-    }
+    );
   };
 
   // Product CRUD Modal actions
@@ -918,21 +940,27 @@ export const AdminDashboard: React.FC = () => {
     setShowProductModal(false);
   };
 
-  const handleProductDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this product?")) {
-      try {
-        const res = await fetch(`${API_URL}/products/${id}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          dispatch(deleteProductLocally(id));
-        } else {
+  const handleProductDelete = (id: string) => {
+    showConfirm(
+      'Delete Product',
+      'Are you sure you want to permanently delete this product from the database? This action cannot be undone.',
+      async () => {
+        closeConfirm();
+        try {
+          const res = await fetch(`${API_URL}/products/${id}`, {
+            method: 'DELETE'
+          });
+          if (res.ok) {
+            dispatch(deleteProductLocally(id));
+          } else {
+            dispatch(deleteProductLocally(id));
+          }
+        } catch {
           dispatch(deleteProductLocally(id));
         }
-      } catch {
-        dispatch(deleteProductLocally(id));
+        alert('Product deleted successfully!');
       }
-    }
+    );
   };
 
   const handleRefresh = async () => {
@@ -981,44 +1009,55 @@ export const AdminDashboard: React.FC = () => {
     );
   };
 
-  const handleEnquiryDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this enquiry?")) {
-      try {
-        const res = await fetch(`${API_URL}/admin/enquiries/${id}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          const updated = localEnquiries.filter(e => e.id !== id);
-          setLocalEnquiries(updated);
-          localStorage.setItem('uns_local_enquiries', JSON.stringify(updated));
-        } else {
-          const updated = localEnquiries.filter(e => e.id !== id);
-          setLocalEnquiries(updated);
-          localStorage.setItem('uns_local_enquiries', JSON.stringify(updated));
-        }
-      } catch {
+  const handleEnquiryDelete = (id: string) => {
+    showConfirm(
+      'Delete Enquiry',
+      'Are you sure you want to permanently delete this contact enquiry? This action cannot be undone.',
+      async () => {
+        closeConfirm();
+        try {
+          await fetch(`${API_URL}/admin/enquiries/${id}`, { method: 'DELETE' });
+        } catch (e) { console.warn('Delete enquiry error', e); }
+        // Re-fetch to confirm deletion
+        try {
+          const res = await fetch(`${API_URL}/admin/enquiries`);
+          if (res.ok) {
+            const data = await res.json();
+            setLocalEnquiries(data);
+            localStorage.setItem('uns_local_enquiries', JSON.stringify(data));
+            return;
+          }
+        } catch {}
+        // Fallback
         const updated = localEnquiries.filter(e => e.id !== id);
         setLocalEnquiries(updated);
         localStorage.setItem('uns_local_enquiries', JSON.stringify(updated));
       }
-    }
+    );
   };
 
-  const handleCustomerDelete = async (id: string) => {
-    if (confirm("Are you sure you want to delete this customer account?")) {
-      try {
-        const res = await fetch(`${API_URL}/admin/users/${id}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          setCustomers(customers.filter(c => c.id !== id));
-        } else {
-          setCustomers(customers.filter(c => c.id !== id));
-        }
-      } catch {
+  const handleCustomerDelete = (id: string) => {
+    showConfirm(
+      'Delete Customer Account',
+      'Are you sure you want to permanently delete this customer account? This action cannot be undone.',
+      async () => {
+        closeConfirm();
+        try {
+          await fetch(`${API_URL}/admin/users/${id}`, { method: 'DELETE' });
+        } catch (e) { console.warn('Delete customer error', e); }
+        // Re-fetch to confirm deletion
+        try {
+          const res = await fetch(`${API_URL}/admin/users`);
+          if (res.ok) {
+            const data = await res.json();
+            setCustomers(data);
+            return;
+          }
+        } catch {}
+        // Fallback
         setCustomers(customers.filter(c => c.id !== id));
       }
-    }
+    );
   };
 
   // Order Actions
@@ -1106,27 +1145,37 @@ export const AdminDashboard: React.FC = () => {
     }
   };
 
-  const handleDeleteReview = async (rev: any) => {
-    if (confirm("Are you sure you want to delete this review?")) {
-      try {
-        const res = await fetch(`${API_URL}/admin/reviews/${rev.id}`, {
-          method: 'DELETE'
-        });
-        if (res.ok) {
-          const updatedList = localReviews.filter(r => r.id !== rev.id);
-          setLocalReviews(updatedList);
-          localStorage.setItem('uns_local_reviews', JSON.stringify(updatedList));
-          dispatch(deleteReviewLocally({ productId: rev.productId, reviewId: rev.id }));
-        } else {
-          throw new Error('API error');
-        }
-      } catch {
+  const handleDeleteReview = (rev: any) => {
+    showConfirm(
+      'Delete Review',
+      'Are you sure you want to permanently delete this customer review? This action cannot be undone.',
+      async () => {
+        closeConfirm();
+        try {
+          await fetch(`${API_URL}/admin/reviews/${rev.id}`, { method: 'DELETE' });
+        } catch (e) { console.warn('Delete review error', e); }
+        // Re-fetch to confirm deletion
+        try {
+          const res = await fetch(`${API_URL}/admin/reviews`);
+          if (res.ok) {
+            const data = await res.json();
+            const mappedData = data.map((r: any) => {
+              const p = products.find(prod => prod.id === r.productId);
+              return { ...r, productName: p ? p.name : 'Cleaning Product' };
+            });
+            setLocalReviews(mappedData);
+            localStorage.setItem('uns_local_reviews', JSON.stringify(mappedData));
+            dispatch(deleteReviewLocally({ productId: rev.productId, reviewId: rev.id }));
+            return;
+          }
+        } catch {}
+        // Fallback
         const updatedList = localReviews.filter(r => r.id !== rev.id);
         setLocalReviews(updatedList);
         localStorage.setItem('uns_local_reviews', JSON.stringify(updatedList));
         dispatch(deleteReviewLocally({ productId: rev.productId, reviewId: rev.id }));
       }
-    }
+    );
   };
 
   const handleOpenReviewEditModal = (rev: any) => {
@@ -2862,6 +2911,26 @@ export const AdminDashboard: React.FC = () => {
                 <Trash2 size={14} /> Delete
               </button>
             </div>
+          </div>
+        </div>
+      )}
+      {/* GLOBAL ALERT DIALOG */}
+      {alertModal.open && (
+        <div className="fixed inset-0 z-[210] flex items-center justify-center bg-slate-900/70 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl p-6 max-w-sm w-full mx-4 border border-border animate-fadeIn">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="p-2.5 bg-primary/10 rounded-xl">
+                <Check size={20} className="text-primary" />
+              </div>
+              <h3 className="text-base font-bold text-heading font-heading">{alertModal.title}</h3>
+            </div>
+            <p className="text-sm text-body mb-6 leading-relaxed">{alertModal.message}</p>
+            <button
+              onClick={closeAlert}
+              className="w-full py-2.5 bg-primary hover:bg-primary/90 text-white rounded-xl text-sm font-bold transition-colors"
+            >
+              OK
+            </button>
           </div>
         </div>
       )}
