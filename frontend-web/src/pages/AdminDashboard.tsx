@@ -925,17 +925,17 @@ export const AdminDashboard: React.FC = () => {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(updated)
         });
-        // Update local Redux store immediately so the list reflects changes
-        dispatch(updateProductLocally(updated));
-        if (!res.ok) {
-          console.warn('[Product Update] Server returned error, local state updated only');
+        if (res.ok) {
+          const data = await res.json();
+          dispatch(updateProductLocally(data));
+          alert('Product updated successfully!');
+        } else {
+          const errData = await res.json().catch(() => ({}));
+          alert(`Error updating product: ${errData.error || 'Server error'}`);
         }
-      } catch (err) {
-        // Network error — still update locally
-        dispatch(updateProductLocally(updated));
-        console.warn('[Product Update] Network error:', err);
+      } catch (err: any) {
+        alert(`Network error updating product: ${err.message || err}`);
       }
-      alert('Product updated successfully!');
     } else {
       // Create
       const created: Product = {
@@ -970,15 +970,14 @@ export const AdminDashboard: React.FC = () => {
         if (res.ok) {
           const data = await res.json();
           dispatch(addProductLocally(data));
+          alert('Product added successfully!');
         } else {
-          dispatch(addProductLocally(created));
+          const errData = await res.json().catch(() => ({}));
+          alert(`Error adding product: ${errData.error || 'Server error'}`);
         }
-      } catch {
-        dispatch(addProductLocally(created));
+      } catch (err: any) {
+        alert(`Network error adding product: ${err.message || err}`);
       }
-      alert('Product added successfully!');
-      // Re-fetch from API to sync newly added product with Supabase data
-      setTimeout(() => dispatch(fetchProducts() as any), 800);
     }
     setShowProductModal(false);
     setEditingProduct(null);

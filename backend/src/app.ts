@@ -476,8 +476,7 @@ app.post('/api/products', async (req: Request, res: Response) => {
     res.status(201).json(normalized);
   } catch (err: any) {
     console.error('[Supabase] POST product error:', err.message);
-    productsState.push(newProduct);
-    res.status(201).json(newProduct);
+    res.status(500).json({ error: err.message || 'Database insert failed' });
   }
 });
 
@@ -537,16 +536,7 @@ app.put('/api/products/:id', async (req: Request, res: Response) => {
     res.json({ ...normalized, reviews: revs || [] });
   } catch (err: any) {
     console.error('[Supabase] PUT product error:', err.message);
-    // Fallback: update in-memory state
-    const idx = productsState.findIndex(p => p.id === id);
-    if (idx === -1) return res.status(404).json({ error: 'Product not found' });
-    const updated = { ...productsState[idx], ...body,
-      price: body.price ? Number(body.price) : productsState[idx].price,
-      discountPrice: body.discountPrice ? Number(body.discountPrice) : productsState[idx].discountPrice,
-      stock: body.stock !== undefined ? Number(body.stock) : productsState[idx].stock,
-    };
-    productsState[idx] = updated;
-    res.json(updated);
+    res.status(500).json({ error: err.message || 'Database update failed' });
   }
 });
 
