@@ -88,6 +88,25 @@ CREATE TABLE IF NOT EXISTS public.users (
     "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
 );
 
+-- 7. Create distributor_applications table
+CREATE TABLE IF NOT EXISTS public.distributor_applications (
+    id TEXT PRIMARY KEY,
+    "applicantName" TEXT NOT NULL,
+    "businessName" TEXT DEFAULT '',
+    address TEXT NOT NULL,
+    mobile TEXT NOT NULL,
+    "whatsApp" TEXT DEFAULT '',
+    email TEXT NOT NULL,
+    gst TEXT DEFAULT '',
+    area TEXT DEFAULT '',
+    experience TEXT DEFAULT '',
+    products TEXT[] DEFAULT '{}',
+    "expectedQty" TEXT DEFAULT '',
+    date TEXT DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'New',
+    "createdAt" TIMESTAMP WITH TIME ZONE DEFAULT timezone('utc'::text, now()) NOT NULL
+);
+
 -- Disable Row Level Security (RLS) to allow public access via the anon key
 ALTER TABLE public.categories DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.products DISABLE ROW LEVEL SECURITY;
@@ -95,3 +114,5 @@ ALTER TABLE public.reviews DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.orders DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.enquiries DISABLE ROW LEVEL SECURITY;
 ALTER TABLE public.users DISABLE ROW LEVEL SECURITY;
+ALTER TABLE public.distributor_applications DISABLE ROW LEVEL SECURITY;
+

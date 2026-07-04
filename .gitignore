@@ -52,3 +52,6 @@ Desktop.ini
 image copy *.png
 backend/scratch_*
 scratch_*
+
+.vercel
+.env*
