@@ -828,6 +828,144 @@ app.delete('/api/admin/enquiries/:id', async (req: Request, res: Response) => {
 
 
 // -------------------------------------------------------------
+// Distributor Applications API
+// -------------------------------------------------------------
+let distributorApplicationsState: any[] = [];
+
+app.post('/api/distributor-applications', async (req: Request, res: Response) => {
+  const {
+    applicantName, businessName, address, mobile, whatsApp,
+    email, gst, area, experience, products, expectedQty, date
+  } = req.body;
+
+  if (!applicantName || !mobile || !email || !address) {
+    return res.status(400).json({ error: 'Applicant name, mobile, email, and address are required' });
+  }
+
+  const newApplication: any = {
+    id: `dist-${generateId()}`,
+    applicantName,
+    businessName: businessName || '',
+    address,
+    mobile,
+    whatsApp: whatsApp || mobile,
+    email,
+    gst: gst || '',
+    area: area || '',
+    experience: experience || '',
+    products: Array.isArray(products) ? products : [],
+    expectedQty: expectedQty || '',
+    date: date || new Date().toISOString().split('T')[0],
+    status: 'New',
+    createdAt: new Date().toISOString()
+  };
+
+  try {
+    const { data, error } = await supabase
+      .from('distributor_applications')
+      .insert(newApplication)
+      .select()
+      .single();
+    if (error) throw error;
+    console.log('[Distributor Application] Saved to Supabase:', data?.id);
+
+    // Also send notification email to admin
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: 'unshomecleaningproductspvtltd@gmail.com',
+        subject: `New Distributor Application from ${applicantName} — UNS`,
+        html: `
+          <h2>New Distributor Application</h2>
+          <table>
+            <tr><td><b>Applicant:</b></td><td>${applicantName}</td></tr>
+            <tr><td><b>Business:</b></td><td>${businessName || 'N/A'}</td></tr>
+            <tr><td><b>Mobile:</b></td><td>${mobile}</td></tr>
+            <tr><td><b>Email:</b></td><td>${email}</td></tr>
+            <tr><td><b>Area:</b></td><td>${area || 'N/A'}</td></tr>
+            <tr><td><b>GST:</b></td><td>${gst || 'N/A'}</td></tr>
+            <tr><td><b>Experience:</b></td><td>${experience || 'N/A'}</td></tr>
+            <tr><td><b>Products:</b></td><td>${Array.isArray(products) ? products.join(', ') : 'N/A'}</td></tr>
+            <tr><td><b>Expected Qty:</b></td><td>${expectedQty || 'N/A'}</td></tr>
+            <tr><td><b>Address:</b></td><td>${address}</td></tr>
+            <tr><td><b>Date:</b></td><td>${date || new Date().toISOString().split('T')[0]}</td></tr>
+          </table>
+          <br/><p>Login to the admin panel to view and manage this application.</p>
+        `
+      });
+    } catch (mailErr: any) {
+      console.warn('[Mail] Failed to send distributor application email:', mailErr.message);
+    }
+
+    res.status(201).json({ message: 'Distributor application submitted successfully', application: data });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] POST distributor-application:', err.message);
+    distributorApplicationsState.unshift(newApplication);
+
+    // Still try to send email even in fallback
+    try {
+      await transporter.sendMail({
+        from: process.env.SMTP_FROM,
+        to: 'unshomecleaningproductspvtltd@gmail.com',
+        subject: `New Distributor Application from ${applicantName} — UNS`,
+        html: `<h2>New Distributor Application</h2><p><b>Name:</b> ${applicantName}</p><p><b>Mobile:</b> ${mobile}</p><p><b>Email:</b> ${email}</p><p><b>Area:</b> ${area}</p><p><b>Address:</b> ${address}</p>`
+      });
+    } catch {}
+
+    res.status(201).json({ message: 'Distributor application submitted successfully', application: newApplication });
+  }
+});
+
+app.get('/api/admin/distributor-applications', async (req: Request, res: Response) => {
+  try {
+    const { data, error } = await supabase
+      .from('distributor_applications')
+      .select('*')
+      .order('createdAt', { ascending: false });
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] GET distributor-applications:', err.message);
+    res.json(distributorApplicationsState);
+  }
+});
+
+app.put('/api/admin/distributor-applications/:id/status', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  const { status } = req.body;
+
+  try {
+    const { data, error } = await supabase
+      .from('distributor_applications')
+      .update({ status })
+      .eq('id', id)
+      .select()
+      .single();
+    if (error) throw error;
+    res.json(data);
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] PUT distributor-applications status:', err.message);
+    const app = distributorApplicationsState.find(a => a.id === id);
+    if (app) app.status = status;
+    res.json({ id, status });
+  }
+});
+
+app.delete('/api/admin/distributor-applications/:id', async (req: Request, res: Response) => {
+  const { id } = req.params;
+  try {
+    const { error } = await supabase.from('distributor_applications').delete().eq('id', id);
+    if (error) throw error;
+    res.json({ message: 'Application deleted successfully' });
+  } catch (err: any) {
+    console.warn('[Supabase Fallback] DELETE distributor-application:', err.message);
+    distributorApplicationsState = distributorApplicationsState.filter(a => a.id !== id);
+    res.json({ message: 'Application deleted successfully' });
+  }
+});
+
+
+// -------------------------------------------------------------
 // Orders & Tracking API
 // -------------------------------------------------------------
 app.post('/api/orders', async (req: Request, res: Response) => {

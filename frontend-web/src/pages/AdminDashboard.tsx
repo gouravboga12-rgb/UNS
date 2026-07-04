@@ -41,7 +41,8 @@ import {
   Search,
   LogOut,
   RefreshCw,
-  AlertTriangle
+  AlertTriangle,
+  ClipboardList
 } from 'lucide-react';
 
 
@@ -60,7 +61,7 @@ export const AdminDashboard: React.FC = () => {
   const [isAdmin, setIsAdmin] = useState(false);
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'orders' | 'reviews' | 'enquiries' | 'customers' | 'revenue' | 'settings'>('overview');
+  const [activeTab, setActiveTab] = useState<'overview' | 'categories' | 'products' | 'orders' | 'reviews' | 'enquiries' | 'applications' | 'customers' | 'revenue' | 'settings'>('overview');
 
   // Shipping settings state
   const shippingSettings = useSelector((state: RootState) => state.products.shippingSettings);
@@ -89,7 +90,10 @@ export const AdminDashboard: React.FC = () => {
   const [localEnquiries, setLocalEnquiries] = useState<any[]>([]);
   const [localReviews, setLocalReviews] = useState<any[]>([]);
   const [customers, setCustomers] = useState<any[]>([]);
+  const [localDistributorApps, setLocalDistributorApps] = useState<any[]>([]);
   const [isRefreshing, setIsRefreshing] = useState(false);
+  const [appSearch, setAppSearch] = useState('');
+  const [appStatusFilter, setAppStatusFilter] = useState('all');
 
   // Custom confirm dialog state
   const [confirmModal, setConfirmModal] = useState<{
@@ -246,6 +250,17 @@ export const AdminDashboard: React.FC = () => {
     return matchesSearch && matchesStatus && matchesRating;
   });
 
+  const filteredDistributorApps = localDistributorApps.filter(a => {
+    const matchesSearch =
+      (a.applicantName || '').toLowerCase().includes(appSearch.toLowerCase()) ||
+      (a.businessName || '').toLowerCase().includes(appSearch.toLowerCase()) ||
+      (a.email || '').toLowerCase().includes(appSearch.toLowerCase()) ||
+      (a.mobile || '').includes(appSearch) ||
+      (a.area || '').toLowerCase().includes(appSearch.toLowerCase());
+    const matchesStatus = appStatusFilter === 'all' || a.status === appStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
+
   const filteredEnquiries = localEnquiries.filter(e => {
     const matchesSearch = 
       e.name.toLowerCase().includes(enqSearch.toLowerCase()) ||
@@ -385,7 +400,20 @@ export const AdminDashboard: React.FC = () => {
         }
       }
 
-      // 4. Customers
+      // 4. Distributor Applications
+      try {
+        const res = await fetch(`${API_URL}/admin/distributor-applications`);
+        if (res.ok) {
+          const data = await res.json();
+          setLocalDistributorApps(data);
+          localStorage.setItem('uns_local_dist_apps', JSON.stringify(data));
+        }
+      } catch {
+        const saved = localStorage.getItem('uns_local_dist_apps');
+        if (saved) setLocalDistributorApps(JSON.parse(saved));
+      }
+
+      // 5. Customers
       try {
         const res = await fetch(`${API_URL}/admin/users`);
         if (res.ok) {
@@ -966,13 +994,15 @@ export const AdminDashboard: React.FC = () => {
   const handleRefresh = async () => {
     setIsRefreshing(true);
     try {
-      const [ordRes, enqRes, revRes, custRes] = await Promise.all([
+      const [ordRes, distRes, enqRes, revRes, custRes] = await Promise.all([
         fetch(`${API_URL}/admin/orders`),
+        fetch(`${API_URL}/admin/distributor-applications`),
         fetch(`${API_URL}/admin/enquiries`),
         fetch(`${API_URL}/admin/reviews`),
         fetch(`${API_URL}/admin/users`)
       ]);
       if (ordRes.ok) { const d = await ordRes.json(); setLocalOrders(d); localStorage.setItem('uns_local_orders', JSON.stringify(d)); }
+      if (distRes.ok) { const d = await distRes.json(); setLocalDistributorApps(d); localStorage.setItem('uns_local_dist_apps', JSON.stringify(d)); }
       if (enqRes.ok) { const d = await enqRes.json(); setLocalEnquiries(d); localStorage.setItem('uns_local_enquiries', JSON.stringify(d)); }
       if (revRes.ok) { const d = await revRes.json(); setLocalReviews(d); }
       if (custRes.ok) { const d = await custRes.json(); setCustomers(d); }
@@ -981,6 +1011,7 @@ export const AdminDashboard: React.FC = () => {
     } catch (e) { console.warn('Refresh failed', e); }
     setIsRefreshing(false);
   };
+
 
   const handleOrderDelete = (id: string) => {
     showConfirm(
@@ -1060,7 +1091,46 @@ export const AdminDashboard: React.FC = () => {
     );
   };
 
+  const handleDistributorAppDelete = (id: string) => {
+    showConfirm(
+      'Delete Application',
+      'Are you sure you want to permanently delete this distributor application? This action cannot be undone.',
+      async () => {
+        closeConfirm();
+        try {
+          await fetch(`${API_URL}/admin/distributor-applications/${id}`, { method: 'DELETE' });
+        } catch (e) { console.warn('Delete distributor app error', e); }
+        try {
+          const res = await fetch(`${API_URL}/admin/distributor-applications`);
+          if (res.ok) {
+            const data = await res.json();
+            setLocalDistributorApps(data);
+            localStorage.setItem('uns_local_dist_apps', JSON.stringify(data));
+            return;
+          }
+        } catch {}
+        const updated = localDistributorApps.filter(a => a.id !== id);
+        setLocalDistributorApps(updated);
+        localStorage.setItem('uns_local_dist_apps', JSON.stringify(updated));
+      }
+    );
+  };
+
+  const handleDistributorAppStatus = async (id: string, status: string) => {
+    try {
+      await fetch(`${API_URL}/admin/distributor-applications/${id}/status`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status })
+      });
+    } catch {}
+    const updated = localDistributorApps.map(a => a.id === id ? { ...a, status } : a);
+    setLocalDistributorApps(updated);
+    localStorage.setItem('uns_local_dist_apps', JSON.stringify(updated));
+  };
+
   // Order Actions
+
   const openOrderEdit = (order: any) => {
     setSelectedOrder(order);
     setOrderStatus(order.status);
@@ -1390,6 +1460,20 @@ export const AdminDashboard: React.FC = () => {
             <MessageSquare size={16} /> Contact Inbox
             {stats.unreadEnquiries > 0 && (
               <span className="ml-auto w-2 h-2 rounded-full bg-accent" />
+            )}
+          </button>
+
+          <button
+            onClick={() => setActiveTab('applications')}
+            className={`w-full text-left py-2.5 px-4 rounded-lg font-semibold flex items-center gap-2.5 transition-all ${
+              activeTab === 'applications' ? 'bg-primary text-white font-bold shadow' : 'hover:bg-slate-800 hover:text-white'
+            }`}
+          >
+            <ClipboardList size={16} /> Distributor Apps
+            {localDistributorApps.filter(a => a.status === 'New').length > 0 && (
+              <span className="ml-auto bg-accent text-[9px] font-bold text-white px-2 py-0.5 rounded-full">
+                {localDistributorApps.filter(a => a.status === 'New').length}
+              </span>
             )}
           </button>
 
@@ -2303,6 +2387,160 @@ export const AdminDashboard: React.FC = () => {
                   </div>
                 </div>
               ))}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'applications' && (
+          <div className="space-y-6 animate-fadeIn">
+            <div>
+              <h2 className="text-2xl font-bold text-heading font-heading">Distributor Applications</h2>
+              <p className="text-xs text-muted">Review and manage onboarding applications for authorised UNS distributorship.</p>
+            </div>
+
+            {/* Search and Filter Controls */}
+            <div className="flex flex-col sm:flex-row gap-4 justify-between items-center bg-white p-4 rounded-xl border border-border shadow-soft">
+              <div className="relative w-full sm:max-w-md">
+                <input
+                  type="text"
+                  placeholder="Search applications (Name, Business, Email, Mobile, Area)..."
+                  className="w-full bg-slate-50 border border-border rounded-lg py-2 pl-9 pr-3 text-xs text-heading placeholder-slate-400 focus:outline-none focus:border-primary transition-colors"
+                  value={appSearch}
+                  onChange={(e) => setAppSearch(e.target.value)}
+                />
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Search size={14} />
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] uppercase font-bold text-muted tracking-wider">Status:</span>
+                <select
+                  className="bg-slate-50 border border-border rounded-lg py-1.5 px-3 text-xs focus:outline-none focus:border-primary font-semibold text-heading"
+                  value={appStatusFilter}
+                  onChange={(e) => setAppStatusFilter(e.target.value)}
+                >
+                  <option value="all">All Applications</option>
+                  <option value="New">New</option>
+                  <option value="Contacted">Contacted</option>
+                  <option value="Approved">Approved</option>
+                  <option value="Rejected">Rejected</option>
+                </select>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              {filteredDistributorApps.length === 0 ? (
+                <div className="p-8 text-center text-muted italic bg-white rounded-2xl border border-border shadow-soft">
+                  No distributor applications found.
+                </div>
+              ) : (
+                filteredDistributorApps.map((app) => (
+                  <div
+                    key={app.id}
+                    className={`p-6 rounded-2xl border transition-all shadow-soft bg-white ${
+                      app.status === 'New' ? 'border-primary/35 bg-teal-50/5' : 'border-border'
+                    }`}
+                  >
+                    {/* Header */}
+                    <div className="flex flex-wrap items-center justify-between border-b border-slate-100 pb-3 gap-2">
+                      <div>
+                        <span className="text-[10px] text-muted font-bold block uppercase tracking-wider">
+                          Received: {new Date(app.createdAt || app.date).toLocaleString()}
+                        </span>
+                        <h4 className="font-heading font-bold text-sm text-heading mt-0.5">
+                          {app.applicantName} {app.businessName ? `— ${app.businessName}` : ''}
+                        </h4>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <select
+                          className={`text-[10px] font-bold uppercase rounded py-1 px-2.5 border focus:outline-none focus:ring-1 focus:ring-primary ${
+                            app.status === 'New'
+                              ? 'bg-blue-50 text-blue-650 border-blue-200'
+                              : app.status === 'Contacted'
+                              ? 'bg-amber-50 text-amber-650 border-amber-200'
+                              : app.status === 'Approved'
+                              ? 'bg-emerald-50 text-emerald-650 border-emerald-200'
+                              : 'bg-red-50 text-red-650 border-red-200'
+                          }`}
+                          value={app.status || 'New'}
+                          onChange={(e) => handleDistributorAppStatus(app.id, e.target.value)}
+                        >
+                          <option value="New">New</option>
+                          <option value="Contacted">Contacted</option>
+                          <option value="Approved">Approved</option>
+                          <option value="Rejected">Rejected</option>
+                        </select>
+                      </div>
+                    </div>
+
+                    {/* Details Grid */}
+                    <div className="py-5 grid grid-cols-1 md:grid-cols-3 gap-6 text-xs text-slate-650 border-b border-slate-100">
+                      {/* Contact Column */}
+                      <div className="space-y-1.5">
+                        <h5 className="text-[10px] font-bold text-heading uppercase tracking-wider">Contact Info</h5>
+                        <p><strong>Mobile:</strong> {app.mobile}</p>
+                        {app.whatsApp && <p><strong>WhatsApp:</strong> {app.whatsApp}</p>}
+                        <p className="truncate"><strong>Email:</strong> {app.email}</p>
+                      </div>
+
+                      {/* Location & Tax Column */}
+                      <div className="space-y-1.5">
+                        <h5 className="text-[10px] font-bold text-heading uppercase tracking-wider">Location & Business</h5>
+                        <p><strong>Preferred Area:</strong> {app.area || 'N/A'}</p>
+                        <p><strong>GST Number:</strong> {app.gst || 'Not Provided'}</p>
+                        <p className="line-clamp-2" title={app.address}><strong>Address:</strong> {app.address}</p>
+                      </div>
+
+                      {/* Interest & Experience Column */}
+                      <div className="space-y-1.5">
+                        <h5 className="text-[10px] font-bold text-heading uppercase tracking-wider">Proposal Details</h5>
+                        <p><strong>Experience:</strong> {app.experience || 'None'}</p>
+                        <p><strong>Expected Qty:</strong> {app.expectedQty || 'Not specified'}</p>
+                        <div>
+                          <strong>Selected Products:</strong>
+                          <div className="flex flex-wrap gap-1 mt-1">
+                            {Array.isArray(app.products) && app.products.length > 0 ? (
+                              app.products.map((p: string, idx: number) => (
+                                <span
+                                  key={idx}
+                                  className="px-1.5 py-0.5 rounded bg-slate-100 border border-slate-200 text-[10px] font-semibold text-slate-600"
+                                >
+                                  {p}
+                                </span>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-muted italic">None selected</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Actions */}
+                    <div className="flex justify-end pt-3 gap-2">
+                      <a
+                        href={`mailto:${app.email}?subject=Response:%20UNS%2520Distributorship%2520Application`}
+                        className="bg-primary hover:bg-primary-light text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-sm"
+                      >
+                        Email Reply
+                      </a>
+                      <a
+                        href={`https://api.whatsapp.com/send?phone=91${(app.whatsApp || app.mobile).replace(/[^0-9]/g, '')}&text=Hello%2520${encodeURIComponent(app.applicantName)},%2520thank%2520you%2520for%2520applying%2520for%2520UNS%2520Distributorship...`}
+                        target="_blank"
+                        className="bg-green-500 hover:bg-green-600 text-white text-[10px] font-bold py-1.5 px-3 rounded-lg shadow-sm inline-flex items-center gap-1"
+                      >
+                        <MessageSquare size={10} /> WhatsApp Reply
+                      </a>
+                      <button
+                        onClick={() => handleDistributorAppDelete(app.id)}
+                        className="bg-red-50 hover:bg-red-100 text-red-500 hover:text-red-700 text-[10px] font-bold py-1.5 px-3 rounded-lg border border-red-200 shadow-sm inline-flex items-center gap-1"
+                      >
+                        <Trash2 size={10} /> Delete
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
             </div>
           </div>
         )}
