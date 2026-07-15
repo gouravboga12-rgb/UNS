@@ -1,10 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import { User, Mail, Phone, LogOut, Package, Clock, ArrowRight, Shield, AlertCircle } from 'lucide-react';
 import { API_URL } from '../config';
+import { clearCart } from '../store/cartSlice';
 
 export const Account: React.FC = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
   const [user, setUser] = useState<any | null>(null);
   const [orders, setOrders] = useState<any[]>([]);
   const [loadingOrders, setLoadingOrders] = useState(false);
@@ -97,6 +100,7 @@ export const Account: React.FC = () => {
   const handleLogout = () => {
     localStorage.removeItem('uns_current_user');
     localStorage.removeItem('uns_token');
+    dispatch(clearCart());
     window.dispatchEvent(new Event('authChange'));
     navigate('/');
   };

@@ -1,11 +1,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { clearCart } from '../store/cartSlice';
 import type { RootState } from '../store';
 import { ShoppingCart, Menu, X, Search, ChevronDown, User } from 'lucide-react';
 import logoImg from '../assets/logo.png';
 
 export const Navbar: React.FC = () => {
+  const dispatch = useDispatch();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [categoriesOpen, setCategoriesOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -53,7 +55,9 @@ export const Navbar: React.FC = () => {
 
   const handleLogout = () => {
     localStorage.removeItem('uns_current_user');
+    localStorage.removeItem('uns_token');
     setCurrentUser(null);
+    dispatch(clearCart());
     navigate('/');
     window.dispatchEvent(new Event('authChange'));
   };
