@@ -1295,6 +1295,10 @@ app.get('/api/orders/track', async (req: Request, res: Response) => {
     // Run auto-healing
     await syncPaymentStatusIfUnpaid(order);
     
+    if (order.paymentStatus === 'Unpaid') {
+      return res.status(404).json({ error: 'No order found matching the provided details.' });
+    }
+    
     res.json(parseOrderFields(order));
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET track order:', err.message);
@@ -1308,6 +1312,10 @@ app.get('/api/orders/track', async (req: Request, res: Response) => {
 
     // Run auto-healing on local memory fallback
     await syncPaymentStatusIfUnpaid(order);
+
+    if (order.paymentStatus === 'Unpaid') {
+      return res.status(404).json({ error: 'No order found matching the provided details.' });
+    }
 
     res.json(parseOrderFields(order));
   }
@@ -1328,6 +1336,7 @@ app.get('/api/orders/my-orders', async (req: Request, res: Response) => {
     if (error) throw error;
 
     const filtered = data.filter(o => {
+      if (o.paymentStatus === 'Unpaid') return false;
       const matchesPhone = phone 
         ? o.customerPhone.replace(/[^0-9]/g, '').endsWith((phone as string).replace(/[^0-9]/g, '').slice(-10))
         : false;
@@ -1342,6 +1351,7 @@ app.get('/api/orders/my-orders', async (req: Request, res: Response) => {
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET my-orders:', err.message);
     const filtered = ordersState.filter(o => {
+      if (o.paymentStatus === 'Unpaid') return false;
       const matchesPhone = phone 
         ? o.customerPhone.replace(/[^0-9]/g, '').endsWith((phone as string).replace(/[^0-9]/g, '').slice(-10))
         : false;
@@ -1359,11 +1369,13 @@ app.get('/api/admin/orders', async (req: Request, res: Response) => {
   try {
     const { data, error } = await supabase.from('orders').select('*').order('createdAt', { ascending: false });
     if (error) throw error;
-    const parsed = data.map(parseOrderFields);
+    const filtered = data.filter(o => o.paymentStatus !== 'Unpaid');
+    const parsed = filtered.map(parseOrderFields);
     res.json(parsed);
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET admin orders:', err.message);
-    const parsed = ordersState.map(parseOrderFields);
+    const filtered = ordersState.filter(o => o.paymentStatus !== 'Unpaid');
+    const parsed = filtered.map(parseOrderFields);
     res.json(parsed);
   }
 });
@@ -1484,7 +1496,7 @@ app.get('/api/admin/dashboard', async (req: Request, res: Response) => {
 
   try {
     const { data: ords } = await supabase.from('orders').select('*');
-    allOrders = ords || [];
+    allOrders = (ords || []).filter(o => o.paymentStatus !== 'Unpaid');
 
     const { count: prodCount } = await supabase.from('products').select('*', { count: 'exact', head: true });
     allProductsCount = prodCount || 0;
@@ -1493,7 +1505,7 @@ app.get('/api/admin/dashboard', async (req: Request, res: Response) => {
     unreadEnquiriesCount = enqCount || 0;
   } catch (err: any) {
     console.warn('[Supabase Fallback] GET dashboard stats:', err.message);
-    allOrders = [...ordersState];
+    allOrders = [...ordersState].filter(o => o.paymentStatus !== 'Unpaid');
     allProductsCount = productsState.length;
     unreadEnquiriesCount = enquiriesState.filter(e => e.status === 'Unread').length;
   }
