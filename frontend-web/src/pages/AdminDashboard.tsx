@@ -802,7 +802,7 @@ export const AdminDashboard: React.FC = () => {
     setFormCustomStockStatus(prod.specifications?.customStockStatus || '');
 
     // Extract custom specification field
-    const standardKeys = ['Volume', 'Form', 'variants', 'stockStatus', 'customStockStatus'];
+    const standardKeys = ['Volume', 'Form', 'variants', 'stockStatus', 'customStockStatus', 'deliveryCharge'];
     const customKey = Object.keys(prod.specifications || {}).find(key => !standardKeys.includes(key));
     if (customKey) {
       setFormCustomSpecName(customKey);
