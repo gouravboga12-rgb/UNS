@@ -928,15 +928,19 @@ export const AdminDashboard: React.FC = () => {
           body: JSON.stringify(updated)
         });
         if (res.ok) {
-          // Update local Redux store on success
-          dispatch(updateProductLocally(updated));
+          // Use server-returned data (not local object) so the form re-opens with accurate saved values
+          const serverData = await res.json();
+          dispatch(updateProductLocally(serverData));
+          // Re-fetch all products from backend to sync admin panel and user-facing pages
+          dispatch(fetchProducts() as any);
+          setShowProductModal(false);
           alert('Product updated successfully!');
         } else {
           const errData = await res.json().catch(() => ({}));
           alert(`Failed to save product: ${errData.error || res.statusText}\n\nPlease try again.`);
         }
       } catch (err) {
-        // Network error
+        // Network error — update locally only
         dispatch(updateProductLocally(updated));
         console.warn('[Product Update] Network error:', err);
         alert('Product updated locally. Changes will sync when connection is restored.');

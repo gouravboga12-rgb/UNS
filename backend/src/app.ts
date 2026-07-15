@@ -476,8 +476,8 @@ app.put('/api/products/:id', async (req: Request, res: Response) => {
   const body = req.body;
   const updatedPayload = {
     ...body,
-    price: body.price ? Number(body.price) : undefined,
-    discountPrice: body.discountPrice ? Number(body.discountPrice) : undefined,
+    price: body.price !== undefined && body.price !== '' ? Number(body.price) : undefined,
+    discountPrice: body.discountPrice !== undefined && body.discountPrice !== '' ? Number(body.discountPrice) : undefined,
     stock: body.stock !== undefined ? Number(body.stock) : undefined,
   };
 
